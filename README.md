@@ -69,6 +69,13 @@ end the citation at that character and leave the rest as stray text in your sent
 
 ## Settings
 
+- **Show citations in style** — the note always keeps the pandoc citation, and that is
+  what pandoc sees when the document is built. The default is `Leave as written`. Choose
+  one of the styles installed in Zotero and reading view and live preview will draw
+  `(Doe, 2020, p. 33)` where the note says `[@doe2020, p. 33]`, as that style writes it.
+  The note itself does not change: put the cursor inside a citation and it shows itself as
+  it is. The list of styles is read from Zotero's data folder when Obsidian starts, so a
+  style you have just installed appears after a restart.
 - **Wrap citations in brackets** — on by default. Turn it off to insert
   `@doe2020, p. 33` without the brackets around it.
 - **Zotero port** — `23119`, which is where Zotero listens. The Zotero beta runs its
@@ -107,6 +114,10 @@ The window is Zotero's own, not Zoterik's, so where it opens is Zotero's to deci
   is not installed in it, or it is the beta and the port setting still says `23119`.
 - **"Better BibTeX is still starting up."** It is indexing the library after launch, which
   a large one takes a moment over. Try again.
+- **A citation is not being styled.** The rendering takes its data from Zotero, so with
+  Zotero closed a citation stays as the note writes it. The same happens when Better
+  BibTeX does not know the citation key — one typed by hand, say, or one whose item has
+  been removed from the library.
 - **Nothing at all, no message.** The citation window was closed without picking
   anything, which is not an error.
 
@@ -123,3 +134,10 @@ npm test
 ## License
 
 [AGPL-3.0](LICENSE).
+
+The build includes [citeproc-js][citeproc] (CPAL-1.0 / AGPL), which does the rendering —
+the same engine Zotero and pandoc run — and the CSL locale files (CC BY-SA 3.0) from
+[citation-style-language/locales][locales].
+
+[citeproc]: https://github.com/Juris-M/citeproc-js
+[locales]: https://github.com/citation-style-language/locales

@@ -34,8 +34,10 @@ const ENDPOINT = "/better-bibtex/cayw";
  */
 const USER_AGENT = "Zoterik";
 
-/** Sent with every request. See `USER_AGENT`. */
-const HEADERS: Record<string, string> = { "User-Agent": USER_AGENT };
+/** Sent with every request the plugin makes to Zotero. See `USER_AGENT`. */
+export const REQUEST_HEADERS: Record<string, string> = {
+	"User-Agent": USER_AGENT,
+};
 
 /**
  * How long the probe waits. It answers from a local server that has the answer
@@ -93,7 +95,7 @@ export async function probeZotero(port: number): Promise<ZoteroStatus> {
 			requestUrl({
 				url: endpointUrl(port, { probe: "true" }),
 				method: "GET",
-				headers: HEADERS,
+				headers: REQUEST_HEADERS,
 				throw: false,
 			}),
 			PROBE_TIMEOUT_MS
@@ -125,6 +127,10 @@ function pickParams(options: PickOptions): Record<string, string> {
 	// `format=pick` hands back the picked citations as JSON and formats
 	// nothing; `src/pandoc.ts` does that. Without it the endpoint defaults to
 	// LaTeX.
+	//
+	// Asking the endpoint to format is deliberately not done. What goes into
+	// the note is the pandoc citation, always; a style is applied to what the
+	// reader sees, by `src/render.ts`, and never to what is written down.
 	const params: Record<string, string> = { format: "pick" };
 	// Every parameter arrives at Zotero as a string and is read for truth, so
 	// `selected=false` is as true as `selected=true`. A flag is sent only when
@@ -197,18 +203,20 @@ export function citable(citations: Citation[]): Citation[] {
 }
 
 /**
- * Opens Zotero's citation window and waits for it. Rejects with `CaywError` if
- * the endpoint is unreachable or answers something that is not a pick.
+ * Opens Zotero's citation window and waits for it, answering with the body the
+ * endpoint sent. Rejects with `CaywError` if the endpoint is unreachable or
+ * refuses the request.
  */
-export async function pickCitations(
-	options: PickOptions
-): Promise<Citation[]> {
+async function requestPick(
+	options: PickOptions,
+	params: Record<string, string>
+): Promise<string> {
 	let response;
 	try {
 		response = await requestUrl({
-			url: endpointUrl(options.port, pickParams(options)),
+			url: endpointUrl(options.port, params),
 			method: "GET",
-			headers: HEADERS,
+			headers: REQUEST_HEADERS,
 			// Read the body of a failure rather than an exception about it:
 			// the endpoint puts the reason in the body it answers with.
 			throw: false,
@@ -220,5 +228,12 @@ export async function pickCitations(
 	if (response.status !== 200) {
 		throw new CaywError(response.text.trim());
 	}
-	return parseCitations(response.text);
+	return response.text;
+}
+
+/** The pick as data, for `src/pandoc.ts` to write. */
+export async function pickCitations(
+	options: PickOptions
+): Promise<Citation[]> {
+	return parseCitations(await requestPick(options, pickParams(options)));
 }

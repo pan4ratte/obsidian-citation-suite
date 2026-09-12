@@ -27,6 +27,21 @@ export interface Citation {
 	note?: string;
 }
 
+/**
+ * One citation style Zotero has installed, as its CSL file declares itself.
+ */
+export interface CitationStyle {
+	/**
+	 * What Zotero is asked for the style by: a `zotero.org/styles/…` URL for a
+	 * style Zotero distributes, a bare UUID for one written by hand.
+	 */
+	id: string;
+	/** The style's own name, as Zotero's settings list it. */
+	title: string;
+	/** The CSL file it was read from, for citeproc to be given the whole of. */
+	path: string;
+}
+
 export interface ZoterikSettings {
 	/**
 	 * The port Zotero's local HTTP server listens on. 23119 for Zotero, 24119
@@ -36,6 +51,11 @@ export interface ZoterikSettings {
 	port: number;
 	/** Wrap a parenthetical citation in `[ ]`, which is what pandoc reads as one. */
 	brackets: boolean;
+	/**
+	 * The `id` of the style Zotero renders the citation in, or the empty string
+	 * — the default — for a pandoc citation written by the plugin itself.
+	 */
+	citationStyle: string;
 	/** Minimize Zotero's window once the pick is done, handing focus back. */
 	minimizeZotero: boolean;
 	/** The version whose changelog banner has been dismissed. Never drawn as a setting. */
@@ -45,6 +65,7 @@ export interface ZoterikSettings {
 export const DEFAULT_SETTINGS: ZoterikSettings = {
 	port: 23119,
 	brackets: true,
+	citationStyle: "",
 	minimizeZotero: false,
 	dismissedChangelogVersion: "",
 };

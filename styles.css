@@ -230,3 +230,25 @@ body .zoterik-changelog-close:hover {
 	margin: 20px 0;
 	border-color: var(--background-modifier-border);
 }
+
+/*
+ * A citation drawn in its style, standing where the note's pandoc citation is.
+ * It is the note's own text to the reader, so it takes the colour of body text
+ * and nothing else; the dotted underline is the whole of the hint that there is
+ * something underneath it to look at.
+ */
+.zoterik-citation {
+	color: var(--text-normal);
+	border-bottom: 1px dotted var(--text-faint);
+	cursor: default;
+}
+
+/* citeproc marks emphasis and small caps in the citation it writes. */
+.zoterik-citation i,
+.zoterik-citation em {
+	font-style: italic;
+}
+
+.zoterik-citation span[style*="small-caps"] {
+	font-variant: small-caps;
+}

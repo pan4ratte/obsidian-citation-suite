@@ -29,6 +29,10 @@ export default {
 
 	// ─── Settings ────────────────────────────────────────────────────────────
 	SECTION_CITATION: "Citation format",
+	SETTING_STYLE_NAME: "Show citations in style",
+	SETTING_STYLE_DESC:
+		"The note always keeps the pandoc citation, and that is what pandoc sees when the document is built. Choose one of the styles installed in Zotero and reading view and live preview will draw the citation as that style writes it instead. The note itself is unchanged: put the cursor inside one to see it as it is.",
+	SETTING_STYLE_PANDOC: "Leave as written",
 	SETTING_BRACKETS_NAME: "Wrap citations in brackets",
 	SETTING_BRACKETS_DESC:
 		"A citation is inserted as [@doe2020, p. 33], which is how pandoc reads a citation in parentheses. Turn this off to insert the same citation without its brackets.",

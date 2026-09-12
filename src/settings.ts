@@ -47,6 +47,35 @@ export class ZoterikSettingTab extends PluginSettingTab {
 	async setControlValue(key: string, value: unknown): Promise<void> {
 		asIndexable(this.plugin.settings)[key] = value;
 		await this.plugin.saveSettings();
+		if (key === "citationStyle" || key === "port") {
+			// Both change what the citations already on screen should look
+			// like, and neither redraws them on its own.
+			await this.plugin.restyle();
+		}
+	}
+
+	/**
+	 * What the style dropdown offers: not rendering at all first, because that
+	 * is the default and the only entry that is not a style, then every style
+	 * Zotero has, by title.
+	 *
+	 * A style that was chosen and has since been uninstalled from Zotero is
+	 * kept in the list under its bare id. It reads badly, which is the point:
+	 * the alternative is a dropdown that quietly shows the reader a setting
+	 * they never chose.
+	 */
+	private styleOptions(): Record<string, string> {
+		const options: Record<string, string> = {
+			"": t.SETTING_STYLE_PANDOC,
+		};
+		for (const style of this.plugin.styles) {
+			options[style.id] = style.title;
+		}
+		const chosen = this.plugin.settings.citationStyle;
+		if (chosen && !(chosen in options)) {
+			options[chosen] = chosen;
+		}
+		return options;
 	}
 
 	/**
@@ -149,6 +178,15 @@ export class ZoterikSettingTab extends PluginSettingTab {
 				cls: "zoterik-settings-rows",
 				heading: t.SECTION_CITATION,
 				items: [
+					{
+						name: t.SETTING_STYLE_NAME,
+						desc: t.SETTING_STYLE_DESC,
+						control: {
+							type: "dropdown",
+							key: "citationStyle",
+							options: this.styleOptions(),
+						},
+					},
 					{
 						name: t.SETTING_BRACKETS_NAME,
 						desc: t.SETTING_BRACKETS_DESC,

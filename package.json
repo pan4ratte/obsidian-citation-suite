@@ -16,6 +16,8 @@
 	"license": "AGPL-3.0",
 	"type": "commonjs",
 	"devDependencies": {
+		"@codemirror/state": "^6.5.0",
+		"@codemirror/view": "^6.38.6",
 		"@types/node": "^24.13.3",
 		"esbuild": "^0.28.1",
 		"eslint": "^10.8.0",
@@ -39,5 +41,8 @@
 	"bugs": {
 		"url": "https://github.com/pan4ratte/obsidian-zoterik/issues"
 	},
-	"homepage": "https://github.com/pan4ratte/obsidian-zoterik#readme"
+	"homepage": "https://github.com/pan4ratte/obsidian-zoterik#readme",
+	"dependencies": {
+		"citeproc": "^2.4.63"
+	}
 }

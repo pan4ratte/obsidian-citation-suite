@@ -25,7 +25,7 @@ const context = await esbuild.context({
 	// The changelogs are imported as text and shipped inside main.js, and both
 	// are mostly non-ASCII; escaping them would triple their size.
 	charset: "utf8",
-	loader: { ".md": "text" },
+	loader: { ".md": "text", ".xml": "text" },
 	outfile: "main.js",
 	sourcemap: prod ? false : "inline",
 	treeShaking: true,
