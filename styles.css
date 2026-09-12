@@ -1,0 +1,154 @@
+/* Ordered as the settings tab is: the header row the plugin's name stands in,
+   the changelog banner drawn under it, then the changelog window that banner
+   opens. Every setting below them is a plain 1.13 control, drawn by Obsidian
+   and styled by Obsidian — there is nothing here for those. */
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Settings tab — the header row
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* The row carrying the plugin's name and description is a host for the banner
+   rather than a setting: the name and description read as a heading, and the
+   banner goes underneath them across the full width. The row has no control, so
+   the space a control would sit in is taken back.
+
+   Scoped to this plugin's own row, since styles.css is loaded app-wide. */
+.zoterik-banner-row.setting-item {
+	display: block;
+	border-top: none;
+	padding-top: 0;
+}
+
+.zoterik-banner-row > .setting-item-info {
+	margin-right: 0;
+}
+
+.zoterik-banner-row > .setting-item-control {
+	display: none;
+}
+
+.zoterik-banner-row .setting-item-name {
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-semibold);
+}
+
+.zoterik-banner-row .setting-item-description {
+	padding-top: 8px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Settings tab — changelog banner
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* A row of its own under the plugin's name, drawn as the setting cards around
+   it are so that it reads as part of the tab rather than as a notice pasted
+   over it. It is gone the moment it is dismissed, so nothing below it moves
+   while it is being read. */
+.zoterik-changelog-banner {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-top: var(--size-4-3);
+	padding: 12px 16px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background-color: var(--background-secondary);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+}
+
+.zoterik-changelog-banner-text {
+	flex: 1;
+}
+
+/* A button, because it opens a modal rather than going anywhere, and Obsidian
+   styles a bare `button` as a raised control. Everything that makes it one is
+   taken back off, leaving the accent-coloured link it looks like. `body` wins
+   the specificity of the app's own `button` rule. */
+body .zoterik-changelog-version {
+	height: auto;
+	padding: 0;
+	margin: 0;
+	border: none;
+	box-shadow: none;
+	background: none;
+	color: var(--text-accent);
+	font-family: inherit;
+	font-size: inherit;
+	font-weight: var(--font-semibold);
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+body .zoterik-changelog-version:hover {
+	background: none;
+	box-shadow: none;
+	color: var(--text-accent-hover);
+}
+
+body .zoterik-changelog-close {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	width: 22px;
+	height: 22px;
+	padding: 2px;
+	border: none;
+	box-shadow: none;
+	background: none;
+	border-radius: var(--radius-s);
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+body .zoterik-changelog-close:hover {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Changelog modal
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* The sizes and the spacing are the ones the sibling Classy PDF Extractor and
+   Publish to Telegram plugins use for the same window, replicated value for
+   value so that the changelogs of all three read alike. The window deliberately
+   carries no `markdown-rendered` class — that one sizes rendered markdown for
+   reading a note, which is far larger than the settings this window is opened
+   from, and it would override every size below. */
+.zoterik-changelog-modal {
+	max-width: 680px;
+}
+
+.zoterik-changelog-modal h2 {
+	margin-top: 0;
+	margin-bottom: 12px;
+	font-size: var(--font-ui-large);
+}
+
+.zoterik-changelog-modal h3 {
+	margin-top: 20px;
+	margin-bottom: 8px;
+	font-size: var(--font-ui-medium);
+	color: var(--text-normal);
+}
+
+.zoterik-changelog-modal p,
+.zoterik-changelog-modal li {
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	line-height: var(--line-height-normal);
+}
+
+.zoterik-changelog-modal ul,
+.zoterik-changelog-modal ol {
+	padding-left: 20px;
+	margin-bottom: 12px;
+}
+
+.zoterik-changelog-modal hr {
+	margin: 20px 0;
+	border-color: var(--background-modifier-border);
+}

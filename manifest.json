@@ -1,0 +1,10 @@
+{
+	"id": "zoterik",
+	"name": "Zoterik",
+	"version": "1.0.0",
+	"minAppVersion": "1.13.0",
+	"description": "Cite your Zotero library from a note: a hotkey opens Zotero's citation window, and the pick is inserted as a pandoc citation.",
+	"author": "pan4ratte",
+	"authorUrl": "https://github.com/pan4ratte",
+	"isDesktopOnly": true
+}

@@ -1,0 +1,29 @@
+{
+	"compilerOptions": {
+		// `baseUrl` is deprecated in TypeScript 6 and gone in 7. These two
+		// entries are what it was doing here: letting src/ files import each
+		// other and the locale helpers by package-root path instead of
+		// relative walks.
+		"paths": {
+			"src/*": ["./src/*"],
+			"lang/*": ["./lang/*"]
+		},
+		"target": "ESNext",
+		"module": "ESNext",
+		// esbuild is the only thing that resolves these imports for the shipped
+		// bundle, so `bundler` is the mode that matches reality.
+		"moduleResolution": "bundler",
+		"strict": true,
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"lib": ["DOM", "ESNext"],
+		"importHelpers": true,
+		"isolatedModules": true,
+		"noEmit": true
+	},
+	// `*.mts` is the vitest config. It is in the program so that the
+	// type-checked lint rules have something to read for it: left out, they do
+	// not report on it, they fail to load.
+	"include": ["**/*.ts", "*.mts"],
+	"exclude": ["node_modules"]
+}

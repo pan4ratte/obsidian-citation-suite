@@ -1,0 +1,48 @@
+name: CI
+
+# Lint, tests and type-check on every push and pull request. The release
+# workflow (main.yml) only fires when manifest.json's version changes, so
+# without this nothing checks a normal commit.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # `obsidian` is the dependency every file imports from, and the one whose
+      # version is pinned to match `minAppVersion`. A nested copy left behind at
+      # an older version reports here as `invalid:` rather than as a wall of
+      # type errors in source that is fine.
+      - name: Verify the obsidian types resolved
+        run: npm ls obsidian
+
+      - name: Lint
+        run: npm run lint -- --max-warnings 0
+
+      - name: Test
+        run: npm test
+
+      # Type-checks with tsc and then bundles, which is what the release does
+      # too — so a release never bundles something CI has not built first.
+      - name: Build
+        run: npm run build
