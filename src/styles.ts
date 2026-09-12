@@ -133,6 +133,32 @@ export function parseStyle(csl: string, path = ""): CitationStyle | null {
 	return id && title ? { id, title, path } : null;
 }
 
+/**
+ * The elements that write a numbered style's number: `citation-number` printed
+ * as text or as a number, with the affixes that frame it — `[1]`, `1.` — which
+ * are attributes of the same element and go with it. A CSL `<text>` or
+ * `<number>` holds nothing, so it is closed where it opens, or closed at once.
+ * Sorting by the number (`<key>`) and testing for it (`<if>`) are left alone:
+ * neither writes anything.
+ */
+const CITATION_NUMBER =
+	/<(text|number)\b[^>]*\bvariable\s*=\s*(["'])citation-number\2[^>]*?(?:\/>|>\s*<\/\1\s*>)/g;
+
+/**
+ * The style with its numbers taken out, for writing a bibliography entry that
+ * stands on its own. `second-field-align` goes too: it sets the number apart
+ * from the rest of the entry, and with the number gone it would set apart the
+ * author instead.
+ */
+export function withoutCitationNumbers(csl: string): string {
+	return csl
+		.replace(CITATION_NUMBER, "")
+		.replace(
+			/(<bibliography\b[^>]*?)\s+second-field-align\s*=\s*(["'])[^"']*\2/,
+			"$1"
+		);
+}
+
 /** The whole of a style's file, which is what citeproc has to be given. */
 export async function readStyleFile(style: CitationStyle): Promise<string> {
 	return readFile(style.path, "utf8");

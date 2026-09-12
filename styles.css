@@ -252,3 +252,20 @@ body .zoterik-changelog-close:hover {
 .zoterik-citation span[style*="small-caps"] {
 	font-variant: small-caps;
 }
+
+/*
+ * The bibliography behind a citation, shown on hover. Obsidian centres every
+ * tooltip and stops it at 300px, which suits a label of a few words; an entry is
+ * a sentence or two, one source after another, and reads as a reference list
+ * only aligned left and given the room to run. The width never goes past the
+ * window, less a margin either side.
+ *
+ * `pretty` evens out the ragged edge and keeps a lone word off the last line.
+ * The entry's own non-breaking spaces (`src/typography.ts`) already see to the
+ * breaks that matter most; this is the browser doing the rest where it can.
+ */
+.tooltip.zoterik-citation-tooltip {
+	max-width: min(500px, calc(100vw - 32px));
+	text-align: left;
+	text-wrap: pretty;
+}

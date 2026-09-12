@@ -40,6 +40,13 @@ declare module "citeproc" {
 			citationsPost: [string, number][],
 			format: string
 		): string;
+		/** What everything after this is written as: "html", "text", "rtf". */
+		setOutputFormat(format: string): void;
+		/**
+		 * The bibliography of every item `updateItems` was last given, one
+		 * string per entry — or `false` for a style that has no bibliography.
+		 */
+		makeBibliography(): [Record<string, unknown>, string[]] | false;
 	}
 }
 

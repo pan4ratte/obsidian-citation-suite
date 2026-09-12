@@ -2,6 +2,8 @@ import { Engine } from "citeproc";
 import { requestUrl } from "obsidian";
 import { REQUEST_HEADERS } from "src/cayw";
 import { CitationGroup } from "src/citation";
+import { withoutCitationNumbers } from "src/styles";
+import { tooltipEntry } from "src/typography";
 import { CitationStyle } from "src/types";
 import localeEnUs from "../locales/locales-en-US.xml";
 import localeRuRu from "../locales/locales-ru-RU.xml";
@@ -33,6 +35,33 @@ const LOCALES: Record<string, string> = {
 
 /** CSL's own fallback, and the one every style can be rendered with. */
 const FALLBACK_LOCALE = "en-US";
+
+/**
+ * The two engines one style is rendered with.
+ *
+ * The bibliography gets an engine of its own because it is shown on its own: a
+ * tooltip over one citation is not a reference list, and the number a numbered
+ * style starts each entry with would only be the source's place among the
+ * handful this citation happens to name. citeproc has no switch to leave the
+ * number out, so the second engine runs the style with the number taken out of
+ * it — and, not being used for anything else, writes plain text for good.
+ */
+export interface StyleEngines {
+	citation: Engine;
+	/** `null` if the style would not run with its numbers taken out. */
+	bibliography: Engine | null;
+}
+
+/** A group as the style writes it: the citation, and the sources it cites. */
+export interface RenderedCitation {
+	/** The citation, in citeproc's HTML. */
+	html: string;
+	/**
+	 * The bibliography entry of every source in the group, as plain text and
+	 * one per line. Empty when the style has no bibliography to write.
+	 */
+	bibliography: string;
+}
 
 /** One item as Better BibTeX exports it, keyed by the citation key. */
 interface CslItem {
@@ -82,6 +111,28 @@ async function fetchItems(
 }
 
 /**
+ * The bibliography entries of the items, as plain text and one per line — or an
+ * empty string for a style without a bibliography, or one citeproc fails to
+ * write. Plain text because it is read in a tooltip, which shows an attribute's
+ * text and nothing else; the engine is expected to be writing text already.
+ */
+function bibliography(engine: Engine, ids: string[]): string {
+	try {
+		engine.updateItems(ids);
+		const written = engine.makeBibliography();
+		if (!written) {
+			return "";
+		}
+		return written[1]
+			.map(tooltipEntry)
+			.filter((entry) => entry.length > 0)
+			.join("\n");
+	} catch {
+		return "";
+	}
+}
+
+/**
  * A style that only names another one has no rules of its own to render with,
  * and the parent's are the ones Zotero would use. The href is the parent's id,
  * which is how every style is keyed.
@@ -103,7 +154,7 @@ export class CitationRenderer {
 	private items = new Map<string, CslItem>();
 	/** Keys Better BibTeX has no item for. Asked once, then left alone. */
 	private unknown = new Set<string>();
-	private engine: Engine | null = null;
+	private engine: StyleEngines | null = null;
 	private engineStyle = "";
 
 	constructor(
@@ -181,7 +232,7 @@ export class CitationRenderer {
 		];
 	}
 
-	private async buildEngine(styleId: string): Promise<Engine | null> {
+	private async buildEngine(styleId: string): Promise<StyleEngines | null> {
 		let style = this.styles.find((candidate) => candidate.id === styleId);
 		if (!style) {
 			return null;
@@ -213,17 +264,29 @@ export class CitationRenderer {
 			retrieveItem: (id: string): unknown =>
 				this.items.get(id) ?? { id, type: "document" },
 		};
+		let citation: Engine;
 		try {
-			return new Engine(sys, csl, locale);
+			citation = new Engine(sys, csl, locale);
 		} catch {
 			// Not a style citeproc can run. Nothing is rendered, and the note
 			// goes on reading as the pandoc citation it holds.
 			return null;
 		}
+
+		let bibliography: Engine | null = null;
+		try {
+			bibliography = new Engine(sys, withoutCitationNumbers(csl), locale);
+			bibliography.setOutputFormat("text");
+		} catch {
+			// The citations still render; their tooltips fall back to the
+			// note's text.
+			bibliography = null;
+		}
+		return { citation, bibliography };
 	}
 
 	/** The engine for a style, built once and kept until the style changes. */
-	async engineFor(styleId: string): Promise<Engine | null> {
+	async engineFor(styleId: string): Promise<StyleEngines | null> {
 		if (this.engine && this.engineStyle === styleId) {
 			return this.engine;
 		}
@@ -248,30 +311,34 @@ export class CitationRenderer {
 	}
 
 	/**
-	 * The group in the prepared style, synchronously — an empty string if the
-	 * style is not prepared yet or the items are not in hand. Both are ordinary
-	 * and neither is an error: the citation stays as the note wrote it, and the
+	 * The group in the prepared style, synchronously — `null` if the style is
+	 * not prepared yet or the items are not in hand. Both are ordinary and
+	 * neither is an error: the citation stays as the note wrote it, and the
 	 * caller asks again once the loading it started has finished.
 	 */
-	renderWith(styleId: string, group: CitationGroup): string {
+	renderWith(styleId: string, group: CitationGroup): RenderedCitation | null {
 		const engine =
 			this.engine && this.engineStyle === styleId ? this.engine : null;
-		return engine ? this.render(engine, group) : "";
+		return engine ? this.render(engine, group) : null;
 	}
 
 	/**
-	 * The group as the style writes it, or an empty string when it cannot be
-	 * written — an unknown key, a style that will not load. Nothing rendered
-	 * leaves the pandoc citation standing, which is the honest thing to show
-	 * when the rendering is not to be had.
+	 * The group as the style writes it, or `null` when it cannot be written —
+	 * an unknown key, a style that will not load. Nothing rendered leaves the
+	 * pandoc citation standing, which is the honest thing to show when the
+	 * rendering is not to be had.
 	 */
-	render(engine: Engine, group: CitationGroup): string {
+	render(
+		engines: StyleEngines,
+		group: CitationGroup
+	): RenderedCitation | null {
 		if (!this.known(group)) {
-			return "";
+			return null;
 		}
+		const ids = group.citations.map((citation) => citation.id);
 		try {
-			engine.updateItems(group.citations.map((citation) => citation.id));
-			return engine
+			engines.citation.updateItems(ids);
+			const html = engines.citation
 				.previewCitationCluster(
 					{
 						citationItems: group.citations.map((citation) => ({
@@ -290,8 +357,16 @@ export class CitationRenderer {
 					"html"
 				)
 				.trim();
+			return html
+				? {
+						html,
+						bibliography: engines.bibliography
+							? bibliography(engines.bibliography, ids)
+							: "",
+					}
+				: null;
 		} catch {
-			return "";
+			return null;
 		}
 	}
 }

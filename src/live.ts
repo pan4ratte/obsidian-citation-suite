@@ -8,10 +8,9 @@ import {
 	ViewUpdate,
 	WidgetType,
 } from "@codemirror/view";
-import { sanitizeHTMLToDom } from "obsidian";
 import { parseGroups } from "src/citation";
-import { RENDERED_CLASS } from "src/reading";
-import { CitationRenderer } from "src/render";
+import { citationEl } from "src/reading";
+import { CitationRenderer, RenderedCitation } from "src/render";
 
 /**
  * Showing citations in their style while the note is being written.
@@ -39,21 +38,22 @@ export interface LiveContext {
 
 class CitationWidget extends WidgetType {
 	constructor(
-		private html: string,
+		private rendered: RenderedCitation,
 		private source: string
 	) {
 		super();
 	}
 
 	eq(other: CitationWidget): boolean {
-		return other.html === this.html && other.source === this.source;
+		return (
+			other.rendered.html === this.rendered.html &&
+			other.rendered.bibliography === this.rendered.bibliography &&
+			other.source === this.source
+		);
 	}
 
 	toDOM(): HTMLElement {
-		const span = createSpan({ cls: RENDERED_CLASS });
-		span.appendChild(sanitizeHTMLToDom(this.html));
-		span.setAttribute("aria-label", this.source);
-		return span;
+		return citationEl(this.rendered, this.source);
 	}
 
 	/** Clicking it should put the cursor in the citation, not select a widget. */
@@ -119,11 +119,11 @@ export function citationExtension(context: LiveContext) {
 							);
 							continue;
 						}
-						const html = context.renderer.renderWith(
+						const rendered = context.renderer.renderWith(
 							styleId,
 							group
 						);
-						if (!html) {
+						if (!rendered) {
 							continue;
 						}
 						builder.add(
@@ -131,7 +131,7 @@ export function citationExtension(context: LiveContext) {
 							end,
 							Decoration.replace({
 								widget: new CitationWidget(
-									html,
+									rendered,
 									text.slice(group.from, group.to)
 								),
 							})
