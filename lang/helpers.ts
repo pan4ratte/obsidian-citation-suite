@@ -13,7 +13,8 @@ const localeMap: { [key: string]: typeof en } = {
 	ru,
 };
 
-const lang = moment.locale();
+/** The interface language, as Obsidian reports it: `en`, `ru`, … */
+export const lang = moment.locale();
 export const t = localeMap[lang] || localeMap.en;
 
 // CHANGELOG_RU.md is the original — the release notes are written there first

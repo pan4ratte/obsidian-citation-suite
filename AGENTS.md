@@ -112,6 +112,27 @@ under them, and the empty control block is hidden. A choice goes through
 control's change goes. A click saves at once; the arrow keys save once they
 stop, so walking down the list does not restyle every open note on each step.
 
+Under the list is the **style preview**, `src/preview.ts`: a sentence citing a
+sample source (`src/sample.ts` — Kuhn's *Structure of Scientific Revolutions*,
+in the edition a reader of the interface language would cite) under a bar of
+icon buttons for the citation look. Every option is a button of its own in
+that bar — three colours, four underlines, bold and italic — with the ones in
+effect pressed; there are no menus to open. The sample is rendered by
+`CitationRenderer.sample()` without asking Zotero anything, and its id holds a
+space so that it can never share a key with a real source.
+
+The **citation look** — colour, underline, bold and italic — is not drawn onto
+citations. It
+is a class on the `<body>` of every window (`src/look.ts`), which styles.css
+turns into CSS variables that `.zoterik-citation` reads, so reading view, live
+preview and the settings preview all follow it and nothing is rendered again
+when it changes. A custom colour is the one value that cannot be a class, so it
+rides along as `--zoterik-citation-custom-color`. The underline takes the
+citation's colour at full strength for the accent and a custom colour, and is
+faded to `--text-faint` only in the colour of body text. The accent is the
+default. Pop-out windows get the
+classes on `window-open`, and `onunload` takes them off every window.
+
 ### How the family styles a settings tab
 
 Publish to Telegram, Pandoc GUI, Classy PDF Extractor and Advanced Word Count
@@ -205,6 +226,9 @@ src/
   pandoc.ts         — citations → pandoc syntax (pure; no Obsidian, no network)
   settings.ts       — the declarative settings tab and the changelog banner
   stylePicker.ts    — the Zotero-like list the citation style is chosen from
+  preview.ts        — the style preview and its bar of look buttons
+  sample.ts         — the source the preview cites
+  look.ts           — the citation colour and underline, as body classes
   changelogModal.ts — the changelog, rendered as markdown
   types.ts          — Citation, CitationForm, settings + defaults
 lang/

@@ -9,6 +9,7 @@ import {
 } from "src/cayw";
 import { ChangelogModal } from "src/changelogModal";
 import { citationExtension } from "src/live";
+import { applyLook, clearLook } from "src/look";
 import { formatCitations } from "src/pandoc";
 import { renderCitations } from "src/reading";
 import { CitationRenderer } from "src/render";
@@ -39,6 +40,16 @@ export default class ZoterikPlugin extends Plugin {
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
+		this.applyLook();
+		// A pop-out window has a body of its own, and a note in it is drawn
+		// there. Windows already open when the plugin loads are reached once
+		// the layout is, which is when their leaves exist.
+		this.app.workspace.onLayoutReady(() => this.applyLook());
+		this.registerEvent(
+			this.app.workspace.on("window-open", (_workspaceWindow, win) => {
+				applyLook(win.document.body, this.settings);
+			})
+		);
 		this.styles = await installedStyles();
 		this.renderer.reset(
 			this.settings.port,
@@ -89,6 +100,32 @@ export default class ZoterikPlugin extends Plugin {
 				new ChangelogModal(this.app, getChangelogContent()).open();
 			},
 		});
+	}
+
+	onunload(): void {
+		for (const doc of this.windowDocuments()) {
+			clearLook(doc.body);
+		}
+	}
+
+	/**
+	 * Puts the chosen colour and underline on every window, which is how a
+	 * rendered citation gets them — see `src/look.ts`. Cheap, and nothing has to
+	 * be drawn again, so the settings call it on every change.
+	 */
+	applyLook(): void {
+		for (const doc of this.windowDocuments()) {
+			applyLook(doc.body, this.settings);
+		}
+	}
+
+	/** The main window's document, and that of every pop-out holding a leaf. */
+	private windowDocuments(): Set<Document> {
+		const docs = new Set<Document>([activeDocument]);
+		this.app.workspace.iterateAllLeaves((leaf) => {
+			docs.add(leaf.view.containerEl.doc);
+		});
+		return docs;
 	}
 
 	async loadSettings(): Promise<void> {

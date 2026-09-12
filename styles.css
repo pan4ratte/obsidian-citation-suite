@@ -1,7 +1,7 @@
 /* Ordered as the settings tab is: the group rules that decide how a row is
    laid out, then the header the plugin's name stands in, the changelog banner
-   under it, the list the citation style is chosen from, the changelog window,
-   and last the citations drawn in a note.
+   under it, the list the citation style is chosen from and the preview under
+   that, the changelog window, and last the citations drawn in a note.
 
    Obsidian 1.13 renders a declarative tab inside setting groups: the group is
    drawn as a card and every row inside it is restyled by
@@ -262,6 +262,134 @@ body .zoterik-changelog-close:hover {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   Settings tab — style preview
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* The sample citation under the style list, in a box drawn like the list: a
+   bar with a title and the look's buttons, and a sentence under it. */
+.zoterik-style-preview {
+	flex: 1 0 100%;
+	margin-top: var(--size-4-3);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background-color: var(--background-primary);
+	overflow: hidden;
+}
+
+.zoterik-style-preview-bar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+	padding: var(--size-4-1) var(--size-4-1) var(--size-4-1) var(--size-4-3);
+	border-bottom: 1px solid var(--background-modifier-border);
+	background-color: var(--background-secondary);
+}
+
+.zoterik-style-preview-title {
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-medium);
+	color: var(--text-muted);
+}
+
+/* Every option is a button, in three groups with a rule between them. The bar
+   wraps them under its title when the settings pane is too narrow for all. */
+.zoterik-style-preview-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-2-2);
+}
+
+/* `position: relative` for the colour input, which is laid under the colour
+   buttons so that the native picker opens beside them. */
+.zoterik-style-preview-group {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-1);
+}
+
+.zoterik-style-preview-separator {
+	align-self: stretch;
+	width: 1px;
+	margin: var(--size-2-2) var(--size-2-1);
+	background-color: var(--background-modifier-border);
+}
+
+/* The options in effect. Obsidian's own pressed look for an icon button is too
+   faint to read a whole bar of them by, so the icon takes the accent too. */
+.zoterik-style-preview-group .clickable-icon.is-active {
+	color: var(--interactive-accent);
+	background-color: var(--background-modifier-hover);
+}
+
+/* The custom colour's button carries a dot of that colour while it is in use. */
+.zoterik-style-preview-custom {
+	position: relative;
+}
+
+.zoterik-style-preview-swatch {
+	display: none;
+	position: absolute;
+	right: 3px;
+	bottom: 3px;
+	width: 7px;
+	height: 7px;
+	border: 1px solid var(--background-secondary);
+	border-radius: 50%;
+	background-color: var(--zoterik-citation-custom-color);
+	pointer-events: none;
+}
+
+body.zoterik-citation-color-custom .zoterik-style-preview-swatch {
+	display: block;
+}
+
+/* The native colour input is only ever opened, never seen. */
+.zoterik-style-preview-color-input {
+	position: absolute;
+	left: 0;
+	bottom: 0;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	border: 0;
+	opacity: 0;
+	pointer-events: none;
+}
+
+/* What the theme's accent colour is read from, as a computed colour. */
+.zoterik-accent-probe {
+	position: absolute;
+	visibility: hidden;
+	color: var(--text-accent);
+}
+
+/* The sentence is set the way a note sets text, since that is where citations
+   will be read. */
+.zoterik-style-preview-body {
+	padding: var(--size-4-3) var(--size-4-4);
+}
+
+.zoterik-style-preview-text {
+	margin: 0;
+	font-family: var(--font-text);
+	font-size: var(--font-ui-medium);
+	line-height: var(--line-height-normal);
+	color: var(--text-normal);
+	user-select: text;
+}
+
+/* A citation with no style to be drawn in, shown as the note holds it. */
+.zoterik-style-preview-source {
+	font-family: var(--font-monospace);
+	font-size: 0.9em;
+	color: var(--text-muted);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    Changelog modal
    ────────────────────────────────────────────────────────────────────────── */
 
@@ -308,13 +436,62 @@ body .zoterik-changelog-close:hover {
 
 /*
  * A citation drawn in its style, standing where the note's pandoc citation is.
- * It is the note's own text to the reader, so it takes the colour of body text
- * and nothing else; the dotted underline is the whole of the hint that there is
- * something underneath it to look at.
+ * By default it is set in the theme's accent colour with a dotted underline in
+ * the same colour, which is the hint that there is something underneath it to
+ * look at.
+ *
+ * All of it can be changed from the settings preview, and the change arrives as
+ * a class on the window's body (src/look.ts) that sets one of the variables
+ * below. The line is a text decoration rather than a border, because a border
+ * cannot be wavy.
+ *
+ * The underline is drawn in the colour the citation is: the accent, or the
+ * reader's own colour, at full strength. Only in the colour of body text is it
+ * faded, where a line as dark as the text would read as a link.
  */
+body.zoterik-citation-color-accent {
+	--zoterik-citation-color: var(--text-accent);
+	--zoterik-citation-underline-color: var(--text-accent);
+}
+
+body.zoterik-citation-color-custom {
+	--zoterik-citation-color: var(--zoterik-citation-custom-color);
+	--zoterik-citation-underline-color: var(--zoterik-citation-custom-color);
+}
+
+body.zoterik-citation-underline-solid {
+	--zoterik-citation-underline-style: solid;
+}
+
+body.zoterik-citation-underline-wavy {
+	--zoterik-citation-underline-style: wavy;
+}
+
+body.zoterik-citation-underline-none {
+	--zoterik-citation-underline: none;
+}
+
+body.zoterik-citation-bold {
+	--zoterik-citation-weight: var(--bold-weight);
+}
+
+body.zoterik-citation-italic {
+	--zoterik-citation-style: italic;
+}
+
 .zoterik-citation {
-	color: var(--text-normal);
-	border-bottom: 1px dotted var(--text-faint);
+	color: var(--zoterik-citation-color, var(--text-normal));
+	font-weight: var(--zoterik-citation-weight, inherit);
+	font-style: var(--zoterik-citation-style, inherit);
+	text-decoration-line: var(--zoterik-citation-underline, underline);
+	text-decoration-style: var(--zoterik-citation-underline-style, dotted);
+	text-decoration-color: var(
+		--zoterik-citation-underline-color,
+		var(--text-faint)
+	);
+	text-decoration-thickness: 1px;
+	text-underline-offset: 0.25em;
+	text-decoration-skip-ink: none;
 	cursor: default;
 }
 
@@ -326,6 +503,14 @@ body .zoterik-changelog-close:hover {
 
 .zoterik-citation span[style*="small-caps"] {
 	font-variant: small-caps;
+}
+
+/* A title citeproc sets in italics inside a citation that is itself in
+   italics is set upright instead, the way italics are set off inside italic
+   text. */
+body.zoterik-citation-italic .zoterik-citation i,
+body.zoterik-citation-italic .zoterik-citation em {
+	font-style: normal;
 }
 
 /*

@@ -42,6 +42,9 @@ export interface CitationStyle {
 	path: string;
 }
 
+/** How a rendered citation is underlined in a note. */
+export type CitationUnderline = "dotted" | "solid" | "wavy" | "none";
+
 export interface ZoterikSettings {
 	/**
 	 * The port Zotero's local HTTP server listens on. 23119 for Zotero, 24119
@@ -56,6 +59,18 @@ export interface ZoterikSettings {
 	 * — the default — for a pandoc citation written by the plugin itself.
 	 */
 	citationStyle: string;
+	/**
+	 * The colour a rendered citation and its underline are set in: `accent` —
+	 * the default — for the theme's accent, the empty string for the colour of
+	 * body text, or a `#rrggbb` of the reader's own choosing.
+	 */
+	citationColor: string;
+	/** The line under a rendered citation, which is what marks it as one. */
+	citationUnderline: CitationUnderline;
+	/** Set a rendered citation in bold. */
+	citationBold: boolean;
+	/** Set a rendered citation in italics. */
+	citationItalic: boolean;
 	/** Minimize Zotero's window once the pick is done, handing focus back. */
 	minimizeZotero: boolean;
 	/** The version whose changelog banner has been dismissed. Never drawn as a setting. */
@@ -66,6 +81,10 @@ export const DEFAULT_SETTINGS: ZoterikSettings = {
 	port: 23119,
 	brackets: true,
 	citationStyle: "",
+	citationColor: "accent",
+	citationUnderline: "dotted",
+	citationBold: false,
+	citationItalic: false,
 	minimizeZotero: false,
 	dismissedChangelogVersion: "",
 };

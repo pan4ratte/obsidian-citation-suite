@@ -64,7 +64,7 @@ export interface RenderedCitation {
 }
 
 /** One item as Better BibTeX exports it, keyed by the citation key. */
-interface CslItem {
+export interface CslItem {
 	id: string;
 	[field: string]: unknown;
 }
@@ -320,6 +320,43 @@ export class CitationRenderer {
 		const engine =
 			this.engine && this.engineStyle === styleId ? this.engine : null;
 		return engine ? this.render(engine, group) : null;
+	}
+
+	/**
+	 * A source the plugin carries, cited on its own in a style — the settings
+	 * preview, which has to show a style without asking Zotero for anything.
+	 *
+	 * The item is handed to citeproc the way a fetched one is, by putting it
+	 * among the renderer's items, and taken out again once it is written: it
+	 * must not outlive the preview as a source a note could seem to cite.
+	 */
+	async sample(
+		styleId: string,
+		item: CslItem
+	): Promise<RenderedCitation | null> {
+		const engines = await this.engineFor(styleId);
+		if (!engines) {
+			return null;
+		}
+		this.items.set(item.id, item);
+		try {
+			return this.render(engines, {
+				from: 0,
+				to: 0,
+				citations: [
+					{
+						id: item.id,
+						locator: "",
+						label: "",
+						prefix: "",
+						suffix: "",
+						suppressAuthor: false,
+					},
+				],
+			});
+		} finally {
+			this.items.delete(item.id);
+		}
 	}
 
 	/**

@@ -50,6 +50,26 @@ export default {
 	STYLE_PICKER_EMPTY:
 		"No Zotero styles were found: either Zotero's data directory is not on this computer, or there are no styles in it.",
 
+	// ─── Preview ─────────────────────────────────────────────────────────────
+	PREVIEW_TITLE: "Preview",
+	// Followed by a space, a citation of Kuhn's "The Structure of Scientific
+	// Revolutions" and a full stop, which is why it has no punctuation of its
+	// own at the end. Nor does it name Kuhn: the citation does.
+	PREVIEW_SENTENCE:
+		"Normal science is interrupted by scientific revolutions, in which one paradigm replaces another",
+	LOOK_COLOR: "Citation color",
+	LOOK_COLOR_TEXT: "Body text color",
+	LOOK_COLOR_ACCENT: "Accent color",
+	LOOK_COLOR_CUSTOM: "Custom color…",
+	LOOK_UNDERLINE: "Citation underline",
+	LOOK_UNDERLINE_DOTTED: "Dotted underline",
+	LOOK_UNDERLINE_SOLID: "Solid underline",
+	LOOK_UNDERLINE_WAVY: "Squiggly underline",
+	LOOK_UNDERLINE_NONE: "No underline",
+	LOOK_EMPHASIS: "Citation emphasis",
+	LOOK_BOLD: "Bold",
+	LOOK_ITALIC: "Italic",
+
 	// ─── Changelog ───────────────────────────────────────────────────────────
 	// The version number is appended as a link right after this string, which
 	// is why it ends in a space and carries no punctuation of its own.

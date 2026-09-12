@@ -9,6 +9,7 @@ import {
 import { getChangelogContent, t } from "lang/helpers";
 import ZoterikPlugin from "src/main";
 import { ChangelogModal } from "src/changelogModal";
+import { renderStylePreview, StylePreview } from "src/preview";
 import { renderStylePicker, StyleChoice } from "src/stylePicker";
 import { asIndexable } from "src/types";
 
@@ -29,6 +30,8 @@ const MAX_PORT = 65535;
  */
 export class ZoterikSettingTab extends PluginSettingTab {
 	plugin: ZoterikPlugin;
+	/** The preview under the style list, while the tab is drawn. */
+	private preview: StylePreview | null = null;
 
 	constructor(app: App, plugin: ZoterikPlugin) {
 		super(app, plugin);
@@ -53,6 +56,11 @@ export class ZoterikSettingTab extends PluginSettingTab {
 			// Both change what the citations already on screen should look
 			// like, and neither redraws them on its own.
 			await this.plugin.restyle();
+		}
+		if (key === "citationStyle" || key === "brackets") {
+			// The preview shows the sample in the style, or as a note would
+			// hold it — with or without its brackets — when there is none.
+			this.preview?.refresh();
 		}
 	}
 
@@ -81,15 +89,15 @@ export class ZoterikSettingTab extends PluginSettingTab {
 	/**
 	 * The citation style row: its name and description as any setting has
 	 * them, and under them, across the whole width of the row, the list the
-	 * style is chosen from. The row's control block is left empty, and
-	 * styles.css hides it.
+	 * style is chosen from and the preview of what it makes of a citation. The
+	 * row's control block is left empty, and styles.css hides it.
 	 *
 	 * A choice goes through `setControlValue`, the same path a control's change
 	 * takes, so saving and redrawing the citations happen in one place
 	 * whichever way a setting was changed.
 	 *
-	 * `update()` runs a render again on the row it already drew, so a list left
-	 * from the last run is removed before the new one goes in.
+	 * `update()` runs a render again on the row it already drew, so a list and
+	 * a preview left from the last run are removed before the new ones go in.
 	 */
 	private styleSetting(): SettingDefinitionRender {
 		return {
@@ -98,14 +106,28 @@ export class ZoterikSettingTab extends PluginSettingTab {
 			render: (setting: Setting) => {
 				setting.settingEl.addClass("zoterik-style-setting");
 				setting.settingEl
-					.querySelector(":scope > .zoterik-style-picker")
-					?.remove();
-				return renderStylePicker(
+					.querySelectorAll(
+						":scope > .zoterik-style-picker, :scope > .zoterik-style-preview"
+					)
+					.forEach((el) => el.remove());
+				const closePicker = renderStylePicker(
 					setting.settingEl,
 					this.styleChoices(),
 					this.plugin.settings.citationStyle,
 					(id) => void this.setControlValue("citationStyle", id)
 				);
+				const preview = renderStylePreview(
+					setting.settingEl,
+					this.plugin
+				);
+				this.preview = preview;
+				return () => {
+					closePicker();
+					preview.destroy();
+					if (this.preview === preview) {
+						this.preview = null;
+					}
+				};
 			},
 		};
 	}
