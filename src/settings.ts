@@ -3,6 +3,7 @@ import {
 	PluginSettingTab,
 	Setting,
 	SettingDefinitionItem,
+	SettingDefinitionRender,
 	setIcon,
 } from "obsidian";
 import { getChangelogContent, t } from "lang/helpers";
@@ -58,21 +59,43 @@ export class ZoterikSettingTab extends PluginSettingTab {
 	 * false`; and `update()` redraws the row it already owns, so the root is
 	 * looked up before it is created rather than appended a second time.
 	 */
-	private changelogBanner(): SettingDefinitionItem {
+	private changelogBanner(): SettingDefinitionRender {
 		return {
 			name: t.PLUGIN_NAME,
 			desc: t.PLUGIN_DESCRIPTION,
 			searchable: false,
 			render: (setting: Setting) => {
-				setting.settingEl.addClass("zoterik-banner-row");
+				// The anchor idiom the sibling plugins use: the row is a host
+				// for the plugin's own DOM rather than a setting, and
+				// styles.css blanks the chrome 1.13 gives it.
+				setting.settingEl.addClass("zoterik-settings-anchor");
 				const root =
 					setting.settingEl.querySelector<HTMLElement>(
-						":scope > .zoterik-banner-root"
-					) ?? setting.settingEl.createDiv("zoterik-banner-root");
+						":scope > .zoterik-settings-root"
+					) ?? setting.settingEl.createDiv("zoterik-settings-root");
 				root.empty();
-				this.renderChangelogBanner(root);
+				this.renderHeader(root);
 			},
 		};
+	}
+
+	/**
+	 * The tab's own header: the plugin's name and what it does, with the
+	 * changelog banner under them. It is drawn rather than left to the row's
+	 * stock label so that the name reads as a heading and the banner has the
+	 * full width of the tab to stand across.
+	 */
+	private renderHeader(root: HTMLElement): void {
+		const header = root.createDiv({ cls: "zoterik-settings-header" });
+		header.createDiv({
+			cls: "zoterik-settings-title",
+			text: t.PLUGIN_NAME,
+		});
+		header.createDiv({
+			cls: "zoterik-settings-description",
+			text: t.PLUGIN_DESCRIPTION,
+		});
+		this.renderChangelogBanner(root);
 	}
 
 	private renderChangelogBanner(root: HTMLElement): void {
@@ -108,9 +131,22 @@ export class ZoterikSettingTab extends PluginSettingTab {
 
 	getSettingDefinitions(): SettingDefinitionItem[] {
 		return [
-			this.changelogBanner(),
+			// The header stands in a group of its own whose card styles.css
+			// blanks: it brings its own look, and putting it inside the first
+			// section's card would make the plugin's name read as a setting of
+			// that section.
 			{
 				type: "group",
+				cls: "zoterik-settings-group",
+				items: [this.changelogBanner()],
+			},
+			// Every setting below is a control 1.13 draws itself, so these
+			// groups keep the card Obsidian gives them. `zoterik-settings-rows`
+			// is what styles.css corrects the row layout through — see the
+			// note on it there.
+			{
+				type: "group",
+				cls: "zoterik-settings-rows",
 				heading: t.SECTION_CITATION,
 				items: [
 					{
@@ -122,6 +158,7 @@ export class ZoterikSettingTab extends PluginSettingTab {
 			},
 			{
 				type: "group",
+				cls: "zoterik-settings-rows",
 				heading: t.SECTION_CONNECTION,
 				items: [
 					{

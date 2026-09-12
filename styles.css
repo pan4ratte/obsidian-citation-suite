@@ -1,49 +1,127 @@
-/* Ordered as the settings tab is: the header row the plugin's name stands in,
-   the changelog banner drawn under it, then the changelog window that banner
-   opens. Every setting below them is a plain 1.13 control, drawn by Obsidian
-   and styled by Obsidian — there is nothing here for those. */
+/* Ordered as the settings tab is: the group rules that decide how a row is
+   laid out, then the header the plugin's name stands in, the changelog banner
+   under it, and last the changelog window that banner opens.
+
+   Obsidian 1.13 renders a declarative tab inside setting groups: the group is
+   drawn as a card and every row inside it is restyled by
+   `.setting-group .setting-item:not(.setting-item-heading)` — specificity
+   0,3,0, since `:not()` contributes its argument's weight. Two things follow,
+   and both are what the sibling Publish to Telegram, Pandoc GUI, Classy PDF
+   Extractor and Advanced Word Count plugins deal with at the top of their own
+   stylesheets:
+
+   - a group holding hand-drawn DOM has to opt out of the card, and
+   - a group whose rows Obsidian draws needs the row layout corrected.
+
+   This tab does both, and nothing more: every setting here is a control 1.13
+   draws itself, so there are no cards of this plugin's own to build.
+
+   IMPORTANT: any rule added later that re-asserts a look on one of these rows
+   ties with the ones here, so file order is what settles it. Keep such rules
+   BELOW this block. */
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Settings tab — the header row
+   Settings tab — the groups
    ────────────────────────────────────────────────────────────────────────── */
 
-/* The row carrying the plugin's name and description is a host for the banner
-   rather than a setting: the name and description read as a heading, and the
-   banner goes underneath them across the full width. The row has no control, so
-   the space a control would sit in is taken back.
+/* The header's group. It holds one row, and that row is a host for the
+   plugin's own DOM rather than a setting, so the card 1.13 draws around it is
+   blanked and the header brings its own look. */
+.zoterik-settings-group > .setting-items {
+	background-color: transparent;
+	border: none;
+	border-radius: 0;
+}
 
-   Scoped to this plugin's own row, since styles.css is loaded app-wide. */
-.zoterik-banner-row.setting-item {
+/* The host row itself. Three classes to outrank
+   `.setting-group .setting-item:not(.setting-item-heading)`. */
+.setting-group .setting-item.zoterik-settings-anchor {
 	display: block;
-	border-top: none;
-	padding-top: 0;
+	padding: 0;
+	margin-bottom: 0;
+	border: none;
+	background-color: transparent;
+	border-radius: 0;
 }
 
-.zoterik-banner-row > .setting-item-info {
-	margin-right: 0;
+/* The group draws the divider between one row and the next as a pseudo-element
+   inset to the group's padding, which lines up with nothing once the card is
+   gone. */
+.setting-group .setting-item.zoterik-settings-anchor::before {
+	content: none;
 }
 
-.zoterik-banner-row > .setting-item-control {
+/* The row's stock name and description are not drawn: the header renders both
+   itself, one as a title and one as the paragraph under it. */
+.zoterik-settings-anchor > .setting-item-info,
+.zoterik-settings-anchor > .setting-item-control {
 	display: none;
 }
 
-.zoterik-banner-row .setting-item-name {
-	font-size: var(--font-ui-medium);
-	font-weight: var(--font-semibold);
+/* The two groups of real settings keep the card 1.13 gives them — for rows the
+   app draws, that card is the app's own look and correct. Two things about it
+   are not, and both are corrected the way the sibling plugins correct them.
+
+   First: 1.13 lays a row out with `align-items: flex-start`, which lifts the
+   control to the top of the row, so a toggle sits level with the first line of
+   the name while the description runs on below it. Every row in this tab
+   carries a description, so the control is centred against the whole info
+   block instead. */
+.setting-group.zoterik-settings-rows .setting-item:not(.setting-item-heading) {
+	align-items: center;
 }
 
-.zoterik-banner-row .setting-item-description {
-	padding-top: 8px;
+/* Second: Obsidian gives the control block the same `flex: 1 1 auto` as the
+   name and description beside it, so a switch a few dozen pixels wide sits in
+   a container claiming an even share of the row — half of it on a wide pane —
+   while the text wraps early in what is left. Pinning the basis to the
+   control's own content sizes it to the switch and hands the rest back to the
+   text; the switch stays at the row's right edge, where the group's own
+   `justify-content: flex-end` already puts it.
+
+   `max-content` rather than the shorter `flex: 0 0 auto`, and the shrink
+   factor stays at 1: a control that cannot shrink takes the whole row inside a
+   nested layout and squeezes the name and description to nothing.
+   `mod-toggle` is Obsidian's own marker for a row whose control is a toggle,
+   and the number row is left alone — its input has a width worth keeping. */
+.setting-group.zoterik-settings-rows
+	.setting-item.mod-toggle
+	> .setting-item-control {
+	flex: 0 1 max-content;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Settings tab — header
+   ────────────────────────────────────────────────────────────────────────── */
+
+.zoterik-settings-header {
+	margin-bottom: var(--size-4-2);
+}
+
+.zoterik-settings-title {
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+}
+
+/* The description is set smaller and muted, as the sibling Publish to Telegram
+   plugin sets the same paragraph: it is read once, and the settings under it
+   are what the eye should land on. */
+.zoterik-settings-description {
+	margin-top: 4px;
+	font-size: var(--font-ui-smaller);
+	line-height: var(--line-height-normal);
+	color: var(--text-muted);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Settings tab — changelog banner
    ────────────────────────────────────────────────────────────────────────── */
 
-/* A row of its own under the plugin's name, drawn as the setting cards around
-   it are so that it reads as part of the tab rather than as a notice pasted
-   over it. It is gone the moment it is dismissed, so nothing below it moves
-   while it is being read. */
+/* A row of its own under the plugin's name, drawn as the setting cards below it
+   are so that it reads as part of the tab rather than as a notice pasted over
+   it. It is gone the moment it is dismissed, so nothing below it moves while it
+   is being read. */
 .zoterik-changelog-banner {
 	display: flex;
 	align-items: center;
@@ -52,8 +130,8 @@
 	margin-top: var(--size-4-3);
 	padding: 12px 16px;
 	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-m);
-	background-color: var(--background-secondary);
+	border-radius: var(--setting-items-radius);
+	background-color: var(--setting-items-background);
 	font-size: var(--font-ui-small);
 	color: var(--text-normal);
 }

@@ -98,9 +98,57 @@ a non-empty array of definitions renders the tab **instead of** it, and
 Unlike the sibling Classy PDF Extractor, every setting here **is** a control the
 API describes — two toggles and a number — so each is declared as a `control`
 and Obsidian draws it, indexes it for the settings search, and asks the tab to
-store the value. That is why there is almost no CSS: the rows are Obsidian's
-own. Keep it that way; a `render` definition here would mean hand-drawing
-something the API already draws, and `render` does not auto-save.
+store the value. Keep it that way; a `render` definition here would mean
+hand-drawing something the API already draws, and `render` does not auto-save.
+
+### How the family styles a settings tab
+
+Publish to Telegram, Pandoc GUI, Classy PDF Extractor and Advanced Word Count
+all open their stylesheets with the same problem and the same two answers, and
+this tab follows them. Obsidian 1.13 draws a declarative tab inside setting
+groups: the group is a card, and every row in it is restyled by
+`.setting-group .setting-item:not(.setting-item-heading)` — **specificity
+0,3,0**, because `:not()` contributes its argument's weight. So:
+
+- **A group holding hand-drawn DOM opts out of the card.** Blank
+  `> .setting-items`, put the plugin's DOM in a row marked as an *anchor*
+  (`zoterik-settings-anchor`, named through three classes to outrank the rule
+  above), blank that row, kill its `::before` — the group draws its dividers as
+  a pseudo-element inset to a padding that lines up with nothing once the card
+  is gone — and hide its stock `.setting-item-info` / `.setting-item-control`.
+  Every one of the four does exactly this; only the prefix differs (`telegram-`,
+  `ex-`, `pdf-annotations-`, `wcp-`).
+- **A group whose rows Obsidian draws keeps the card and corrects the row.**
+  Two corrections, both of them in the siblings and both in
+  `zoterik-settings-rows`:
+  - `align-items: center`. 1.13 lays a row out `flex-start`, which lifts the
+    control to the top, so a toggle sits level with the first line of the name
+    while the description runs on below it.
+  - `flex: 0 1 max-content` on `.setting-item.mod-toggle > .setting-item-control`.
+    Obsidian gives the control block the same `flex: 1 1 auto` as the text
+    beside it, so a switch a few dozen pixels wide claims an even share of the
+    row — half of it on a wide pane — and the text wraps early in the rest.
+    `max-content` rather than `flex: 0 0 auto`, and the shrink factor stays 1:
+    a control that cannot shrink takes the whole row inside a nested layout and
+    squeezes the name and description to zero width. Publish to Telegram has
+    the long version of this note; read it before touching the value.
+
+**Every stylesheet in the family carries a file-order rule, and so does this
+one**: rules that re-assert a look on one of these rows tie with the block at
+the top, so file order is what settles them. New row rules go **below** it.
+
+The two row idioms in the family are a choice, not a disagreement: Classy PDF
+Extractor gives each row its own card (border, background, radius,
+`margin-bottom`) because its sections are hand-drawn; Publish to Telegram and
+Pandoc GUI flatten rows to a top-border separator and build their own
+`*-settings-card` around groups of them. This tab needs neither — its rows are
+Obsidian's, and Obsidian's group card is already the right frame for them, which
+is the same call Advanced Word Count makes with `wcp-settings-rows`. Don't add a
+card idiom here until there is hand-drawn DOM that needs one.
+
+Everything else in `styles.css` is the header (title and muted description, set
+the way Publish to Telegram sets the same paragraph), the changelog banner, and
+the changelog window.
 
 - `getControlValue` / `setControlValue` are overridden so that writing a setting
   goes through the plugin's own `saveSettings()` — the one place that writes
