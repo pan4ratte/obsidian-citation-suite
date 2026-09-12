@@ -7,7 +7,6 @@ import {
 	probeZotero,
 } from "src/cayw";
 import { formatCitations } from "src/pandoc";
-import { CitationForm } from "src/types";
 
 // The one thing about the requests themselves worth holding still. Everything
 // else here is pure.
@@ -109,10 +108,7 @@ describe("a real answer", () => {
 
 	it("becomes the citation that goes into the note", () => {
 		expect(
-			formatCitations(citable(parseCitations(BODY)), {
-				form: CitationForm.Parenthetical,
-				brackets: true,
-			})
+			formatCitations(citable(parseCitations(BODY)), { brackets: true })
 		).toBe("[@BogYavilSvoe1994]");
 	});
 });

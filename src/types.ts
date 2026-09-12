@@ -27,21 +27,6 @@ export interface Citation {
 	note?: string;
 }
 
-/** How a citation is written into the note. */
-export enum CitationForm {
-	/**
-	 * The parenthetical citation: `[@doe2020, p. 33]`, or `@doe2020, p. 33`
-	 * when the `brackets` setting is off.
-	 */
-	Parenthetical = "parenthetical",
-	/**
-	 * The narrative (in-text) citation, whose author is part of the sentence:
-	 * `@doe2020 [p. 33]`. Brackets here hold the locator, not the citation, so
-	 * the `brackets` setting does not apply to it.
-	 */
-	InText = "in-text",
-}
-
 export interface ZoterikSettings {
 	/**
 	 * The port Zotero's local HTTP server listens on. 23119 for Zotero, 24119

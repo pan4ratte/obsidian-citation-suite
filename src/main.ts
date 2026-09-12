@@ -9,12 +9,7 @@ import {
 import { ChangelogModal } from "src/changelogModal";
 import { formatCitations } from "src/pandoc";
 import { ZoterikSettingTab } from "src/settings";
-import {
-	Citation,
-	CitationForm,
-	DEFAULT_SETTINGS,
-	ZoterikSettings,
-} from "src/types";
+import { Citation, DEFAULT_SETTINGS, ZoterikSettings } from "src/types";
 
 export default class ZoterikPlugin extends Plugin {
 	settings: ZoterikSettings = { ...DEFAULT_SETTINGS };
@@ -29,15 +24,7 @@ export default class ZoterikPlugin extends Plugin {
 			id: "insert-citation",
 			name: t.COMMAND_INSERT_CITATION,
 			editorCallback: (editor: Editor) => {
-				void this.insertCitation(editor, CitationForm.Parenthetical);
-			},
-		});
-
-		this.addCommand({
-			id: "insert-in-text-citation",
-			name: t.COMMAND_INSERT_IN_TEXT_CITATION,
-			editorCallback: (editor: Editor) => {
-				void this.insertCitation(editor, CitationForm.InText);
+				void this.insertCitation(editor);
 			},
 		});
 
@@ -45,11 +32,7 @@ export default class ZoterikPlugin extends Plugin {
 			id: "insert-selected-citation",
 			name: t.COMMAND_INSERT_SELECTED_CITATION,
 			editorCallback: (editor: Editor) => {
-				void this.insertCitation(
-					editor,
-					CitationForm.Parenthetical,
-					true
-				);
+				void this.insertCitation(editor, true);
 			},
 		});
 
@@ -85,7 +68,6 @@ export default class ZoterikPlugin extends Plugin {
 	 */
 	private async insertCitation(
 		editor: Editor,
-		form: CitationForm,
 		fromSelection = false
 	): Promise<void> {
 		const status = await probeZotero(this.settings.port);
@@ -133,10 +115,7 @@ export default class ZoterikPlugin extends Plugin {
 		}
 
 		editor.replaceSelection(
-			formatCitations(citations, {
-				form,
-				brackets: this.settings.brackets,
-			})
+			formatCitations(citations, { brackets: this.settings.brackets })
 		);
 	}
 }

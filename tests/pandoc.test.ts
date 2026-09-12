@@ -6,7 +6,7 @@ import {
 	locatorText,
 	shortLabel,
 } from "src/pandoc";
-import { Citation, CitationForm } from "src/types";
+import { Citation } from "src/types";
 
 /** A pick with the fields Better BibTeX always fills in, all of them empty. */
 function citation(overrides: Partial<Citation> = {}): Citation {
@@ -22,7 +22,7 @@ function citation(overrides: Partial<Citation> = {}): Citation {
 	};
 }
 
-const parenthetical = { form: CitationForm.Parenthetical, brackets: true };
+const parenthetical = { brackets: true };
 
 describe("shortLabel", () => {
 	it("abbreviates the CSL labels the picker offers", () => {
@@ -105,10 +105,7 @@ describe("formatCitations", () => {
 
 	it("leaves the brackets off when the setting is off", () => {
 		expect(
-			formatCitations([citation()], {
-				form: CitationForm.Parenthetical,
-				brackets: false,
-			})
+			formatCitations([citation()], { brackets: false })
 		).toBe("@doe2020");
 	});
 
@@ -139,40 +136,5 @@ describe("formatCitations", () => {
 				parenthetical
 			)
 		).toBe("[@doe2020, p. 33; @roe2021]");
-	});
-
-	it("brackets the locator rather than the citation in the in-text form", () => {
-		const inText = { form: CitationForm.InText, brackets: true };
-		expect(formatCitations([citation()], inText)).toBe("@doe2020");
-		expect(
-			formatCitations(
-				[citation({ locator: "33", label: "page" })],
-				inText
-			)
-		).toBe("@doe2020 [p. 33]");
-		expect(
-			formatCitations(
-				[
-					citation({
-						prefix: "as",
-						locator: "33",
-						label: "page",
-						suffix: "and following",
-					}),
-				],
-				inText
-			)
-		).toBe("as @doe2020 [p. 33, and following]");
-	});
-
-	it("keeps the brackets setting off the in-text form", () => {
-		// The brackets a citation is wrapped in and the brackets a narrative
-		// locator sits in are not the same brackets.
-		expect(
-			formatCitations([citation({ locator: "33", label: "page" })], {
-				form: CitationForm.InText,
-				brackets: false,
-			})
-		).toBe("@doe2020 [p. 33]");
 	});
 });

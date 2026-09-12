@@ -39,7 +39,6 @@ None of them is bound to a key out of the box — pick your own in *Settings →
 | Command | What it inserts |
 | --- | --- |
 | **Insert citation** | `[@doe2020, p. 33]` — the parenthetical citation, from a pick in Zotero's window. |
-| **Insert in-text citation** | `@doe2020 [p. 33]` — the narrative form, for a sentence that names the author outright. |
 | **Insert a citation for the items selected in Zotero** | The same parenthetical citation, built from whatever is selected in Zotero's middle pane. No window is opened, and there is nowhere to type a page. |
 | **View changelog** | What the version you are running brought. |
 
@@ -71,8 +70,7 @@ end the citation at that character and leave the rest as stray text in your sent
 ## Settings
 
 - **Wrap citations in brackets** — on by default. Turn it off to insert
-  `@doe2020, p. 33` without the brackets around it. It applies to the parenthetical
-  citation only; the in-text one brackets its locator either way.
+  `@doe2020, p. 33` without the brackets around it.
 - **Zotero port** — `23119`, which is where Zotero listens. The Zotero beta runs its
   server one port up, on `24119`, so both can be open at once.
 - **Minimize Zotero after picking** — sends Zotero's window away as soon as the citation

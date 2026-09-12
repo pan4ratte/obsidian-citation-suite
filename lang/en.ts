@@ -12,7 +12,6 @@ export default {
 	// The command IDs are not translated: they are persisted alongside the
 	// hotkeys bound to them, and renaming one would break that binding.
 	COMMAND_INSERT_CITATION: "Insert citation",
-	COMMAND_INSERT_IN_TEXT_CITATION: "Insert in-text citation",
 	COMMAND_INSERT_SELECTED_CITATION:
 		"Insert a citation for the items selected in Zotero",
 	COMMAND_SHOW_CHANGELOG: "View changelog",

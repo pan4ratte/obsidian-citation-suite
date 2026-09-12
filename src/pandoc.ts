@@ -1,14 +1,13 @@
-import { Citation, CitationForm } from "src/types";
+import { Citation } from "src/types";
 
 /**
  * Turning what the picker handed back into pandoc's citation syntax.
  *
  * Better BibTeX can format the pick itself (`format=pandoc`), and this plugin
- * deliberately does not ask it to: the endpoint formats one way per request,
- * and both of this plugin's forms — with brackets and without, parenthetical
- * and narrative — have to come out of a single pick. So the pick is fetched raw
- * (`format=pick`) and written here, which also makes every rule below testable
- * without Zotero running.
+ * deliberately does not ask it to: whether the citation is bracketed is a
+ * setting here, and the locator rule below is not BBT's. So the pick is fetched
+ * raw (`format=pick`) and written here, which also makes every rule below
+ * testable without Zotero running.
  *
  * The shapes follow pandoc's manual, section "Citation syntax", and BBT's own
  * `pandoc` formatter (`content/cayw/formatter.ts`, 9.0.64) — with one departure
@@ -122,42 +121,14 @@ function parenthetical(citation: Citation): string {
 	return cite;
 }
 
-/**
- * The narrative citation, whose author is read as part of the sentence:
- * `@doe2020 [p. 33]`. Everything that would follow the key in the parenthetical
- * form goes inside the brackets instead, which is where pandoc looks for a
- * locator in this position. A prefix stays outside them — it is sentence text,
- * not part of the citation.
- */
-function inText(citation: Citation): string {
-	let cite = "";
-	if (citation.prefix) {
-		cite += `${citation.prefix} `;
-	}
-	if (citation.suppressAuthor) {
-		cite += "-";
-	}
-	cite += citationKeyToken(citation.citationKey);
-	const inner = [locatorText(citation), citation.suffix]
-		.filter((part) => part)
-		.join(", ");
-	if (inner) {
-		cite += ` [${inner}]`;
-	}
-	return cite;
-}
-
 export interface FormatOptions {
-	form: CitationForm;
-	/** Applies to the parenthetical form only; the narrative form brackets its locator. */
+	/** Wrap the group in `[ ]`, which is what pandoc reads as one citation. */
 	brackets: boolean;
 }
 
 /**
  * The picked citations as one pandoc citation. Several citations make one
- * citation group, separated by `;` the way pandoc reads a group — and in the
- * narrative form, which has no group of its own, the same separator keeps two
- * of them apart in the sentence.
+ * citation group, separated by `;` the way pandoc reads a group.
  */
 export function formatCitations(
 	citations: Citation[],
@@ -165,9 +136,6 @@ export function formatCitations(
 ): string {
 	if (citations.length === 0) {
 		return "";
-	}
-	if (options.form === CitationForm.InText) {
-		return citations.map(inText).join("; ");
 	}
 	const formatted = citations.map(parenthetical).join("; ");
 	return options.brackets ? `[${formatted}]` : formatted;
