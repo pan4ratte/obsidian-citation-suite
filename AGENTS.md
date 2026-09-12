@@ -95,11 +95,22 @@ Declared through Obsidian 1.13's `getSettingDefinitions()`. `display()` is gone:
 a non-empty array of definitions renders the tab **instead of** it, and
 `minAppVersion` is 1.13.0, so nothing reaches it.
 
-Unlike the sibling Classy PDF Extractor, every setting here **is** a control the
-API describes — two toggles and a number — so each is declared as a `control`
-and Obsidian draws it, indexes it for the settings search, and asks the tab to
-store the value. Keep it that way; a `render` definition here would mean
-hand-drawing something the API already draws, and `render` does not auto-save.
+Unlike the sibling Classy PDF Extractor, almost every setting here **is** a
+control the API describes — two toggles and a number — so each is declared as a
+`control` and Obsidian draws it, indexes it for the settings search, and asks the
+tab to store the value. Keep it that way; a `render` definition for any of them
+would mean hand-drawing something the API already draws, and `render` does not
+auto-save.
+
+The one exception is the **citation style**. It is chosen from a list drawn in
+the tab itself, `src/stylePicker.ts`, laid out after the style list in Zotero's
+"Document preferences" window — one scrolling box of every style, the chosen one
+marked — and no control type draws that. So the row is a `render` definition:
+its name and description are Obsidian's, the list wraps onto a line of its own
+under them, and the empty control block is hidden. A choice goes through
+`setControlValue`, so saving and restyling still happen in the one place a
+control's change goes. A click saves at once; the arrow keys save once they
+stop, so walking down the list does not restyle every open note on each step.
 
 ### How the family styles a settings tab
 
@@ -193,6 +204,7 @@ src/
   cayw.ts           — the Better BibTeX CAYW client: probe, pick, parse
   pandoc.ts         — citations → pandoc syntax (pure; no Obsidian, no network)
   settings.ts       — the declarative settings tab and the changelog banner
+  stylePicker.ts    — the Zotero-like list the citation style is chosen from
   changelogModal.ts — the changelog, rendered as markdown
   types.ts          — Citation, CitationForm, settings + defaults
 lang/

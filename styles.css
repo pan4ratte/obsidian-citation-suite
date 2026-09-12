@@ -1,6 +1,7 @@
 /* Ordered as the settings tab is: the group rules that decide how a row is
    laid out, then the header the plugin's name stands in, the changelog banner
-   under it, and last the changelog window that banner opens.
+   under it, the list the citation style is chosen from, the changelog window,
+   and last the citations drawn in a note.
 
    Obsidian 1.13 renders a declarative tab inside setting groups: the group is
    drawn as a card and every row inside it is restyled by
@@ -13,8 +14,9 @@
    - a group holding hand-drawn DOM has to opt out of the card, and
    - a group whose rows Obsidian draws needs the row layout corrected.
 
-   This tab does both, and nothing more: every setting here is a control 1.13
-   draws itself, so there are no cards of this plugin's own to build.
+   This tab does both, and nothing more: every setting here but the citation
+   style is a control 1.13 draws itself, and that one is a list inside a row
+   1.13 draws, so there are no cards of this plugin's own to build.
 
    IMPORTANT: any rule added later that re-asserts a look on one of these rows
    ties with the ones here, so file order is what settles it. Keep such rules
@@ -184,6 +186,79 @@ body .zoterik-changelog-close {
 body .zoterik-changelog-close:hover {
 	background-color: var(--background-modifier-hover);
 	color: var(--text-normal);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Settings tab — citation style
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* The row the style list stands in. Its name and description sit where any
+   row's do, and the list wraps onto a line of its own under them, across the
+   whole width of the card. The row has no control, so the empty control block
+   is not drawn: it would otherwise hold a gap beside the description. Four
+   classes, to outrank the group's own row rule. */
+.setting-group.zoterik-settings-rows .setting-item.zoterik-style-setting {
+	flex-wrap: wrap;
+}
+
+.zoterik-style-setting > .setting-item-control {
+	display: none;
+}
+
+/* Laid out after the style list in Zotero's "Document preferences" window: one
+   bordered box of every style, with the chosen one marked. */
+.zoterik-style-picker {
+	flex: 1 0 100%;
+	margin-top: var(--size-4-3);
+}
+
+/* Tall enough to show about ten titles at once, and scrolled past that.
+   `position: relative` makes the box the rows' offset parent, which is what
+   src/stylePicker.ts scrolls it by. */
+.zoterik-style-picker-list {
+	position: relative;
+	height: min(360px, 50vh);
+	overflow-y: auto;
+	padding: var(--size-4-1);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background-color: var(--background-primary);
+}
+
+.zoterik-style-picker-list:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 3px var(--background-modifier-border-focus);
+}
+
+.zoterik-style-picker-item {
+	padding: var(--size-4-2) var(--size-4-3);
+	border-radius: var(--radius-s);
+	font-size: var(--font-ui-small);
+	line-height: var(--line-height-tight);
+	color: var(--text-normal);
+	cursor: var(--cursor);
+	user-select: none;
+}
+
+@media (hover: hover) {
+	.zoterik-style-picker-item:hover {
+		background-color: var(--background-modifier-hover);
+	}
+}
+
+/* The chosen entry, in the accent colour, the way Zotero marks it. It keeps
+   that colour under the pointer rather than taking the hover's. */
+.zoterik-style-picker-item.is-selected,
+.zoterik-style-picker-item.is-selected:hover {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.zoterik-style-picker-empty {
+	margin-top: var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	line-height: var(--line-height-normal);
+	color: var(--text-muted);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

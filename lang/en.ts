@@ -46,6 +46,10 @@ export default {
 	SETTING_MINIMIZE_DESC:
 		"Zotero's window is sent away as soon as the citation window closes, so focus lands back in Obsidian.",
 
+	// ─── Style list ──────────────────────────────────────────────────────────
+	STYLE_PICKER_EMPTY:
+		"No Zotero styles were found: either Zotero's data directory is not on this computer, or there are no styles in it.",
+
 	// ─── Changelog ───────────────────────────────────────────────────────────
 	// The version number is appended as a link right after this string, which
 	// is why it ends in a space and carries no punctuation of its own.

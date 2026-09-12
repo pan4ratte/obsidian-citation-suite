@@ -9,6 +9,7 @@ import {
 import { getChangelogContent, t } from "lang/helpers";
 import ZoterikPlugin from "src/main";
 import { ChangelogModal } from "src/changelogModal";
+import { renderStylePicker, StyleChoice } from "src/stylePicker";
 import { asIndexable } from "src/types";
 
 const MIN_PORT = 1;
@@ -20,10 +21,11 @@ const MAX_PORT = 65535;
  * of it, and `minAppVersion` is 1.13.0, so there is no version left that would
  * reach it.
  *
- * Every setting here is a control the API already describes — two toggles and a
- * number — so each one is declared as a `control` and the framework draws it,
+ * Every setting but one is a control the API already describes — two toggles
+ * and a number — so each is declared as a `control` and the framework draws it,
  * indexes it for the settings search, and asks this tab to store the new value.
- * `render` is used for the changelog banner alone, which is not a setting.
+ * `render` is used for the changelog banner, which is not a setting, and for the
+ * citation style, which is chosen from a list no control type draws.
  */
 export class ZoterikSettingTab extends PluginSettingTab {
 	plugin: ZoterikPlugin;
@@ -55,27 +57,57 @@ export class ZoterikSettingTab extends PluginSettingTab {
 	}
 
 	/**
-	 * What the style dropdown offers: not rendering at all first, because that
-	 * is the default and the only entry that is not a style, then every style
+	 * What the style picker offers: not rendering at all first, because that is
+	 * the default and the only entry that is not a style, then every style
 	 * Zotero has, by title.
 	 *
 	 * A style that was chosen and has since been uninstalled from Zotero is
 	 * kept in the list under its bare id. It reads badly, which is the point:
-	 * the alternative is a dropdown that quietly shows the reader a setting
-	 * they never chose.
+	 * the alternative is a picker that quietly shows the reader a setting they
+	 * never chose.
 	 */
-	private styleOptions(): Record<string, string> {
-		const options: Record<string, string> = {
-			"": t.SETTING_STYLE_PANDOC,
-		};
-		for (const style of this.plugin.styles) {
-			options[style.id] = style.title;
-		}
+	private styleChoices(): StyleChoice[] {
+		const choices: StyleChoice[] = [
+			{ id: "", title: t.SETTING_STYLE_PANDOC },
+			...this.plugin.styles.map(({ id, title }) => ({ id, title })),
+		];
 		const chosen = this.plugin.settings.citationStyle;
-		if (chosen && !(chosen in options)) {
-			options[chosen] = chosen;
+		if (chosen && !choices.some((choice) => choice.id === chosen)) {
+			choices.push({ id: chosen, title: chosen });
 		}
-		return options;
+		return choices;
+	}
+
+	/**
+	 * The citation style row: its name and description as any setting has
+	 * them, and under them, across the whole width of the row, the list the
+	 * style is chosen from. The row's control block is left empty, and
+	 * styles.css hides it.
+	 *
+	 * A choice goes through `setControlValue`, the same path a control's change
+	 * takes, so saving and redrawing the citations happen in one place
+	 * whichever way a setting was changed.
+	 *
+	 * `update()` runs a render again on the row it already drew, so a list left
+	 * from the last run is removed before the new one goes in.
+	 */
+	private styleSetting(): SettingDefinitionRender {
+		return {
+			name: t.SETTING_STYLE_NAME,
+			desc: t.SETTING_STYLE_DESC,
+			render: (setting: Setting) => {
+				setting.settingEl.addClass("zoterik-style-setting");
+				setting.settingEl
+					.querySelector(":scope > .zoterik-style-picker")
+					?.remove();
+				return renderStylePicker(
+					setting.settingEl,
+					this.styleChoices(),
+					this.plugin.settings.citationStyle,
+					(id) => void this.setControlValue("citationStyle", id)
+				);
+			},
+		};
 	}
 
 	/**
@@ -178,15 +210,7 @@ export class ZoterikSettingTab extends PluginSettingTab {
 				cls: "zoterik-settings-rows",
 				heading: t.SECTION_CITATION,
 				items: [
-					{
-						name: t.SETTING_STYLE_NAME,
-						desc: t.SETTING_STYLE_DESC,
-						control: {
-							type: "dropdown",
-							key: "citationStyle",
-							options: this.styleOptions(),
-						},
-					},
+					this.styleSetting(),
 					{
 						name: t.SETTING_BRACKETS_NAME,
 						desc: t.SETTING_BRACKETS_DESC,
