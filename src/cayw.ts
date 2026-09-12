@@ -23,6 +23,21 @@ export const ZOTERO_BETA_PORT = 24119;
 const ENDPOINT = "/better-bibtex/cayw";
 
 /**
+ * What the plugin calls itself to Zotero.
+ *
+ * Zotero's server answers nothing at all — it drops the connection — when the
+ * request carries a `User-Agent` naming a browser, which is how it keeps a web
+ * page open in one from reaching the local API. Obsidian's `requestUrl` goes
+ * out through Electron's network stack, whose agent begins `Mozilla/5.0`, so
+ * every request the plugin made would be dropped and a running Zotero would
+ * look unreachable. Naming the plugin instead is what gets an answer.
+ */
+const USER_AGENT = "Zoterik";
+
+/** Sent with every request. See `USER_AGENT`. */
+const HEADERS: Record<string, string> = { "User-Agent": USER_AGENT };
+
+/**
  * How long the probe waits. It answers from a local server that has the answer
  * ready, so anything approaching this is Zotero not being there at all.
  */
@@ -78,6 +93,7 @@ export async function probeZotero(port: number): Promise<ZoteroStatus> {
 			requestUrl({
 				url: endpointUrl(port, { probe: "true" }),
 				method: "GET",
+				headers: HEADERS,
 				throw: false,
 			}),
 			PROBE_TIMEOUT_MS
@@ -192,6 +208,7 @@ export async function pickCitations(
 		response = await requestUrl({
 			url: endpointUrl(options.port, pickParams(options)),
 			method: "GET",
+			headers: HEADERS,
 			// Read the body of a failure rather than an exception about it:
 			// the endpoint puts the reason in the body it answers with.
 			throw: false,

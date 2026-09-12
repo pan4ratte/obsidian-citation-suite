@@ -89,6 +89,20 @@ updated.
 [releases]: https://github.com/pan4ratte/obsidian-zoterik/releases
 [brat]: https://github.com/TfTHacker/obsidian42-brat
 
+## The citation window
+
+The window is Zotero's own, not Zoterik's, so where it opens is Zotero's to decide.
+
+- **It opens behind Obsidian.** Open *Settings → Advanced → Config Editor* and set
+  `extensions.zotero.integration.keepAddCitationDialogRaised` to `true`: Zotero will then
+  keep the window above the others. It is off by default, and Windows will not let the
+  window to the front on its own. It has no effect on macOS.
+- **It does not open centered.** The window remembers where it was left. Drag it once to
+  where you want it and that is where it will open. To reset the place, close Zotero and
+  delete the `chrome://zotero/content/integration/citationDialog.xhtml` key from
+  `xulstore.json` in the Zotero profile (on Windows, `%APPDATA%\Zotero\Zotero\Profiles\`).
+  Zotero rewrites that file on exit, so editing it while Zotero runs achieves nothing.
+
 ## When nothing is inserted
 
 - **"Zotero is not answering."** Zotero is closed, its local server is off, Better BibTeX

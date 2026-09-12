@@ -89,6 +89,21 @@ Zoterik работает только на компьютере: он обращ
 [releases]: https://github.com/pan4ratte/obsidian-zoterik/releases
 [brat]: https://github.com/TfTHacker/obsidian42-brat
 
+## Окно цитирования
+
+Окно рисует Zotero, а не Zoterik, поэтому где ему открываться, решает тоже Zotero.
+
+- **Открывается позади Obsidian.** Откройте *Настройки → Дополнительно → Редактор
+  конфигурации* и поставьте `extensions.zotero.integration.keepAddCitationDialogRaised`
+  в `true`: Zotero станет держать окно поверх остальных. По умолчанию настройка выключена,
+  и Windows не даёт окну выйти на передний план. На macOS она не действует.
+- **Открывается не по центру.** Окно запоминает, где его оставили. Перетащите его один раз
+  туда, где оно вам нужно, — там оно и будет открываться. Чтобы сбросить место, закройте
+  Zotero и удалите ключ `chrome://zotero/content/integration/citationDialog.xhtml` из файла
+  `xulstore.json` в профиле Zotero (на Windows — `%APPDATA%\Zotero\Zotero\Profiles\`).
+  Zotero переписывает этот файл при выходе, поэтому править его на запущенном Zotero
+  бесполезно.
+
 ## Если ничего не вставилось
 
 - **«Zotero не отвечает».** Zotero закрыт, его локальный сервер выключен, в нём не

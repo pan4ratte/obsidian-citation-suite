@@ -1,7 +1,18 @@
-import { describe, expect, it } from "vitest";
-import { CaywError, citable, parseCitations } from "src/cayw";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+	CaywError,
+	citable,
+	parseCitations,
+	pickCitations,
+	probeZotero,
+} from "src/cayw";
 import { formatCitations } from "src/pandoc";
 import { CitationForm } from "src/types";
+
+// The one thing about the requests themselves worth holding still. Everything
+// else here is pure.
+const requestUrl = vi.hoisted(() => vi.fn());
+vi.mock("obsidian", () => ({ requestUrl }));
 
 describe("parseCitations", () => {
 	it("reads an empty body as a cancelled pick", () => {
@@ -103,5 +114,37 @@ describe("a real answer", () => {
 				brackets: true,
 			})
 		).toBe("[@BogYavilSvoe1994]");
+	});
+});
+
+describe("what the requests carry", () => {
+	beforeEach(() => {
+		requestUrl.mockReset();
+		requestUrl.mockResolvedValue({ status: 200, text: "ready" });
+		// `withTimeout` reaches for the window's timers, which the app has and
+		// a node test run does not.
+		vi.stubGlobal("window", { setTimeout, clearTimeout });
+	});
+
+	/**
+	 * Zotero's server drops, without answering, any request whose user agent
+	 * names a browser — that is how it keeps a web page from reaching the local
+	 * API. Obsidian sends Electron's own `Mozilla/5.0 …` unless told otherwise,
+	 * and a dropped request is indistinguishable from Zotero not running: the
+	 * plugin calls a working Zotero unreachable.
+	 */
+	const userAgentOf = (): string =>
+		(requestUrl.mock.calls[0][0] as { headers: Record<string, string> })
+			.headers["User-Agent"];
+
+	it("names the plugin to Zotero, and no browser", async () => {
+		await probeZotero(23119);
+		expect(userAgentOf()).toBe("Zoterik");
+	});
+
+	it("names it on the pick as well as on the probe", async () => {
+		requestUrl.mockResolvedValue({ status: 200, text: "[]" });
+		await pickCitations({ port: 23119 });
+		expect(userAgentOf()).toBe("Zoterik");
 	});
 });
