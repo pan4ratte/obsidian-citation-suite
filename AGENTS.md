@@ -319,6 +319,18 @@ object by `loadSettings` and read by nothing.
   the pane itself, a PDF — leaves the last note's list standing. The text is
   read from the note's open `MarkdownView` when there is one (unsaved typing
   included), otherwise `vault.cachedRead`; typing is debounced.
+- **A view names its note before the note is in it.** `TextFileView.loadFile`
+  (read out of Obsidian 1.13.7's `app.js`) sets `view.file`, then awaits
+  `vault.read`, and only then `setViewData`; leaving a note with unsaved
+  changes `clear()`s the editor first, and a tab restored at launch is loaded
+  this way on first being shown. The active-leaf events are a 0 ms timer that
+  can fire inside that gap, so a pass reads the previous note or an empty one —
+  "no sources" — and loading the text raises no event. `loadFile` requests the
+  active-leaf events again once it is done, but `file-open` is not repeated for
+  the same file. So `follow()` does not ignore the note already followed: it
+  compares the text with `readText`, what the latest pass read, and redraws
+  when they differ (`refreshIfRead`). Checked by restarting Obsidian with tabs
+  restored and switching to each: without it the pane stayed on "no sources".
 - **Keys come from `citedKeys`** in `src/citation.ts`: bracketed groups only,
   as everywhere else, once each, in order of first citation, with the front
   matter, fenced and inline code, and `%%`/`<!-- -->` comments emptied out

@@ -140,6 +140,12 @@ export class BibliographyView extends ItemView {
 	/** The note whose bibliography is shown, or `null` when there is none. */
 	private file: TFile | null = null;
 	/**
+	 * The text the latest pass read the note's keys from, or `null` before
+	 * one has. A pass can read a note's view before the note has been loaded
+	 * into it; this is what tells a later look that it read the wrong thing.
+	 */
+	private readText: string | null = null;
+	/**
 	 * Counts the passes, so that one overtaken by a later pass while it waited
 	 * on Zotero draws nothing: the later one knows better.
 	 */
@@ -262,9 +268,35 @@ export class BibliographyView extends ItemView {
 			}
 			return;
 		}
-		if (file.extension === "md" && file !== this.file) {
+		if (file.extension !== "md") {
+			return;
+		}
+		if (file !== this.file) {
 			this.file = file;
 			void this.refresh();
+		} else {
+			void this.refreshIfRead(file);
+		}
+	}
+
+	/**
+	 * Draws the list again if the note no longer reads as the latest pass read
+	 * it.
+	 *
+	 * A view names its new note before the note is loaded into it: Obsidian
+	 * sets the file, reads it off disk, and only then puts the text in the
+	 * editor — which, when the note before had unsaved changes, is emptied in
+	 * between. A tab restored at launch is loaded like that on first being
+	 * shown. A pass that runs in that gap reads the previous note or nothing,
+	 * and loading the text raises no event of its own, so the list would stay
+	 * wrong until the note was typed in. Obsidian announces the active leaf
+	 * again once the load is done, and this is what that announcement comes
+	 * to for the note already followed.
+	 */
+	private async refreshIfRead(file: TFile): Promise<void> {
+		const text = await this.noteText(file);
+		if (file === this.file && text !== this.readText) {
+			await this.refresh();
 		}
 	}
 
@@ -306,6 +338,7 @@ export class BibliographyView extends ItemView {
 		if (pass !== this.pass) {
 			return;
 		}
+		this.readText = text;
 		if (keys.length === 0) {
 			this.showMessage(file, t.BIBLIOGRAPHY_NO_CITATIONS);
 			return;

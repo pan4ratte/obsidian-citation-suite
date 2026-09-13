@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### UI/UX enhancements and bug fixes
+
+* **The bibliography no longer gets stuck on the previous note.** When switching notes, the pane sometimes showed the previous note's bibliography or said the note cites no sources — most often when a tab was first opened after launching Obsidian, or right after an edit. The list now updates as soon as the note has loaded.
+
 ## 1.0.0
 
 ### First release
