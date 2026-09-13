@@ -65,6 +65,8 @@ export default {
 	SETTING_PORT_NAME: "Zotero port",
 	SETTING_PORT_DESC: "The port Zotero's local server runs on.",
 	SETTING_PORT_INVALID: "Error: enter a port number between 1 and 65535.",
+	// As the same button reads in Obsidian's own settings.
+	SETTING_PORT_RESET: "Restore default",
 	SETTING_MINIMIZE_NAME: "Minimize Zotero after picking a source",
 	SETTING_MINIMIZE_DESC: "Zotero's window is minimized once a source is picked, and focus returns to Obsidian.",
 
@@ -131,11 +133,10 @@ export default {
 	BIBLIOGRAPHY_MENTION_CLOSE: "Close",
 
 	// ─── Status ──────────────────────────────────────────────────────────────
-	STATUS_TITLE: "Zotero status",
+	STATUS_TITLE: "Zotero:",
 	STATUS_CHECKING: "Checking…",
 	STATUS_ZOTERO_RUNNING: "Running",
-	// Followed by the port set in the settings.
-	STATUS_ZOTERO_NOT_RUNNING: "Not answering on port",
+	STATUS_ZOTERO_NOT_RUNNING: "Not responding…",
 	STATUS_RECHECK: "Check again",
 	STATUS_BETTER_BIBTEX_MISSING: "Better BibTeX is not installed in Zotero: without it the plugin cannot open the citation window or format citations.",
 	STATUS_BETTER_BIBTEX_INSTALL: "How to install it",

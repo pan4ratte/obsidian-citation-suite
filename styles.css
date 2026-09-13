@@ -60,11 +60,21 @@
 	display: none;
 }
 
-/* The two groups of real settings keep the card 1.13 gives them — for rows the
-   app draws, that card is the app's own look and correct. Two things about it
-   are not, and both are corrected the way the sibling plugins correct them.
+/* The groups of real settings keep the card 1.13 gives them — for rows the app
+   draws, that card is the app's own look and correct. A few things about it
+   are not, and are corrected here.
 
-   First: 1.13 lays a row out with `align-items: flex-start`, which lifts the
+   The card has no border of its own: 1.13 gives it one of zero width, so a
+   group reads as a patch of background with nothing around it, beside a status
+   card that is outlined. Each group is outlined as the status card is — the
+   same line, radius and fill — so the whole tab reads as one set of cards. */
+.setting-group.citation-suite-settings-rows > .setting-items {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--setting-items-radius);
+	background: var(--setting-items-background);
+}
+
+/* First: 1.13 lays a row out with `align-items: flex-start`, which lifts the
    control to the top of the row, so a toggle sits level with the first line of
    the name while the description runs on below it. Every row in this tab
    carries a description, so the control is centred against the whole info
@@ -118,6 +128,16 @@
    beside it, and what is wrong with it. `overflow` keeps a panel's hover fill
    inside the rounded corners. */
 .citation-suite-status-panel {
+	/* How tall the changelog notice stands: its padding above and below the
+	   dismiss button, which is Obsidian's `.clickable-icon` — an icon of
+	   `--icon-size` in `--size-2-2` above and below. The panels and the notices
+	   under it are given the same height, so every row of the card matches. Stated here
+	   rather than on the notice, whose height is animated to nothing when it
+	   is dismissed. */
+	--citation-suite-status-row-height: calc(
+		var(--size-4-2) * 2 + var(--icon-size) + var(--size-2-2) * 2
+	);
+
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--setting-items-radius);
 	background: var(--setting-items-background);
@@ -149,53 +169,11 @@
 	background-color: var(--background-modifier-border);
 }
 
-/* The status takes what the buttons leave: it grows a hundred times faster
-   than they do, so on one line they keep about the width of their labels, and
-   a button wrapped onto a line of its own still fills it. Opaque, as every
-   panel of the row, so the colour the row is divided by only shows in the
-   gaps. */
-.citation-suite-status-half {
-	flex: 100 1 12rem;
-	min-width: 0;
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	padding: var(--size-4-4);
-	background-color: var(--setting-items-background, var(--background-primary));
-}
-
-.citation-suite-status-name {
-	font-size: var(--font-ui-medium);
-	font-weight: var(--font-semibold);
-	color: var(--text-normal);
-	line-height: 1.2;
-}
-
-/* The dot and its label share the state colour. The button that checks again
-   follows the label. */
+/* The state in the status panel: the name before it takes the button's colour,
+   as the documents' labels do, and the state is coloured by what it says. The
+   name and the state are one run of text, a word space apart. */
 .citation-suite-status-line {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: flex-start;
-	gap: var(--size-4-2);
-	margin-top: var(--size-2-2);
-	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
-}
-
-.citation-suite-status-indicator {
-	flex: none;
-	width: 0.3rem;
-	height: 0.3rem;
-	border-radius: 50%;
-	background-color: currentcolor;
-
-	/* A halo in the same colour as the dot, only much fainter. */
-	box-shadow: 0 0 0 3px color-mix(in srgb, currentcolor 20%, transparent);
-
-	/* Centred on the first line rather than on the label, which a long enough
-	   status wraps onto a second one. */
-	margin-top: calc((1lh - 0.3rem) / 2);
 }
 
 .citation-suite-status-line.is-ok {
@@ -208,51 +186,17 @@
 	color: var(--text-warning);
 }
 
-.citation-suite-status-line.is-checking .citation-suite-status-indicator {
-	box-shadow: none;
-}
-
-/* The button in the status line: no fill, no border, the colour of the line it
-   belongs to, and one line of it tall. Two classes, as every button rule here:
-   a theme's `button` rules would otherwise be the ones that land. */
-.citation-suite-status-inline.citation-suite-status-inline {
-	flex: none;
-	display: inline-flex;
-	align-items: center;
-	font-size: inherit;
-	line-height: inherit;
-	height: 1lh;
-	margin: 0;
-	padding: 0;
-	background: none;
-	border: none;
-	border-radius: 0;
-	box-shadow: none;
-	color: inherit;
-	cursor: var(--cursor);
-}
-
-.citation-suite-status-inline.citation-suite-status-inline:hover {
-	color: var(--text-accent);
-}
-
-.citation-suite-status-inline .svg-icon {
-	display: block;
-	width: var(--icon-xs);
-	height: var(--icon-xs);
-}
-
-/* A line too long to stand beside a version: one run of text across the card. */
+/* A line too long to stand beside a version: one run of text across the card,
+   in the muted colour of the changelog notice whatever it says, and at least
+   as tall as the card's other rows, centred in that height. A longer one
+   wraps and grows the row. */
 .citation-suite-status-row.citation-suite-status-notice {
-	display: block;
+	align-items: center;
+	min-height: var(--citation-suite-status-row-height);
 	padding: var(--size-4-2) var(--size-4-4);
 	font-size: var(--font-ui-smaller);
 	line-height: var(--line-height-tight);
 	color: var(--text-muted);
-}
-
-.citation-suite-status-notice.is-warning {
-	color: var(--text-warning);
 }
 
 /* What this release brought, the first row of the card until it is dismissed.
@@ -300,16 +244,23 @@
 	color: var(--text-muted);
 }
 
-/* The documents to read, as panels to the right of the status, as tall as the
-   row and never narrower than their labels. */
+/* The panels of the status row — the status, which checks again when pressed,
+   and the documents to read — each a button with its icon before its label.
+   They share the row in equal thirds, growing from nothing at the same rate,
+   and none is narrower than its label: that is also what breaks the row onto
+   a second line when the pane is too narrow for all three, and a panel
+   wrapped onto a line of its own still fills it. */
 .citation-suite-action.citation-suite-action {
-	flex: 1 0 auto;
+	flex: 1 1 0;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
 	gap: var(--size-4-2);
 	min-width: max-content;
 	height: auto;
+
+	/* As tall as the changelog notice above; see the status panel. */
+	min-height: var(--citation-suite-status-row-height);
 	margin: 0;
 	padding: var(--size-4-2) var(--size-4-4);
 
@@ -339,6 +290,28 @@
 
 .citation-suite-action-icon {
 	display: flex;
+}
+
+/* The status panel's icon turns while Zotero is being asked. It is the span
+   around the icon that turns, so the icon's own box is left alone. The turn's
+   length is `SPIN_TURN_MS` in src/statusCard.ts, which slows it down from this
+   speed once the answer is in: change the two together. */
+.citation-suite-action-icon.is-spinning {
+	animation: citation-suite-status-spin 0.8s linear infinite;
+}
+
+@keyframes citation-suite-status-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* A reader who asked the system for less motion sees the state change, and
+   nothing turn. */
+@media (prefers-reduced-motion: reduce) {
+	.citation-suite-action-icon.is-spinning {
+		animation: none;
+	}
 }
 
 .citation-suite-action .svg-icon {

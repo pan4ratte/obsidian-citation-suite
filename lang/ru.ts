@@ -65,6 +65,8 @@ export default {
 	SETTING_PORT_NAME: "Порт Zotero",
 	SETTING_PORT_DESC: "Порт, на котором работает локальный сервер Zotero.",
 	SETTING_PORT_INVALID: "Ошибка: укажите номер порта от 1 до 65535.",
+	// Как у той же кнопки в настройках самого Obsidian.
+	SETTING_PORT_RESET: "Восстановить значение по умолчанию",
 	SETTING_MINIMIZE_NAME: "Сворачивать Zotero после выбора источника",
 	SETTING_MINIMIZE_DESC: "Окно Zotero будет сворачиваться после выбора источника, и фокус будет возвращаться в Obsidian.",
 
@@ -131,14 +133,13 @@ export default {
 	BIBLIOGRAPHY_MENTION_CLOSE: "Закрыть",
 
 	// ─── Статус ──────────────────────────────────────────────────────────────
-	STATUS_TITLE: "Статус Zotero",
+	STATUS_TITLE: "Zotero:",
 	STATUS_CHECKING: "Проверка…",
 	STATUS_ZOTERO_RUNNING: "Запущен",
-	// За ней следует номер порта из настроек.
-	STATUS_ZOTERO_NOT_RUNNING: "Не отвечает на порту",
+	STATUS_ZOTERO_NOT_RUNNING: "Не отвечает…",
 	STATUS_RECHECK: "Проверить снова",
-	STATUS_BETTER_BIBTEX_MISSING: "В Zotero не установлен Better BibTeX: без него плагин не может открыть окно цитирования и оформить ссылки.",
-	STATUS_BETTER_BIBTEX_INSTALL: "Как установить",
+	STATUS_BETTER_BIBTEX_MISSING: "Better BibTeX не установлен в Zotero. Плагин необходим для работы Citation Suite.",
+	STATUS_BETTER_BIBTEX_INSTALL: "Установить",
 	STATUS_CHANGELOG: "Список изменений",
 	STATUS_USER_GUIDE: "Руководство пользователя",
 

@@ -10,8 +10,9 @@ import { MarkdownModal } from "src/markdownModal";
  * and what is wrong, when something is.
  *
  * Each of those is a row of one card, divided by a rule. The status row is
- * panels divided by upright rules: Zotero's status — a dot that says whether it
- * answers — and to the right of it the changelog and the user guide. Better
+ * panels divided by upright rules: Zotero's status — one line saying whether it
+ * answers, which checks again when pressed — and to the right of it the
+ * changelog and the user guide. Better
  * BibTeX has no panel of its own: it is only ever worth a line when it is
  * missing, and then that line is a notice across the whole card.
  */
@@ -19,6 +20,22 @@ import { MarkdownModal } from "src/markdownModal";
 /** Where Better BibTeX's installation is explained, for the notice to link to. */
 const BETTER_BIBTEX_INSTALL_URL =
 	"https://retorque.re/zotero-better-bibtex/installation/";
+
+/** One turn of the status icon while Zotero is asked, as styles.css spins it. */
+const SPIN_TURN_MS = 800;
+
+/**
+ * The least the icon turns while slowing down, in degrees. Less of the turn
+ * left than this, and it goes round once more.
+ */
+const SPIN_MIN_SETTLE_DEG = 120;
+
+/**
+ * How the icon slows down: leaving at one and a half times the curve's average
+ * speed, and ending at none.
+ */
+const SETTLE_EASING = "cubic-bezier(0.3, 0.45, 0.55, 1)";
+const SETTLE_START_SLOPE = 1.5;
 
 export interface StatusCardOptions {
 	app: App;
@@ -42,17 +59,22 @@ export interface StatusCard {
 	refresh(): void;
 }
 
-/** A button standing as a panel of the card: an icon and a label. */
+/**
+ * A button standing as a panel of the card: an icon and a label. The label is
+ * handed back for a button whose label is more than a word.
+ */
 function actionButton(
 	parent: HTMLElement,
 	icon: string,
 	label: string,
 	onClick: () => void
-): void {
+): { button: HTMLButtonElement; icon: HTMLElement; label: HTMLElement } {
 	const button = parent.createEl("button", { cls: "citation-suite-action" });
-	setIcon(button.createSpan({ cls: "citation-suite-action-icon" }), icon);
-	button.createSpan({ text: label });
+	const iconEl = button.createSpan({ cls: "citation-suite-action-icon" });
+	setIcon(iconEl, icon);
+	const labelEl = button.createSpan({ text: label });
 	button.addEventListener("click", onClick);
+	return { button, icon: iconEl, label: labelEl };
 }
 
 /**
@@ -112,12 +134,17 @@ export function renderStatusCard(
 	const panels = card.createDiv({
 		cls: "citation-suite-status-row citation-suite-status-panels",
 	});
-	const status = panels.createDiv({ cls: "citation-suite-status-half" });
-	status.createDiv({
+	// The status is a panel like the documents beside it, and pressing it asks
+	// Zotero again. Its label is the name and what Zotero said, one run of
+	// text a word space apart, so that they read as one line.
+	const status = actionButton(panels, "refresh-cw", "", () => refresh());
+	status.label.createSpan({
 		cls: "citation-suite-status-name",
 		text: t.STATUS_TITLE,
 	});
-	const line = status.createDiv({ cls: "citation-suite-status-line" });
+	status.label.appendText(" ");
+	const line = status.label.createSpan({ cls: "citation-suite-status-line" });
+	setTooltip(status.button, t.STATUS_RECHECK);
 	actionButton(panels, "scroll-text", t.STATUS_CHANGELOG, () => {
 		new MarkdownModal(options.app, getChangelogContent()).open();
 	});
@@ -131,31 +158,22 @@ export function renderStatusCard(
 	let generation = 0;
 
 	const drawLine = (state: string, text: string): void => {
-		line.empty();
 		line.className = `citation-suite-status-line is-${state}`;
-		line.createSpan({ cls: "citation-suite-status-indicator" });
-		line.createSpan({ text });
-		if (state === "checking") {
-			return;
-		}
-		// Beside the line it is about: what to do when the line says Zotero is
-		// not there, and a way to see that it now is.
-		const recheck = line.createEl("button", {
-			cls: "citation-suite-status-inline",
-		});
-		setIcon(recheck, "refresh-cw");
-		setTooltip(recheck, t.STATUS_RECHECK);
-		recheck.addEventListener("click", () => refresh());
+		line.setText(text);
 	};
 
-	const drawNotice = (tone: string, text: string, link?: string): void => {
+	const drawNotice = (text: string, link?: string): void => {
 		const notice = notices.createDiv({
-			cls: `citation-suite-status-row citation-suite-status-notice is-${tone}`,
+			cls: "citation-suite-status-row citation-suite-status-notice",
 		});
-		notice.appendText(text);
+		// The text and its link in one span, so that the row can centre them
+		// as one line of words; laid out on their own, the space between them
+		// would be dropped.
+		const line = notice.createSpan();
+		line.appendText(text);
 		if (link) {
-			notice.appendText(" ");
-			notice.createEl("a", {
+			line.appendText(" ");
+			line.createEl("a", {
 				text: t.STATUS_BETTER_BIBTEX_INSTALL,
 				href: link,
 			});
@@ -165,31 +183,78 @@ export function renderStatusCard(
 	const draw = (check: ZoteroCheck): void => {
 		notices.empty();
 		if (!check.running) {
-			drawLine("absent", `${t.STATUS_ZOTERO_NOT_RUNNING} ${options.port()}`);
+			drawLine("absent", t.STATUS_ZOTERO_NOT_RUNNING);
 			return;
 		}
 		drawLine("ok", t.STATUS_ZOTERO_RUNNING);
 		if (check.betterBibTeX === "missing") {
-			drawNotice(
-				"warning",
-				t.STATUS_BETTER_BIBTEX_MISSING,
-				BETTER_BIBTEX_INSTALL_URL
-			);
+			drawNotice(t.STATUS_BETTER_BIBTEX_MISSING, BETTER_BIBTEX_INSTALL_URL);
 		} else if (check.betterBibTeX === "starting") {
-			drawNotice("muted", t.NOTICE_ZOTERO_STARTING);
+			drawNotice(t.NOTICE_ZOTERO_STARTING);
 		}
+	};
+
+	/** The icon slowing to a stop after a check, while it does. */
+	let settling: Animation | null = null;
+
+	/**
+	 * Stops the icon turning: it slows down from the speed it turns at and
+	 * comes to rest upright, never partway round. It starts slowing where the
+	 * turn has got to, so nothing jumps, and goes on for more than the rest of
+	 * the turn when little of it is left, so the slowing can be seen. With no
+	 * animation running, as for a reader who asked for less motion, it stops
+	 * at once.
+	 */
+	const stopSpinning = (): void => {
+		const icon = status.icon;
+		const spin = icon
+			.getAnimations()
+			.find((animation) => animation instanceof CSSAnimation);
+		const time = Number(spin?.currentTime ?? Number.NaN);
+		if (!spin || Number.isNaN(time)) {
+			icon.removeClass("is-spinning");
+			return;
+		}
+		const angle = (360 * (time % SPIN_TURN_MS)) / SPIN_TURN_MS;
+		const left = 360 - angle;
+		const distance = left < SPIN_MIN_SETTLE_DEG ? left + 360 : left;
+		settling = icon.animate(
+			[
+				{ transform: `rotate(${angle}deg)` },
+				{ transform: `rotate(${angle + distance}deg)` },
+			],
+			{
+				// The curve leaves at SETTLE_START_SLOPE times its average
+				// speed, which the duration sets to the speed of the spin.
+				duration: (SETTLE_START_SLOPE * distance * SPIN_TURN_MS) / 360,
+				easing: SETTLE_EASING,
+			}
+		);
+		icon.removeClass("is-spinning");
+		const finished = settling;
+		void finished.finished
+			.catch(() => undefined)
+			.then(() => {
+				if (settling === finished) {
+					settling = null;
+				}
+			});
 	};
 
 	const refresh = (): void => {
 		const current = ++generation;
 		notices.empty();
 		drawLine("checking", t.STATUS_CHECKING);
+		settling?.cancel();
+		settling = null;
+		status.icon.addClass("is-spinning");
 		void checkZotero(options.port()).then((check) => {
 			if (current !== generation || !card.isConnected) {
 				return;
 			}
 			options.onChecked(check);
 			draw(check);
+			stopSpinning();
 		});
 	};
 

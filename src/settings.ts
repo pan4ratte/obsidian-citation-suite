@@ -1,5 +1,6 @@
 import {
 	App,
+	ExtraButtonComponent,
 	PluginSettingTab,
 	Setting,
 	SettingDefinitionControl,
@@ -17,7 +18,11 @@ import { renderStylePreview, StylePreview } from "src/preview";
 import { renderStylePicker, StyleChoice } from "src/stylePicker";
 import { ZoteroCheck } from "src/cayw";
 import { renderStatusCard, StatusCard } from "src/statusCard";
-import { asIndexable, DEFAULT_TOOLTIP_DELAY } from "src/types";
+import {
+	asIndexable,
+	DEFAULT_SETTINGS,
+	DEFAULT_TOOLTIP_DELAY,
+} from "src/types";
 
 const MIN_PORT = 1;
 const MAX_PORT = 65535;
@@ -76,12 +81,13 @@ const TOOLTIP_KEYS = new Set(["citationTooltips", "citationTooltipDelay"]);
  * of it, and `minAppVersion` is 1.13.0, so there is no version left that would
  * reach it.
  *
- * Every setting but one is a control the API already describes — toggles,
- * dropdowns, text fields and a number — so each is declared as a `control` and
+ * Almost every setting is a control the API already describes — toggles,
+ * dropdowns, text fields and a slider — so each is declared as a `control` and
  * the framework draws it, indexes it for the settings search, and asks this tab
- * to store the new value. `render` is used for the changelog banner, which is
- * not a setting, and for the citation style, which is chosen from a list no
- * control type draws.
+ * to store the new value. `render` is used for the status card, which is not a
+ * setting; for the citation style, which is chosen from a list no control type
+ * draws; and for the port, whose reset button the `number` control cannot
+ * draw.
  */
 export class CitationSuiteSettingTab extends PluginSettingTab {
 	plugin: CitationSuitePlugin;
@@ -158,6 +164,110 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 					isValidLabelText(value)
 						? undefined
 						: t.SETTING_FOOTNOTE_LABEL_INVALID,
+			},
+		};
+	}
+
+	/**
+	 * The port row: a number field with a button before it that puts the
+	 * default port back, as Obsidian draws a slider with a default.
+	 *
+	 * A `render` definition, because the `number` control draws no such
+	 * button — 1.13 gives one to sliders and colours only — and a control
+	 * cannot be given one. So the field is drawn here, and it behaves as the
+	 * control's does: the port is saved when the field loses the focus or
+	 * Enter is pressed, an empty field takes the default, Escape puts back the
+	 * port in force, and a port that will not do is refused under the row. The
+	 * button is dimmed while the default is already in force.
+	 *
+	 * `update()` runs a render again on the row it already drew, so what the
+	 * last run put in the control block is removed first.
+	 */
+	private portSetting(): SettingDefinitionRender {
+		return {
+			name: t.SETTING_PORT_NAME,
+			desc: t.SETTING_PORT_DESC,
+			render: (setting: Setting) => {
+				setting.controlEl.empty();
+				const defaultPort = DEFAULT_SETTINGS.port;
+				let reset: ExtraButtonComponent | null = null;
+				const markDefault = (port: number): void => {
+					reset?.extraSettingsEl.setAttr(
+						"aria-disabled",
+						String(port === defaultPort)
+					);
+				};
+
+				setting.addExtraButton((button) => {
+					reset = button
+						.setIcon("rotate-ccw")
+						.setTooltip(t.SETTING_PORT_RESET)
+						.onClick(() => {
+							if (this.plugin.settings.port !== defaultPort) {
+								input.value = String(defaultPort);
+								void commit();
+							}
+						});
+				});
+				let input!: HTMLInputElement;
+				setting.addText((text) => {
+					input = text.inputEl;
+				});
+				input.type = "number";
+				input.inputMode = "numeric";
+				input.min = String(MIN_PORT);
+				input.max = String(MAX_PORT);
+				input.step = "1";
+				input.value = String(this.plugin.settings.port);
+				markDefault(this.plugin.settings.port);
+
+				/**
+				 * Saves what the field holds, and says whether it could. A
+				 * number input constrains the arrows, not what can be typed
+				 * into it, and a port out of range fails as a connection
+				 * refused rather than as anything a reader could act on, so it
+				 * is refused here with the range named.
+				 */
+				const commit = async (): Promise<boolean> => {
+					if (input.value.trim() === "") {
+						input.value = String(defaultPort);
+					}
+					const port = Number(input.value);
+					if (
+						!Number.isInteger(port) ||
+						port < MIN_PORT ||
+						port > MAX_PORT
+					) {
+						setting.setErrorMessage(t.SETTING_PORT_INVALID);
+						return false;
+					}
+					setting.setErrorMessage(null);
+					markDefault(port);
+					if (port !== this.plugin.settings.port) {
+						await this.setControlValue("port", port);
+					}
+					return true;
+				};
+
+				input.addEventListener("blur", () => void commit());
+				input.addEventListener("keydown", (event) => {
+					if (event.isComposing) {
+						return;
+					}
+					if (event.key === "Enter") {
+						event.preventDefault();
+						void commit().then((saved) => {
+							if (saved) {
+								input.blur();
+							}
+						});
+					} else if (event.key === "Escape") {
+						event.preventDefault();
+						input.value = String(this.plugin.settings.port);
+						setting.setErrorMessage(null);
+						input.blur();
+					}
+				});
 			},
 		};
 	}
@@ -387,28 +497,7 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 				cls: "citation-suite-settings-rows",
 				heading: t.SECTION_CONNECTION,
 				items: [
-					{
-						name: t.SETTING_PORT_NAME,
-						desc: t.SETTING_PORT_DESC,
-						control: {
-							type: "number",
-							key: "port",
-							min: MIN_PORT,
-							max: MAX_PORT,
-							step: 1,
-							// A number input constrains the arrows, not what
-							// can be typed into it, and a port that is out of
-							// range fails as a connection refused rather than
-							// as anything a reader could act on. So it is
-							// refused here, with the range named.
-							validate: (value: number) =>
-								Number.isInteger(value) &&
-								value >= MIN_PORT &&
-								value <= MAX_PORT
-									? undefined
-									: t.SETTING_PORT_INVALID,
-						},
-					},
+					this.portSetting(),
 					{
 						name: t.SETTING_MINIMIZE_NAME,
 						desc: t.SETTING_MINIMIZE_DESC,

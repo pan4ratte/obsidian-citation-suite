@@ -474,7 +474,7 @@ a non-empty array of definitions renders the tab **instead of** it, and
 `minAppVersion` is 1.13.0, so nothing reaches it.
 
 Unlike the sibling Classy PDF Extractor, almost every setting here **is** a
-control the API describes — toggles, dropdowns, text fields and a number — so
+control the API describes — toggles, dropdowns, text fields and a slider — so
 each is declared as a `control` and Obsidian draws it, indexes it for the
 settings search, and asks the tab to store the value. Keep it that way; a
 `render` definition for any of them would mean hand-drawing something the API
@@ -489,6 +489,20 @@ under them, and the empty control block is hidden. A choice goes through
 `setControlValue`, so saving and restyling still happen in the one place a
 control's change goes. A click saves at once; the arrow keys save once they
 stop, so walking down the list does not restyle every open note on each step.
+
+The other exception is the **port**, for its reset button. Read out of
+Obsidian 1.13.7's `app.js`: a control's `defaultValue` draws a `rotate-ccw`
+extra button only for `slider` and `color`; for `number` it is merely what an
+empty field falls back to, and a `control` definition cannot take extra
+buttons. So `portSetting()` is a `render` that draws the button and a number
+field itself and copies the control's behaviour: saved on blur or Enter, an
+empty field takes the default, Escape restores the port in force, an invalid
+port is refused with `setErrorMessage`, and the button carries
+`aria-disabled="true"` (Obsidian dims it) while the default is in force. Its
+tooltip is Obsidian's own wording for that button, «Восстановить значение по
+умолчанию» / "Restore default". The value still goes through
+`setControlValue`. If a later Obsidian gives `number` a reset button, go back
+to the control.
 
 Under the list is the **style preview**, `src/preview.ts`: a sentence citing a
 sample source (`src/sample.ts` — Kuhn's *Structure of Scientific Revolutions*,
@@ -548,7 +562,11 @@ groups: the group is a card, and every row in it is restyled by
   Every one of the four does exactly this; only the prefix differs (`telegram-`,
   `ex-`, `pdf-annotations-`, `wcp-`).
 - **A group whose rows Obsidian draws keeps the card and corrects the row.**
-  Two corrections, both of them in the siblings and both in
+  The card itself gets a border: 1.13 draws it with a zero-width one, so a
+  group was a patch of background with no outline beside the outlined status
+  card. `citation-suite-settings-rows > .setting-items` takes the status
+  panel's border, radius and fill, so every group in the tab is outlined alike.
+  Then two row corrections, both of them in the siblings and both in
   `citation-suite-settings-rows`:
   - `align-items: center`. 1.13 lays a row out `flex-start`, which lifts the
     control to the top, so a toggle sits level with the first line of the name
@@ -594,8 +612,11 @@ description of its own: it opens straight onto the status card.
   `ChangelogNotice` there), with its classes and values carried over under this
   plugin's prefix: one card, a row to each thing it is read for. Top to bottom:
   what this release brought (until dismissed); then one row of panels divided
-  by upright rules — "Zotero status" with a dot and a button to check again,
-  and to the right of it the changelog and user guide buttons — and last a
+  by upright rules — three `actionButton`s in equal thirds (`flex: 1 1 0`,
+  never narrower than their content), each an icon before a centred label:
+  the Zotero status, which checks again when pressed (`refresh-cw`; its label
+  is "Zotero:" and the coloured state as one run of text, a word space apart,
+  not bold, no dot), then the changelog and the user guide — and last a
   notice across the card only when Better BibTeX is missing or still starting.
   The upright rules are the row's 1px `gap` over a border-coloured background,
   so they survive the row wrapping; every panel is opaque for that reason.
