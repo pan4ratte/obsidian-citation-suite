@@ -9,7 +9,12 @@ import {
 } from "src/cayw";
 import { BIBLIOGRAPHY_VIEW, BibliographyView } from "src/bibliography";
 import { ChangelogModal } from "src/changelogModal";
-import { footnoteEdit, FootnoteOptions } from "src/footnote";
+import {
+	footnoteEdit,
+	FootnoteOptions,
+	inFootnoteText,
+	renumberFootnotes,
+} from "src/footnote";
 import { citationExtension } from "src/live";
 import { applyLook, clearLook } from "src/look";
 import { formatCitations } from "src/pandoc";
@@ -104,6 +109,22 @@ export default class ZoterikPlugin extends Plugin {
 			name: t.COMMAND_INSERT_SELECTED_CITATION,
 			editorCallback: (editor: Editor) => {
 				void this.insertCitation(editor, true);
+			},
+		});
+
+		this.addCommand({
+			id: "insert-footnote",
+			name: t.COMMAND_INSERT_FOOTNOTE,
+			editorCallback: (editor: Editor) => {
+				this.insertBlankFootnote(editor);
+			},
+		});
+
+		this.addCommand({
+			id: "renumber-footnotes",
+			name: t.COMMAND_RENUMBER_FOOTNOTES,
+			editorCallback: (editor: Editor) => {
+				this.renumberFootnotes(editor);
 			},
 		});
 
@@ -234,7 +255,7 @@ export default class ZoterikPlugin extends Plugin {
 			return;
 		}
 		if (this.settings.footnotes) {
-			this.insertFootnote(editor, citation);
+			this.insertFootnote(editor, citation, false);
 		} else {
 			editor.replaceSelection(citation);
 		}
@@ -255,19 +276,26 @@ export default class ZoterikPlugin extends Plugin {
 	}
 
 	/**
-	 * The citation as a footnote: its anchor in place of the selection, and its
-	 * text where the settings put it. Both go in as one transaction, so a single
-	 * undo takes the whole footnote back out.
+	 * A citation, or nothing, as a footnote: its anchor in place of the
+	 * selection, and its text where the settings put it. Both go in as one
+	 * transaction, so a single undo takes the whole footnote back out.
 	 *
-	 * The cursor is set afterwards rather than in the transaction, because the
-	 * transaction reads positions against the note as it was before the edit.
+	 * The cursor stays after the anchor for a citation, which is written, and
+	 * goes into the footnote's text for an empty footnote, which is there to be
+	 * written in. It is set afterwards rather than in the transaction, because
+	 * the transaction reads positions against the note as it was before the
+	 * edit.
 	 */
-	private insertFootnote(editor: Editor, citation: string): void {
+	private insertFootnote(
+		editor: Editor,
+		content: string,
+		toText: boolean
+	): void {
 		const edit = footnoteEdit(
 			editor.getValue(),
 			editor.posToOffset(editor.getCursor("from")),
 			editor.posToOffset(editor.getCursor("to")),
-			citation,
+			content,
 			this.footnoteOptions()
 		);
 		editor.transaction({
@@ -277,7 +305,54 @@ export default class ZoterikPlugin extends Plugin {
 				text: change.text,
 			})),
 		});
-		editor.setCursor(editor.offsetToPos(edit.cursor));
+		const cursor = editor.offsetToPos(toText ? edit.textEnd : edit.cursor);
+		editor.setCursor(cursor);
+		if (toText) {
+			editor.scrollIntoView({ from: cursor, to: cursor }, true);
+		}
+	}
+
+	/**
+	 * A footnote with no citation in it, labelled and placed as the settings
+	 * say whether or not citations go into footnotes, for the reader to write.
+	 * Inside a footnote's text there is nowhere for one to go.
+	 */
+	private insertBlankFootnote(editor: Editor): void {
+		const from = editor.posToOffset(editor.getCursor("from"));
+		if (inFootnoteText(editor.getValue(), from)) {
+			new Notice(t.NOTICE_FOOTNOTE_IN_FOOTNOTE);
+			return;
+		}
+		this.insertFootnote(editor, "", true);
+	}
+
+	/**
+	 * Numbers the note's footnotes in the order they come, as the settings
+	 * write labels — leaving named ones alone if the settings say so — in one
+	 * transaction: one undo puts the old labels back.
+	 */
+	private renumberFootnotes(editor: Editor): void {
+		const { changes, count } = renumberFootnotes(
+			editor.getValue(),
+			this.footnoteOptions(),
+			this.settings.footnoteKeepNamed
+		);
+		if (count === 0) {
+			new Notice(t.NOTICE_NO_FOOTNOTES);
+			return;
+		}
+		if (changes.length === 0) {
+			new Notice(t.NOTICE_FOOTNOTES_IN_ORDER);
+			return;
+		}
+		editor.transaction({
+			changes: changes.map((change) => ({
+				from: editor.offsetToPos(change.from),
+				to: editor.offsetToPos(change.to),
+				text: change.text,
+			})),
+		});
+		new Notice(t.NOTICE_FOOTNOTES_RENUMBERED);
 	}
 
 	/**

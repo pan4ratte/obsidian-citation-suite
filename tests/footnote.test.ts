@@ -5,8 +5,11 @@ import {
 	footnoteLabel,
 	FootnoteOptions,
 	fromRoman,
+	inFootnoteText,
 	isValidLabelText,
 	nextFootnoteLabel,
+	renumberFootnotes,
+	TextChange,
 	toRoman,
 } from "src/footnote";
 
@@ -223,5 +226,180 @@ describe("footnoteEdit", () => {
 		expect(cite("Text[^1].\n\n[^1]: See |.")).toBe(
 			"Text[^1].\n\n[^1]: See [@doe2020, p. 33]|."
 		);
+	});
+});
+
+describe("a footnote with nothing in it", () => {
+	/** Adds an empty footnote at the `|`, with `|` where its text is typed. */
+	function blank(note: string, options: Partial<FootnoteOptions> = {}): string {
+		const at = note.indexOf("|");
+		const text = note.slice(0, at) + note.slice(at + 1);
+		const edit = footnoteEdit(text, at, at, "", {
+			placement: "document",
+			...arabic,
+			...options,
+		});
+		return applied(text, { ...edit, cursor: edit.textEnd });
+	}
+
+	it("puts the cursor where its text is to be typed", () => {
+		expect(blank("One|.\n\nTwo.\n")).toBe("One[^1].\n\nTwo.\n\n[^1]: |\n");
+	});
+
+	it("does so under other footnotes, and above a paragraph after it", () => {
+		expect(
+			blank("A[^1]|.\n\n[^1]: x\n\nNext.", { placement: "paragraph" })
+		).toBe("A[^1][^2].\n\n[^1]: x\n[^2]: |\n\nNext.");
+	});
+});
+
+describe("inFootnoteText", () => {
+	it("is true anywhere in a footnote's text, and only there", () => {
+		const text = "Text[^1].\n\n[^1]: First line\nsecond line.\n\nAfter.";
+		expect(inFootnoteText(text, text.indexOf("second"))).toBe(true);
+		expect(inFootnoteText(text, text.indexOf("Text"))).toBe(false);
+		expect(inFootnoteText(text, text.indexOf("After"))).toBe(false);
+	});
+});
+
+describe("renumberFootnotes", () => {
+	/** The note once renumbered as `options` say. */
+	function renumbered(
+		text: string,
+		options: Partial<FootnoteOptions> = {}
+	): string {
+		const { changes } = renumberFootnotes(text, { ...arabic, ...options });
+		return [...changes]
+			.sort((a: TextChange, b: TextChange) => b.from - a.from)
+			.reduce(
+				(result, change) =>
+					result.slice(0, change.from) + change.text + result.slice(change.to),
+				text
+			);
+	}
+
+	it("numbers the footnotes in the order their anchors come", () => {
+		expect(renumbered("A[^2] B[^1]\n\n[^2]: two\n[^1]: one\n")).toBe(
+			"A[^1] B[^2]\n\n[^1]: two\n[^2]: one\n"
+		);
+	});
+
+	it("puts the footnote texts standing together in the new order", () => {
+		expect(renumbered("A[^2] B[^1]\n\n[^1]: one\n\n[^2]: two")).toBe(
+			"A[^1] B[^2]\n\n[^1]: two\n\n[^2]: one"
+		);
+	});
+
+	it("writes the labels as the settings say, hand-named ones too", () => {
+		expect(
+			renumbered("A[^kuhn] B[^7]\n\n[^7]: x\n[^kuhn]: y", {
+				numbering: "roman-lower",
+				prefix: "n",
+			})
+		).toBe("A[^ni] B[^nii]\n\n[^ni]: y\n[^nii]: x");
+	});
+
+	it("gives an anchor repeated the one label", () => {
+		expect(renumbered("A[^b] B[^a] C[^b]\n\n[^a]: 1\n[^b]: 2")).toBe(
+			"A[^1] B[^2] C[^1]\n\n[^1]: 2\n[^2]: 1"
+		);
+	});
+
+	it("numbers a footnote nothing anchors after all the others", () => {
+		expect(renumbered("A[^x]\n\n[^orphan]: o\n[^x]: x")).toBe(
+			"A[^1]\n\n[^1]: x\n[^2]: o"
+		);
+	});
+
+	it("moves a footnote's text with every paragraph under it", () => {
+		expect(
+			renumbered(
+				"A[^2] B[^1]\n\n[^1]: one\nstill one\n\n    one again\n\n[^2]: two\n"
+			)
+		).toBe(
+			"A[^1] B[^2]\n\n[^1]: two\n\n[^2]: one\nstill one\n\n    one again\n"
+		);
+	});
+
+	it("renames an anchor inside a footnote's text that is moved", () => {
+		expect(renumbered("A[^b] B[^a]\n\n[^a]: see[^b]\n[^b]: b")).toBe(
+			"A[^1] B[^2]\n\n[^1]: b\n[^2]: see[^1]"
+		);
+	});
+
+	it("does not move a footnote's text away from its paragraph", () => {
+		expect(
+			renumbered("A[^2].\n\n[^2]: two\n\nB[^1].\n\n[^1]: one")
+		).toBe("A[^1].\n\n[^1]: two\n\nB[^2].\n\n[^2]: one");
+	});
+
+	it("leaves labels in code and comments alone", () => {
+		expect(
+			renumbered("A[^b] `[^a]`\n\n```\n[^a]: code\n```\n%%[^a]%%\n\n[^b]: b")
+		).toBe("A[^1] `[^a]`\n\n```\n[^a]: code\n```\n%%[^a]%%\n\n[^1]: b");
+	});
+
+	describe("keeping named footnotes", () => {
+		/** The note once renumbered with named footnotes kept. */
+		function keeping(
+			text: string,
+			options: Partial<FootnoteOptions> = {}
+		): string {
+			const { changes } = renumberFootnotes(
+				text,
+				{ ...arabic, ...options },
+				true
+			);
+			return [...changes]
+				.sort((a, b) => b.from - a.from)
+				.reduce(
+					(result, change) =>
+						result.slice(0, change.from) +
+						change.text +
+						result.slice(change.to),
+					text
+				);
+		}
+
+		it("leaves a named label alone and numbers the rest past it", () => {
+			expect(
+				keeping("A[^3] B[^kuhn] C[^1]\n\n[^1]: c\n[^kuhn]: b\n[^3]: a")
+			).toBe("A[^1] B[^kuhn] C[^2]\n\n[^1]: a\n[^kuhn]: b\n[^2]: c");
+		});
+
+		it("reads digits, and numerals in the settings' own case, between their prefix and suffix", () => {
+			expect(
+				keeping("A[^nII] B[^n1] C[^nv] D[^1] E[^note]", {
+					numbering: "roman-upper",
+					prefix: "n",
+				})
+			).toBe("A[^nI] B[^nII] C[^nv] D[^1] E[^note]");
+		});
+
+		it("keeps a word that spells a numeral in a note numbered in arabic", () => {
+			expect(keeping("A[^x] B[^mix] C[^4]")).toBe("A[^x] B[^mix] C[^1]");
+		});
+
+		it("steps over a number spelling a kept label in another case", () => {
+			expect(keeping("A[^N1] B[^n5]", { prefix: "n" })).toBe(
+				"A[^N1] B[^n2]"
+			);
+		});
+
+		it("says a note of named footnotes only is in order", () => {
+			expect(renumberFootnotes("A[^x] B[^y]\n\n[^x]: 1\n[^y]: 2", arabic, true))
+				.toEqual({ changes: [], count: 2 });
+		});
+	});
+
+	it("changes nothing in a note already in order, and says how many there are", () => {
+		expect(renumberFootnotes("A[^1] B[^2]\n\n[^1]: x\n[^2]: y", arabic)).toEqual({
+			changes: [],
+			count: 2,
+		});
+		expect(renumberFootnotes("No footnotes.", arabic)).toEqual({
+			changes: [],
+			count: 0,
+		});
 	});
 });

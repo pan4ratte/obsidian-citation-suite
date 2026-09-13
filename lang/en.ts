@@ -14,6 +14,8 @@ export default {
 	COMMAND_INSERT_CITATION: "Insert citation",
 	COMMAND_INSERT_SELECTED_CITATION:
 		"Insert a citation for the items selected in Zotero",
+	COMMAND_INSERT_FOOTNOTE: "Insert footnote without a citation",
+	COMMAND_RENUMBER_FOOTNOTES: "Renumber footnotes in order",
 	COMMAND_SHOW_BIBLIOGRAPHY: "Show bibliography",
 	COMMAND_SHOW_CHANGELOG: "View changelog",
 
@@ -27,6 +29,11 @@ export default {
 		"None of the picked items has a citation key, so there is nothing to insert.",
 	NOTICE_ITEMS_WITHOUT_KEYS:
 		"Some of the picked items have no citation key and were left out of the citation.",
+	NOTICE_FOOTNOTE_IN_FOOTNOTE:
+		"The cursor is in a footnote's text, and a footnote cannot hold a footnote.",
+	NOTICE_NO_FOOTNOTES: "This note has no footnotes.",
+	NOTICE_FOOTNOTES_IN_ORDER: "The footnotes are already numbered in order.",
+	NOTICE_FOOTNOTES_RENUMBERED: "Footnotes renumbered in order.",
 
 	// ─── Settings ────────────────────────────────────────────────────────────
 	SECTION_CITATION: "Citation format",
@@ -60,6 +67,9 @@ export default {
 	SETTING_FOOTNOTE_SUFFIX_NAME: "Text after the number",
 	SETTING_FOOTNOTE_SUFFIX_DESC:
 		"Added to the footnote label after the number: for example, -cite turns [^1] into [^1-cite].",
+	SETTING_FOOTNOTE_KEEP_NAMED_NAME: "Keep named footnotes when renumbering",
+	SETTING_FOOTNOTE_KEEP_NAMED_DESC:
+		"The command that renumbers footnotes leaves labels with names, such as [^kuhn], as they are and numbers only the footnotes labelled with a number and the text before and after the number set above: in arabic numerals, or in roman ones if footnotes are numbered in roman numerals of the same case.",
 	SETTING_FOOTNOTE_LABEL_INVALID:
 		"A footnote label cannot hold spaces or the characters [ ] ^ \\ |.",
 

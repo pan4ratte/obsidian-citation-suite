@@ -5,7 +5,7 @@
 | Command | What it does |
 |---------|-------------|
 | `npm run dev` | esbuild watch mode (no typecheck) |
-| `npm test` | Vitest — 120 tests, all passing |
+| `npm test` | Vitest — 138 tests, all passing |
 | `npm run lint` / `npm run lint:fix` | ESLint flat config with the official Obsidian ruleset |
 | `npm run build` | `tsc -noEmit -skipLibCheck && node esbuild.config.mjs production` |
 
@@ -197,7 +197,11 @@ The narrative form brackets the *locator*, not the citation — `@doe2020 [p. 33
 
 With `footnotes` on, `insertFootnote` in `src/main.ts` hands the citation to
 `footnoteEdit` in `src/footnote.ts`, which is pure — text and offsets in, a list
-of changes out — and every rule below is tested there.
+of changes out — and every rule below is tested there. The `insert-footnote`
+command hands it an empty string instead, whatever the toggle says, and puts
+the cursor at `textEnd`, the end of the footnote's text, rather than after the
+anchor — with a notice, and nothing inserted, when the cursor is already in a
+footnote's text (`inFootnoteText`).
 
 - **Both edits go in as one `editor.transaction`**, so one undo takes the whole
   footnote back out. The changes are in offsets into the note *before* the edit,
@@ -211,9 +215,39 @@ of changes out — and every rule below is tested there.
 - **The label is one past the highest number already written between the same
   prefix and suffix**, read in any of the three numberings, not a count and not
   the footnote's position. Pandoc and Obsidian number footnotes by the order of
-  their anchors whatever the labels say, so renumbering the note's existing
-  footnotes would rewrite text for nothing. A label differing only in case is
-  stepped over.
+  their anchors whatever the labels say, so inserting one never renumbers the
+  others: that is the `renumber-footnotes` command's job, done when asked. A
+  label differing only in case is stepped over.
+- **`renumberFootnotes` numbers every footnote by its first anchor**, as
+  `footnoteLabel` writes the settings' labels; a footnote whose text nothing
+  anchors comes after the rest. Every label is rewritten, hand-named ones
+  included — that is what "as the settings say" means — unless
+  `footnoteKeepNamed` is on; since each label gets a number of its own, no new
+  label can collide with an old one. Labels
+  are compared with case, as Obsidian and pandoc compare them. Labels are found
+  in `proseOf(text)`, so code and comments are left alone, and a definition is
+  a label at the start of a line (0–3 spaces) followed by `:`.
+- **`footnoteKeepNamed` leaves named labels as they are**, and the numbered
+  ones are counted past them: `A[^3] B[^kuhn] C[^1]` → `A[^1] B[^kuhn] C[^2]`.
+  Kept texts still take their anchor's place when a run is reordered. What is
+  "named" is `isNamedLabel`, deliberately **narrower than `labelNumber`**, the
+  rule `nextFootnoteLabel` counts by: digits between the settings' prefix and
+  suffix, or a roman numeral only when the settings write numerals, and only in
+  their case. Every word of `i v x l c d m` is a numeral — `[^x]`, `[^mix]` —
+  and a name wrongly renumbered is lost, while a stale numeral wrongly kept is
+  merely left alone; a label under an old prefix is kept for the same reason.
+  A new label differing from a kept one only in case is stepped over, as
+  `nextFootnoteLabel` does. The row is drawn with the other footnote rows,
+  always.
+- **Footnote texts are reordered only where they stand together.** A text runs
+  as pandoc reads one: lazy lines under its first line, and paragraphs indented
+  4 spaces or a tab after a blank line, up to a heading or the next definition.
+  Texts with only blank lines between them form a run, and a run out of order
+  is rewritten as one change, each gap kept in its place; a text is never moved
+  out of its run, so a footnote under a paragraph stays under it. Label changes
+  inside a rewritten run are part of that change, and everything else is a
+  change per label, so the transaction's changes never overlap. Nothing to
+  renumber, and no footnotes at all, each say so in a notice.
 - **A section ends at the next heading of any level**, outside code fences and
   front matter. Setext headings are not read.
 - **A citation made inside a footnote's text is written there plainly** — a
@@ -222,8 +256,11 @@ of changes out — and every rule below is tested there.
   `[ ] ^ \ |`**, and cleaned of the same when a label is built, because
   `validate` does not stop a hand-edited `data.json`.
 
-The footnote's rows are drawn only while the toggle is on: `visible` reads the
-setting and `setControlValue` calls `refreshDomState()` when it changes. What a
+The footnote's rows are drawn **whatever the toggle says**: placement,
+numbering, prefix and suffix are read by the `insert-footnote` and
+`renumber-footnotes` commands too, which work with the toggle off, so hiding
+them behind it left settings in force that could not be reached. Do not give
+them a `visible` again. What a
 footnote looks like is shown by the style preview, which redraws on every change
 to the numbering, prefix or suffix — not by a row of its own, and not through
 `update()`, which would redraw the tab and take the focus out of the field being
@@ -531,7 +568,7 @@ nothing here was forked from another plugin's id.
 
 ```
 src/
-  main.ts           — Plugin class, 4 commands, the bibliography view, settings load/save
+  main.ts           — Plugin class, 6 commands, the bibliography view, settings load/save
   cayw.ts           — the Better BibTeX CAYW client: probe, pick, parse
   pandoc.ts         — citations → pandoc syntax (pure; no Obsidian, no network)
   footnote.ts       — a citation as a footnote: label, numbering, placement (pure)

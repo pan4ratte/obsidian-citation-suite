@@ -40,6 +40,8 @@ None of them is bound to a key out of the box — pick your own in *Settings →
 | --- | --- |
 | **Insert citation** | `[@doe2020, p. 33]` — the parenthetical citation, from a pick in Zotero's window. |
 | **Insert a citation for the items selected in Zotero** | The same parenthetical citation, built from whatever is selected in Zotero's middle pane. No window is opened, and there is nowhere to type a page. |
+| **Insert footnote without a citation** | An empty footnote: the anchor at the cursor and its text where the footnote settings put it, with the cursor in the text so you can write it at once. It works with **Put citations in footnotes** off too. |
+| **Renumber footnotes in order** | Nothing: it rewrites the labels of every footnote in the note in the order of their anchors — `[^1]`, `[^2]`, `[^3]`, as the footnote settings write them — and puts the footnote texts that stand together in that order. Named labels such as `[^kuhn]` get numbers too, unless **Keep named footnotes when renumbering** is on. One undo reverts it. |
 | **Show bibliography** | Nothing: it brings the note's bibliography back to the right sidebar once its tab was closed — see below. |
 | **View changelog** | What the version you are running brought. |
 
@@ -127,7 +129,8 @@ closed when they were looked up, start it and press the refresh button above the
 - **Put citations in footnotes** — off by default. Turn it on and a footnote anchor `[^1]`
   is placed at the cursor, with the citation as its text: `[^1]: [@doe2020, p. 33]`.
   Inside an existing footnote the citation is inserted as usual, since a footnote cannot
-  hold another. While it is on, three more settings are available:
+  hold another. The settings under it apply both to such citations and to the footnote
+  commands, so they are always shown:
   - **Where the footnote text goes** — after the current paragraph, at the end of the
     current section (before the next heading), or at the end of the note, which is the
     default. A new footnote goes after the ones already there.
@@ -136,6 +139,12 @@ closed when they were looked up, start it and press the refresh button above the
   - **Text before the number** and **Text after the number** — for example, `n` before the
     number gives `[^n1]`. Spaces and the characters `[ ] ^ \ |` would break the footnote,
     so they cannot be typed.
+  - **Keep named footnotes when renumbering** — off by default. Turn it on and the
+    **Renumber footnotes in order** command leaves labels with names, such as `[^kuhn]`,
+    as they are and numbers only the rest, counting past the named ones. A number is
+    arabic numerals, or roman ones if footnotes are numbered in roman numerals of the same
+    case, with the text before and after the number set above. So `[^x]` in a note
+    numbered in arabic stays a name, and so does a footnote written with an earlier prefix.
 - **Zotero port** — `23119`, which is where Zotero listens. The Zotero beta runs its
   server one port up, on `24119`, so both can be open at once.
 - **Minimize Zotero after picking** — sends Zotero's window away as soon as the citation

@@ -97,14 +97,7 @@ export class ZoterikSettingTab extends PluginSettingTab {
 			// in a footnote labelled as a new one would be when they are on.
 			this.preview?.refresh();
 		}
-		if (key === "footnotes") {
-			// The footnote's own settings are drawn only while it is on.
-			this.refreshDomState();
-		}
 	}
-
-	/** Whether citations go into footnotes, which the rows under it depend on. */
-	private footnotesOn = (): boolean => this.plugin.settings.footnotes;
 
 	/**
 	 * A field for the text on one side of a footnote's number. What would break
@@ -118,7 +111,6 @@ export class ZoterikSettingTab extends PluginSettingTab {
 		return {
 			name,
 			desc,
-			visible: this.footnotesOn,
 			control: {
 				type: "text",
 				key,
@@ -319,7 +311,6 @@ export class ZoterikSettingTab extends PluginSettingTab {
 					{
 						name: t.SETTING_FOOTNOTE_PLACEMENT_NAME,
 						desc: t.SETTING_FOOTNOTE_PLACEMENT_DESC,
-						visible: this.footnotesOn,
 						control: {
 							type: "dropdown",
 							key: "footnotePlacement",
@@ -329,7 +320,6 @@ export class ZoterikSettingTab extends PluginSettingTab {
 					{
 						name: t.SETTING_FOOTNOTE_NUMBERING_NAME,
 						desc: t.SETTING_FOOTNOTE_NUMBERING_DESC,
-						visible: this.footnotesOn,
 						control: {
 							type: "dropdown",
 							key: "footnoteNumbering",
@@ -346,6 +336,11 @@ export class ZoterikSettingTab extends PluginSettingTab {
 						t.SETTING_FOOTNOTE_SUFFIX_NAME,
 						t.SETTING_FOOTNOTE_SUFFIX_DESC
 					),
+					{
+						name: t.SETTING_FOOTNOTE_KEEP_NAMED_NAME,
+						desc: t.SETTING_FOOTNOTE_KEEP_NAMED_DESC,
+						control: { type: "toggle", key: "footnoteKeepNamed" },
+					},
 				],
 			},
 			{

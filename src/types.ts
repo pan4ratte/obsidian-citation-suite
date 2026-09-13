@@ -94,6 +94,8 @@ export interface ZoterikSettings {
 	footnotePrefix: string;
 	/** Text after the number in a footnote's label. */
 	footnoteSuffix: string;
+	/** Leave named footnotes, such as `[^kuhn]`, as they are when renumbering. */
+	footnoteKeepNamed: boolean;
 	/** Minimize Zotero's window once the pick is done, handing focus back. */
 	minimizeZotero: boolean;
 	/** The version whose changelog banner has been dismissed. Never drawn as a setting. */
@@ -121,6 +123,7 @@ export const DEFAULT_SETTINGS: ZoterikSettings = {
 	footnoteNumbering: "arabic",
 	footnotePrefix: "",
 	footnoteSuffix: "",
+	footnoteKeepNamed: false,
 	minimizeZotero: false,
 	dismissedChangelogVersion: "",
 	bibliographyPaneOpened: false,

@@ -1,3 +1,5 @@
+import { proseOf } from "src/citation";
+
 /**
  * Putting a citation into a footnote rather than into the sentence.
  *
@@ -133,6 +135,62 @@ export function footnoteLabel(n: number, options: FootnoteLabelOptions): string 
 	return `${cleanLabelText(options.prefix)}${number}${cleanLabelText(options.suffix)}`;
 }
 
+/**
+ * What stands between the settings' prefix and suffix in a label, or `null`
+ * when the label is not written between them.
+ */
+function labelCore(label: string, options: FootnoteLabelOptions): string | null {
+	const prefix = cleanLabelText(options.prefix);
+	const suffix = cleanLabelText(options.suffix);
+	if (
+		label.length <= prefix.length + suffix.length ||
+		!label.startsWith(prefix) ||
+		!label.endsWith(suffix)
+	) {
+		return null;
+	}
+	return label.slice(prefix.length, label.length - suffix.length);
+}
+
+/**
+ * The number a label is written with — arabic, or roman in either case,
+ * between this prefix and suffix — or `null`.
+ */
+function labelNumber(label: string, options: FootnoteLabelOptions): number | null {
+	const core = labelCore(label, options);
+	if (core === null) {
+		return null;
+	}
+	return /^[0-9]+$/.test(core) ? Number(core) : fromRoman(core);
+}
+
+/**
+ * Whether a label is a name rather than a number, for renumbering with named
+ * footnotes kept. A number here is narrower than `labelNumber`'s: arabic
+ * digits, or a roman numeral only when the settings write roman numerals, and
+ * only in their case. Any word made of `i v x l c d m` reads as a numeral, and
+ * a footnote named `[^x]` or `[^mix]` in a note numbered in arabic is far more
+ * likely a name than a leftover numeral; wrongly renumbered, a name is lost,
+ * while a leftover numeral wrongly kept is only left as it was. A label written
+ * under a prefix or suffix the settings no longer have is a name too.
+ */
+export function isNamedLabel(
+	label: string,
+	options: FootnoteLabelOptions
+): boolean {
+	const core = labelCore(label, options);
+	if (core === null) {
+		return true;
+	}
+	if (/^[0-9]+$/.test(core)) {
+		return false;
+	}
+	const inCase =
+		(options.numbering === "roman-lower" && core === core.toLowerCase()) ||
+		(options.numbering === "roman-upper" && core === core.toUpperCase());
+	return !inCase || fromRoman(core) === null;
+}
+
 /** Every footnote label in the text, anchors and definitions alike. */
 function labelsIn(text: string): string[] {
 	return [...text.matchAll(/\[\^([^\]\s]+)\]/g)].map((match) => match[1]);
@@ -152,21 +210,11 @@ export function nextFootnoteLabel(
 	text: string,
 	options: FootnoteLabelOptions
 ): string {
-	const prefix = cleanLabelText(options.prefix);
-	const suffix = cleanLabelText(options.suffix);
 	const labels = labelsIn(text);
 
 	let highest = 0;
 	for (const label of labels) {
-		if (
-			label.length <= prefix.length + suffix.length ||
-			!label.startsWith(prefix) ||
-			!label.endsWith(suffix)
-		) {
-			continue;
-		}
-		const core = label.slice(prefix.length, label.length - suffix.length);
-		const n = /^[0-9]+$/.test(core) ? Number(core) : fromRoman(core);
+		const n = labelNumber(label, options);
 		if (n !== null) {
 			highest = Math.max(highest, n);
 		}
@@ -300,12 +348,28 @@ export interface FootnoteEdit {
 	changes: TextChange[];
 	/** Where the cursor goes afterwards, in the text as it is after them. */
 	cursor: number;
+	/**
+	 * The end of the footnote's text, in the text as it is after the changes —
+	 * where a footnote written by hand is typed into.
+	 */
+	textEnd: number;
 }
 
 /**
- * The edits that cite `citation` in a footnote, for a note holding `text` whose
+ * Whether the offset stands in a footnote's text: in a paragraph that opens
+ * with `[^label]:`.
+ */
+export function inFootnoteText(text: string, offset: number): boolean {
+	const lines = text.split("\n");
+	const line = text.slice(0, offset).split("\n").length - 1;
+	return DEFINITION.test(lines[blockStart(lines, line)]);
+}
+
+/**
+ * The edits that put `content` in a footnote, for a note holding `text` whose
  * selection runs from `from` to `to`: the selection is replaced by the anchor,
- * and the footnote's text goes where the placement puts it.
+ * and the footnote's text goes where the placement puts it. The content is a
+ * citation, or nothing at all for a footnote to be written by hand.
  *
  * A footnote cannot hold a footnote, so a citation made inside one — with the
  * cursor in a footnote's text — is written there as it is.
@@ -314,17 +378,18 @@ export function footnoteEdit(
 	text: string,
 	from: number,
 	to: number,
-	citation: string,
+	content: string,
 	options: FootnoteOptions
 ): FootnoteEdit {
-	const lines = text.split("\n");
-	const cursorLine = text.slice(0, from).split("\n").length - 1;
-	if (DEFINITION.test(lines[blockStart(lines, cursorLine)])) {
+	if (inFootnoteText(text, from)) {
+		const end = from + content.length;
 		return {
-			changes: [{ from, to, text: citation }],
-			cursor: from + citation.length,
+			changes: [{ from, to, text: content }],
+			cursor: end,
+			textEnd: end,
 		};
 	}
+	const cursorLine = text.slice(0, from).split("\n").length - 1;
 
 	const label = nextFootnoteLabel(text.slice(0, from) + text.slice(to), options);
 	const anchor = `[^${label}]`;
@@ -348,7 +413,8 @@ export function footnoteEdit(
 	const joins = DEFINITION.test(anchoredLines[blockStart(anchoredLines, line)]);
 	const crowded =
 		line + 1 < anchoredLines.length && !BLANK.test(anchoredLines[line + 1]);
-	const definition = `${joins ? "\n" : "\n\n"}[^${label}]: ${citation}${crowded ? "\n" : ""}`;
+	const opening = `${joins ? "\n" : "\n\n"}[^${label}]: `;
+	const definition = `${opening}${content}${crowded ? "\n" : ""}`;
 
 	// Back from the anchored note to the one the edits are made against. The
 	// text always goes after the anchor, so only the anchor's length stands
@@ -360,5 +426,235 @@ export function footnoteEdit(
 			{ from: original, to: original, text: definition },
 		],
 		cursor: from + anchor.length,
+		// The anchored note is the note after the first change, and the
+		// second goes in at `at` in it.
+		textEnd: at + opening.length + content.length,
 	};
+}
+
+/** A `[^label]` in the note: where the label inside it is, and its role. */
+interface LabelMark {
+	from: number;
+	to: number;
+	label: string;
+	/** Whether it opens a footnote's text, `[^label]:`, rather than anchoring one. */
+	definition: boolean;
+}
+
+/**
+ * Every `[^label]` in the prose, anchors and definitions alike. The prose is
+ * the note with code and comments blanked out (`proseOf`), so a label written
+ * about in code is not taken for one.
+ */
+function labelMarks(prose: string): LabelMark[] {
+	const marks: LabelMark[] = [];
+	for (const match of prose.matchAll(/\[\^([^\]\s]+)\]/g)) {
+		const start = match.index;
+		const lineStart = prose.lastIndexOf("\n", start - 1) + 1;
+		marks.push({
+			from: start + 2,
+			to: start + 2 + match[1].length,
+			label: match[1],
+			definition:
+				/^ {0,3}$/.test(prose.slice(lineStart, start)) &&
+				prose[start + match[0].length] === ":",
+		});
+	}
+	return marks;
+}
+
+/** A footnote's text: the lines it runs over, inclusive, and its label. */
+interface DefinitionBlock {
+	start: number;
+	end: number;
+	label: string;
+}
+
+/** A line that goes on a footnote's text past a blank line: indented. */
+const CONTINUATION = /^( {4}|\t)/;
+
+/**
+ * Every footnote's text, as pandoc reads how far one runs: its first line, the
+ * lines straight under it up to a blank line, a heading or the next footnote,
+ * and after a blank line any further paragraph indented under it.
+ */
+function definitionBlocks(
+	lines: string[],
+	proseLines: string[]
+): DefinitionBlock[] {
+	const opens = (i: number): RegExpExecArray | null =>
+		/^ {0,3}\[\^([^\]\s]+)\]:/.exec(proseLines[i]);
+	const blocks: DefinitionBlock[] = [];
+	for (let i = 0; i < lines.length; i++) {
+		const opening = opens(i);
+		if (!opening) {
+			continue;
+		}
+		let end = i;
+		while (end + 1 < lines.length && !opens(end + 1)) {
+			const next = end + 1;
+			if (!BLANK.test(lines[next])) {
+				if (HEADING.test(lines[next])) {
+					break;
+				}
+				end = next;
+				continue;
+			}
+			let after = next;
+			while (after < lines.length && BLANK.test(lines[after])) {
+				after++;
+			}
+			if (
+				after < lines.length &&
+				CONTINUATION.test(lines[after]) &&
+				!opens(after)
+			) {
+				end = after;
+				continue;
+			}
+			break;
+		}
+		blocks.push({ start: i, end, label: opening[1] });
+		i = end;
+	}
+	return blocks;
+}
+
+export interface FootnoteRenumbering {
+	/** The edits, in offsets into the text as it was before any of them. */
+	changes: TextChange[];
+	/** How many footnotes the note has, told apart by label. */
+	count: number;
+}
+
+/**
+ * The edits that number the note's footnotes in order: the footnote whose
+ * anchor comes first gets the first label, as the settings write labels, the
+ * next one the second, and so on — the order pandoc and Obsidian number them in
+ * anyway, so the note reads the same and only its source is put straight. A
+ * footnote whose text is never anchored comes after all the others.
+ *
+ * Every label is rewritten, a hand-named `[^kuhn]` too — the settings are what
+ * a label should look like — unless `keepNamed` is set. Then a named label
+ * (see `isNamedLabel`) is left as it is and takes no number, and the numbered
+ * ones are counted past it: `A[^3] B[^kuhn] C[^1]` becomes
+ * `A[^1] B[^kuhn] C[^2]`. A new label cannot meet an old one, since every
+ * label spelling a number is renumbered too; one differing from a kept label
+ * only in case is stepped over, as `nextFootnoteLabel` steps over it. Labels
+ * are otherwise told apart by case, as Obsidian and pandoc tell them.
+ *
+ * Footnote texts standing together — under a paragraph, at the end of a
+ * section or of the note — are put in the order of their new numbers, each
+ * keeping the blank lines between them where they were. None is moved out of
+ * where it stands.
+ */
+export function renumberFootnotes(
+	text: string,
+	options: FootnoteLabelOptions,
+	keepNamed = false
+): FootnoteRenumbering {
+	const prose = proseOf(text);
+	const marks = labelMarks(prose);
+
+	const order: string[] = [];
+	const numbered = new Set<string>();
+	const take = (label: string): void => {
+		if (!numbered.has(label)) {
+			numbered.add(label);
+			order.push(label);
+		}
+	};
+	marks.filter((mark) => !mark.definition).forEach((mark) => take(mark.label));
+	marks.filter((mark) => mark.definition).forEach((mark) => take(mark.label));
+	const kept = keepNamed
+		? order.filter((label) => isNamedLabel(label, options))
+		: [];
+	const taken = new Set(kept.map((label) => label.toLowerCase()));
+	const renamed = new Map(kept.map((label) => [label, label]));
+	let n = 0;
+	for (const label of order) {
+		if (renamed.has(label)) {
+			continue;
+		}
+		do {
+			n++;
+		} while (taken.has(footnoteLabel(n, options).toLowerCase()));
+		renamed.set(label, footnoteLabel(n, options));
+	}
+	// The footnote texts are put in the order of their anchors, a kept one's
+	// among the rest.
+	const number = new Map(order.map((label, index) => [label, index]));
+
+	const lines = text.split("\n");
+	const lineStarts: number[] = [];
+	let offset = 0;
+	for (const line of lines) {
+		lineStarts.push(offset);
+		offset += line.length + 1;
+	}
+	const lineEnd = (line: number): number => lineStarts[line] + lines[line].length;
+
+	/** The text from `from` to `to` with its labels renamed. */
+	const renamedText = (from: number, to: number): string => {
+		let result = "";
+		let at = from;
+		for (const mark of marks) {
+			if (mark.from >= from && mark.to <= to) {
+				result += text.slice(at, mark.from) + renamed.get(mark.label);
+				at = mark.to;
+			}
+		}
+		return result + text.slice(at, to);
+	};
+
+	// Footnote texts with nothing but blank lines between them stand together.
+	const runs: DefinitionBlock[][] = [];
+	for (const block of definitionBlocks(lines, prose.split("\n"))) {
+		const run = runs[runs.length - 1];
+		const last = run?.[run.length - 1];
+		const between = last ? lines.slice(last.end + 1, block.start) : null;
+		if (between?.every((line) => BLANK.test(line))) {
+			run.push(block);
+		} else {
+			runs.push([block]);
+		}
+	}
+
+	const changes: TextChange[] = [];
+	const rewritten: [number, number][] = [];
+	for (const run of runs) {
+		const sorted = [...run].sort(
+			(a, b) => (number.get(a.label) ?? 0) - (number.get(b.label) ?? 0)
+		);
+		if (sorted.every((block, index) => block === run[index])) {
+			continue;
+		}
+		const from = lineStarts[run[0].start];
+		const to = lineEnd(run[run.length - 1].end);
+		let written = "";
+		sorted.forEach((block, index) => {
+			if (index > 0) {
+				// The gap that stood in this place, kept where it was.
+				written += text.slice(
+					lineEnd(run[index - 1].end),
+					lineStarts[run[index].start]
+				);
+			}
+			written += renamedText(lineStarts[block.start], lineEnd(block.end));
+		});
+		changes.push({ from, to, text: written });
+		rewritten.push([from, to]);
+	}
+
+	for (const mark of marks) {
+		const label = renamed.get(mark.label) ?? mark.label;
+		const inRewritten = rewritten.some(
+			([from, to]) => mark.from >= from && mark.to <= to
+		);
+		if (label !== mark.label && !inRewritten) {
+			changes.push({ from: mark.from, to: mark.to, text: label });
+		}
+	}
+	changes.sort((a, b) => a.from - b.from);
+	return { changes, count: order.length };
 }
