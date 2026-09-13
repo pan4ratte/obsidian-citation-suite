@@ -113,12 +113,6 @@ export async function probeZotero(port: number): Promise<ZoteroStatus> {
 
 export interface PickOptions {
 	port: number;
-	/**
-	 * Skip the citation window and take whatever is selected in Zotero's pane.
-	 * Those picks carry no locator, prefix or suffix — there was no window to
-	 * type one in.
-	 */
-	selected?: boolean;
 	/** Minimize Zotero's window once the pick is done. */
 	minimize?: boolean;
 }
@@ -133,11 +127,8 @@ function pickParams(options: PickOptions): Record<string, string> {
 	// reader sees, by `src/render.ts`, and never to what is written down.
 	const params: Record<string, string> = { format: "pick" };
 	// Every parameter arrives at Zotero as a string and is read for truth, so
-	// `selected=false` is as true as `selected=true`. A flag is sent only when
+	// `minimize=false` is as true as `minimize=true`. A flag is sent only when
 	// it is on, and left out entirely when it is off.
-	if (options.selected) {
-		params.selected = "true";
-	}
 	if (options.minimize) {
 		params.minimize = "true";
 	}

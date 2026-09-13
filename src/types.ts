@@ -7,8 +7,7 @@ import { FootnoteNumbering, FootnotePlacement } from "src/footnote";
  * always present, `locator`/`prefix`/`suffix`/`label` as empty strings when the
  * picker's fields were left blank. `label` is filled in as `"page"` whenever a
  * locator was typed without a label of its own, so a locator practically always
- * arrives labelled — except through `selected=true`, which picks items straight
- * out of Zotero's pane and has no locator to label.
+ * arrives labelled.
  *
  * `itemType`, `title` and `note` are only there for standalone notes, which the
  * picker can return and which carry no citation key.
@@ -100,11 +99,6 @@ export interface CitationSuiteSettings {
 	minimizeZotero: boolean;
 	/** The version whose changelog banner has been dismissed. Never drawn as a setting. */
 	dismissedChangelogVersion: string;
-	/**
-	 * Whether the bibliography pane has been put in the sidebar once already,
-	 * after which the workspace layout keeps it. Never drawn as a setting.
-	 */
-	bibliographyPaneOpened: boolean;
 }
 
 export const DEFAULT_SETTINGS: CitationSuiteSettings = {
@@ -126,7 +120,6 @@ export const DEFAULT_SETTINGS: CitationSuiteSettings = {
 	footnoteKeepNamed: false,
 	minimizeZotero: false,
 	dismissedChangelogVersion: "",
-	bibliographyPaneOpened: false,
 };
 
 /**

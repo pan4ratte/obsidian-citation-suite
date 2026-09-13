@@ -5,89 +5,69 @@ export default {
 	// Also in manifest.json, which the plugin browser reads and no translation
 	// can reach. Change both together.
 	PLUGIN_NAME: "Citation Suite settings",
-	PLUGIN_DESCRIPTION:
-		"Cite your Zotero library from a note: a hotkey opens Zotero's citation window, and the pick is inserted as a pandoc citation.",
+	PLUGIN_DESCRIPTION: "Cite your Zotero library from a note: a hotkey opens Zotero's citation window, and the pick is inserted as a pandoc citation.",
 
 	// ─── Commands ────────────────────────────────────────────────────────────
 	// The command IDs are not translated: they are persisted alongside the
 	// hotkeys bound to them, and renaming one would break that binding.
 	COMMAND_INSERT_CITATION: "Insert citation",
-	COMMAND_INSERT_SELECTED_CITATION:
-		"Insert a citation for the items selected in Zotero",
 	COMMAND_INSERT_FOOTNOTE: "Insert footnote without a citation",
 	COMMAND_RENUMBER_FOOTNOTES: "Renumber footnotes in order",
 	COMMAND_SHOW_BIBLIOGRAPHY: "Show bibliography",
 	COMMAND_SHOW_CHANGELOG: "View changelog",
 
 	// ─── Notices ─────────────────────────────────────────────────────────────
-	NOTICE_ZOTERO_UNREACHABLE:
-		"Zotero is not answering. Check that it is running, that Better BibTeX is installed in it, and that the port in the settings matches its own.",
-	NOTICE_ZOTERO_STARTING:
-		"Better BibTeX is still starting up. Try again in a few seconds.",
+	NOTICE_ZOTERO_UNREACHABLE: "Zotero is not answering. Check that it is running, that Better BibTeX is installed in it, and that the port in the settings matches its own.",
+	NOTICE_ZOTERO_STARTING: "Better BibTeX is still starting up. Try again in a few seconds.",
 	NOTICE_PICK_FAILED: "Zotero could not finish picking the source.",
-	NOTICE_NOTHING_TO_CITE:
-		"None of the picked items has a citation key, so there is nothing to insert.",
-	NOTICE_ITEMS_WITHOUT_KEYS:
-		"Some of the picked items have no citation key and were left out of the citation.",
-	NOTICE_FOOTNOTE_IN_FOOTNOTE:
-		"The cursor is in a footnote's text, and a footnote cannot hold a footnote.",
+	NOTICE_NOTHING_TO_CITE: "None of the picked items has a citation key, so there is nothing to insert.",
+	NOTICE_ITEMS_WITHOUT_KEYS: "Some of the picked items have no citation key and were left out of the citation.",
+	NOTICE_FOOTNOTE_IN_FOOTNOTE: "The cursor is in a footnote's text, and a footnote cannot hold a footnote.",
 	NOTICE_NO_FOOTNOTES: "This note has no footnotes.",
 	NOTICE_FOOTNOTES_IN_ORDER: "The footnotes are already numbered in order.",
 	NOTICE_FOOTNOTES_RENUMBERED: "Footnotes renumbered in order.",
 
 	// ─── Settings ────────────────────────────────────────────────────────────
 	SECTION_CITATION: "Citation format",
-	SETTING_STYLE_NAME: "Show citations in style",
-	SETTING_STYLE_DESC:
-		"The note always keeps the pandoc citation, and that is what pandoc sees when the document is built. Choose one of the styles installed in Zotero and reading view and live preview will draw the citation as that style writes it instead. The note itself is unchanged: put the cursor inside one to see it as it is.",
-	SETTING_STYLE_PANDOC: "Leave as written",
-	SETTING_BRACKETS_NAME: "Wrap citations in brackets",
-	SETTING_BRACKETS_DESC:
-		"A citation is inserted as [@doe2020, p. 33], which is how pandoc reads a citation in parentheses. Turn this off to insert the same citation without its brackets.",
+	SETTING_STYLE_NAME: "Choose a citation display style",
+	SETTING_STYLE_DESC: "Citations stay in pandoc format, but for easier reading you can choose a citation style from your Zotero library to preview them in. The preview does not affect how the note is exported.",
+	SETTING_STYLE_PANDOC: "Do not style the preview",
+	SETTING_BRACKETS_NAME: "Put citations in square brackets",
+	SETTING_BRACKETS_DESC: "Citations are inserted as [@doe2020, p. 33] for a correct export with pandoc.",
 
 	SECTION_FOOTNOTES: "Footnotes",
-	SETTING_FOOTNOTES_NAME: "Put citations in footnotes",
-	SETTING_FOOTNOTES_DESC:
-		"A footnote anchor is placed at the cursor, and the citation itself becomes the footnote's text. Inside an existing footnote the citation is inserted as usual, since a footnote cannot hold another.",
-	SETTING_FOOTNOTE_PLACEMENT_NAME: "Where the footnote text goes",
-	SETTING_FOOTNOTE_PLACEMENT_DESC:
-		"To pandoc and Obsidian the place makes no difference: footnotes are numbered in the order their anchors appear. It only matters for how the note reads in source mode.",
+	SETTING_FOOTNOTES_NAME: "Automatically put citations in footnotes",
+	SETTING_FOOTNOTES_DESC: "A footnote anchor appears at the cursor, and the citation goes into the footnote's body. Inside an existing footnote the citation is inserted as usual.",
+	SETTING_FOOTNOTE_PLACEMENT_NAME: "Where the footnote text appears",
+	SETTING_FOOTNOTE_PLACEMENT_DESC: "Where the footnote text goes makes no difference to pandoc and Obsidian, so choose whichever suits you.",
 	FOOTNOTE_PLACEMENT_PARAGRAPH: "After the current paragraph",
 	FOOTNOTE_PLACEMENT_SECTION: "At the end of the current section",
 	FOOTNOTE_PLACEMENT_DOCUMENT: "At the end of the note",
 	SETTING_FOOTNOTE_NUMBERING_NAME: "Footnote numbering",
-	SETTING_FOOTNOTE_NUMBERING_DESC:
-		"Each new footnote gets a number one higher than the highest already in the note.",
+	SETTING_FOOTNOTE_NUMBERING_DESC: "Choose the automatic numbering that suits you.",
 	FOOTNOTE_NUMBERING_ARABIC: "Arabic numerals",
 	FOOTNOTE_NUMBERING_ROMAN_LOWER: "Lowercase roman numerals",
 	FOOTNOTE_NUMBERING_ROMAN_UPPER: "Uppercase roman numerals",
-	SETTING_FOOTNOTE_PREFIX_NAME: "Text before the number",
-	SETTING_FOOTNOTE_PREFIX_DESC:
-		"Added to the footnote label before the number: for example, n turns [^1] into [^n1].",
-	SETTING_FOOTNOTE_SUFFIX_NAME: "Text after the number",
-	SETTING_FOOTNOTE_SUFFIX_DESC:
-		"Added to the footnote label after the number: for example, -cite turns [^1] into [^1-cite].",
-	SETTING_FOOTNOTE_KEEP_NAMED_NAME: "Keep named footnotes when renumbering",
-	SETTING_FOOTNOTE_KEEP_NAMED_DESC:
-		"The command that renumbers footnotes leaves labels with names, such as [^kuhn], as they are and numbers only the footnotes labelled with a number and the text before and after the number set above: in arabic numerals, or in roman ones if footnotes are numbered in roman numerals of the same case.",
-	SETTING_FOOTNOTE_LABEL_INVALID:
-		"A footnote label cannot hold spaces or the characters [ ] ^ \\ |.",
+	SETTING_FOOTNOTE_PREFIX_NAME: "Text before the footnote number",
+	SETTING_FOOTNOTE_PREFIX_DESC: "Added to the footnote label before the number: for example, n turns [^1] into [^n1].",
+	SETTING_FOOTNOTE_SUFFIX_NAME: "Text after the footnote number",
+	SETTING_FOOTNOTE_SUFFIX_DESC: "Added to the footnote label after the number: for example, -cite turns [^1] into [^1-cite].",
+	SETTING_FOOTNOTE_KEEP_NAMED_NAME: "Do not edit named footnotes when renumbering",
+	SETTING_FOOTNOTE_KEEP_NAMED_DESC: "The command that fixes footnote numbering will not edit named footnotes. For example, the footnote [^kuhn] will be left as it is.",
+	SETTING_FOOTNOTE_LABEL_INVALID: "Error: a footnote label cannot hold spaces or the characters [ ] ^ \\ |.",
 
 	SECTION_CONNECTION: "Connection to Zotero",
 	SETTING_PORT_NAME: "Zotero port",
-	SETTING_PORT_DESC:
-		"The port Zotero's local server listens on. Use 24119 for the Zotero beta.",
-	SETTING_PORT_INVALID: "Enter a port number between 1 and 65535.",
-	SETTING_MINIMIZE_NAME: "Minimize Zotero after picking",
-	SETTING_MINIMIZE_DESC:
-		"Zotero's window is sent away as soon as the citation window closes, so focus lands back in Obsidian.",
+	SETTING_PORT_DESC: "The port Zotero's local server runs on.",
+	SETTING_PORT_INVALID: "Error: enter a port number between 1 and 65535.",
+	SETTING_MINIMIZE_NAME: "Minimize Zotero after picking a source",
+	SETTING_MINIMIZE_DESC: "Zotero's window is minimized once a source is picked, and focus returns to Obsidian.",
 
 	// ─── Style list ──────────────────────────────────────────────────────────
-	STYLE_PICKER_EMPTY:
-		"No Zotero styles were found: either Zotero's data directory is not on this computer, or there are no styles in it.",
+	STYLE_PICKER_EMPTY: "No Zotero styles were found: Zotero's data folder is either empty or could not be found.",
 
 	// ─── Preview ─────────────────────────────────────────────────────────────
-	PREVIEW_TITLE: "Preview",
+	PREVIEW_TITLE: "Citation preview",
 	// The modes are named as Obsidian itself names them.
 	PREVIEW_MODE: "Preview mode",
 	PREVIEW_MODE_READING: "Reading view",
@@ -96,8 +76,7 @@ export default {
 	// Followed by a space, a citation of Kuhn's "The Structure of Scientific
 	// Revolutions" and a full stop, which is why it has no punctuation of its
 	// own at the end. Nor does it name Kuhn: the citation does.
-	PREVIEW_SENTENCE:
-		"Normal science is interrupted by scientific revolutions, in which one paradigm replaces another",
+	PREVIEW_SENTENCE: "Normal science is interrupted by scientific revolutions, in which one paradigm replaces another",
 	LOOK_COLOR: "Citation color",
 	LOOK_COLOR_TEXT: "Body text color",
 	LOOK_COLOR_ACCENT: "Accent color",
@@ -113,28 +92,25 @@ export default {
 
 	// ─── Bibliography ────────────────────────────────────────────────────────
 	BIBLIOGRAPHY_TITLE: "Bibliography",
-	BIBLIOGRAPHY_HEADING: "References",
+	BIBLIOGRAPHY_HEADING: "Bibliography",
 	// Followed by the number of entries in the list.
-	BIBLIOGRAPHY_COUNT: "Entries in the list:",
+	BIBLIOGRAPHY_COUNT: "Sources in the note:",
 	// Followed by "shown / total".
 	BIBLIOGRAPHY_SHOWN: "Entries shown:",
-	BIBLIOGRAPHY_SEARCH: "Search the list",
+	BIBLIOGRAPHY_SEARCH: "Search the bibliography",
 	BIBLIOGRAPHY_SEARCH_PLACEHOLDER: "Author, title, year, key…",
 	BIBLIOGRAPHY_NO_MATCHES: "Nothing in the list matches.",
 	BIBLIOGRAPHY_COPY: "Copy bibliography",
 	BIBLIOGRAPHY_COPIED: "Bibliography copied.",
 	BIBLIOGRAPHY_COPY_FAILED: "Could not copy the bibliography.",
-	BIBLIOGRAPHY_REFRESH: "Refresh",
-	BIBLIOGRAPHY_NO_NOTE:
-		"Open a note, and the sources it cites will appear here.",
-	BIBLIOGRAPHY_NO_STYLE:
-		"Choose a style in the Citation Suite settings, and the note's bibliography will appear here, written in that style.",
+	BIBLIOGRAPHY_REFRESH: "Refresh bibliography",
+	BIBLIOGRAPHY_NO_NOTE: "Open a note to see the sources cited in it.",
+	BIBLIOGRAPHY_NO_STYLE: "Choose a preview style in the Citation Suite settings to see the note's bibliography written in that style.",
 	BIBLIOGRAPHY_NO_CITATIONS: "This note cites no sources.",
-	BIBLIOGRAPHY_STYLE_FAILED: "The chosen style could not be loaded.",
-	BIBLIOGRAPHY_NONE_IN_STYLE: "The chosen style writes no bibliography.",
-	BIBLIOGRAPHY_MISSING: "Not found in Zotero",
-	BIBLIOGRAPHY_MISSING_DESC:
-		"Better BibTeX has no items for these citation keys, or Zotero was not running when they were looked up. Start Zotero and refresh the list with the button above it.",
+	BIBLIOGRAPHY_STYLE_FAILED: "Could not load the chosen preview style.",
+	BIBLIOGRAPHY_NONE_IN_STYLE: "The chosen preview style writes no bibliography.",
+	BIBLIOGRAPHY_MISSING: "Sources not found in Zotero",
+	BIBLIOGRAPHY_MISSING_DESC: "Better BibTeX has no items for these citation keys, or Zotero was not running when the search was made. Start Zotero and refresh the bibliography.",
 	// The menu of an entry in the list.
 	BIBLIOGRAPHY_REVEAL: "Reveal in Zotero",
 	BIBLIOGRAPHY_REVEAL_NOT_FOUND: "Zotero no longer has this source.",

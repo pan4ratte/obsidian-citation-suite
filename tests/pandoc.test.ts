@@ -69,8 +69,8 @@ describe("locatorText", () => {
 	});
 
 	it("writes a locator that arrived without a label on its own", () => {
-		// `selected=true` picks items out of Zotero's pane, where there is no
-		// field to type a label into.
+		// Better BibTeX labels a typed locator as a page, but the formatter
+		// does not count on it.
 		expect(locatorText(citation({ locator: "33" }))).toBe("33");
 	});
 });

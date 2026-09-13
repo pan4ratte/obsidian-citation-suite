@@ -34,7 +34,7 @@ anything that touches the wire.
   `format=pick`, which formats nothing and answers with the picked citations as
   JSON; `src/pandoc.ts` writes them out.
 - **Every parameter arrives as a string and is read for truth**, so
-  `brackets=false`, `selected=false` and `minimize=false` are all as true as
+  `brackets=false` and `minimize=false` are both as true as
   `true` is. A flag is sent only when it is on. `pickParams` is the one place
   that builds them, and that is the rule it keeps.
 - **An empty body is a cancelled pick.** Closing the window without choosing
@@ -60,7 +60,8 @@ The shape of one citation — `id`, `citationKey`, `locator`, `label`, `prefix`,
 `suffix`, `suppressAuthor`, `uri`, and `itemType`/`title`/`note` for notes — is
 BBT's `citationItems()`. `label` is filled in as `"page"` whenever a locator was
 typed without a label of its own, so a locator practically always arrives
-labelled; `selected=true` is the exception, since there is no window there to
+labelled; `selected=true` — which the fixture below is captured with, and which
+the plugin does not send — is the exception, since there is no window there to
 type either into. A real answer is pinned as a fixture in `tests/cayw.test.ts`.
 
 ## The JSON-RPC contract
@@ -269,12 +270,22 @@ typed in.
 ## Bibliography pane
 
 `src/bibliography.ts` is an `ItemView` in the right sidebar. It is put there
-**once**, on the first layout-ready after install — through `ensureSideLeaf`, not
-active and not revealed — and `bibliographyPaneOpened`, a settings field the tab
-never draws, records that it was. From then on the workspace layout keeps it, so
-a reader who closes it is not handed it back on every launch; checking for a leaf
-instead of the flag would do exactly that. The `show-bibliography` command opens
-and reveals it, and `onunload` does not detach it.
+**once per vault per device**, on the first layout-ready after install — through
+`ensureSideLeaf`, not active and not revealed — and the vault's local storage
+(`app.saveLocalStorage`, key `citation-suite-bibliography-placed`) records that
+it was. From then on the workspace layout keeps it, so a reader who closes it
+is not handed it back on every launch; checking for a leaf instead of the flag
+would do exactly that. The `show-bibliography` command opens and reveals it,
+and `onunload` does not detach it.
+
+The flag was a `data.json` field, `bibliographyPaneOpened`, and **must not go
+back there**. `data.json` travels with the plugin's folder and is synced to
+every device, while the layout is each device's own: a second device read "put
+there already" and never got the pane, and so did a vault whose `data.json`
+outlived the pane — which is how it went missing when the plugin was renamed.
+Local storage is scoped to the vault and the device, as the layout is. A stale
+`bibliographyPaneOpened` left in an old `data.json` is copied into the settings
+object by `loadSettings` and read by nothing.
 
 - **It follows the note being worked on**, like the outline and backlinks: a
   change of active leaf or file retargets it, but a leaf that is not a note —

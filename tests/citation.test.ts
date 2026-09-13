@@ -32,6 +32,25 @@ describe("splitLocator", () => {
 		});
 	});
 
+	it("reads a label in the plural, spelled out, or in any case", () => {
+		expect(splitLocator("pp. 4–5")).toEqual({
+			label: "page",
+			locator: "4–5",
+		});
+		expect(splitLocator("Pages 40–43")).toEqual({
+			label: "page",
+			locator: "40–43",
+		});
+		expect(splitLocator("vols. 1–2")).toEqual({
+			label: "volume",
+			locator: "1–2",
+		});
+		expect(splitLocator("§§ 3–4")).toEqual({
+			label: "section",
+			locator: "3–4",
+		});
+	});
+
 	it("leaves a bare locator for the style to name", () => {
 		expect(splitLocator("33")).toEqual({ label: "", locator: "33" });
 		expect(splitLocator("33, 35")).toEqual({ label: "", locator: "33, 35" });
@@ -67,6 +86,30 @@ describe("parseCitation", () => {
 			id: "doe2020",
 			label: "page",
 			locator: "33, 35",
+		});
+	});
+
+	it("reads a braced locator after the comma, as Better BibTeX writes it", () => {
+		expect(parseCitation("@doe2020, {pp. 40–43}")).toMatchObject({
+			id: "doe2020",
+			label: "page",
+			locator: "40–43",
+			suffix: "",
+		});
+		expect(
+			parseCitation("@doe2020, {pp. iv, vi–xi} with suffix here")
+		).toMatchObject({
+			label: "page",
+			locator: "iv, vi–xi",
+			suffix: "with suffix here",
+		});
+	});
+
+	it("reads a plural label after the comma", () => {
+		expect(parseCitation("@doe2020, pp. 4–5")).toMatchObject({
+			label: "page",
+			locator: "4–5",
+			suffix: "",
 		});
 	});
 

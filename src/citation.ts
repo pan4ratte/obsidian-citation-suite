@@ -41,16 +41,77 @@ const KEY = "[a-zA-Z0-9_](?:[a-zA-Z0-9_]*[:.#$%&+?<>~/-]?[a-zA-Z0-9_]+)*";
 /** `@key` or `@{key}`, with the `-` that suppresses the author before it. */
 const CITATION = new RegExp("(-?)@(?:[{]([^}]*)[}]|(" + KEY + "))");
 
-/** The label a locator was written with, back from `p.` to `page`. */
+/**
+ * The words a locator can be labelled with, in the singular and the plural, as
+ * CSL's `en-US` locale spells them — the long form, the short and the symbol.
+ * Pandoc reads a label by the locale's terms, so `pp. 4–5` is a page range to
+ * it just as `p. 4` is a page, and a note written by hand or by another tool
+ * uses either. Multi-word terms (`sub verbo`) cannot open a locator that is
+ * split on spaces, and are left out.
+ */
+const LOCALE_LABELS: Record<string, string[]> = {
+	appendix: ["appendix", "appendices", "app.", "apps."],
+	book: ["book", "books", "bk.", "bks."],
+	canon: ["canon", "canons", "can.", "cann."],
+	chapter: ["chapter", "chapters", "chap.", "chaps."],
+	column: ["column", "columns", "col.", "cols."],
+	elocation: ["location", "locations", "loc.", "locs."],
+	equation: ["equation", "equations", "eq.", "eqq."],
+	figure: ["figure", "figures", "fig.", "figs."],
+	folio: ["folio", "folios", "fol.", "fols."],
+	issue: ["issue", "issues", "no.", "nos."],
+	line: ["line", "lines", "l.", "ll."],
+	note: ["note", "notes", "n.", "nn."],
+	opus: ["opus", "opera", "op.", "opp."],
+	page: ["page", "pages", "p.", "pp."],
+	paragraph: ["paragraph", "paragraphs", "para.", "paras.", "¶", "¶¶"],
+	part: ["part", "parts", "pt.", "pts."],
+	rule: ["rule", "rules", "r.", "rr."],
+	scene: ["scene", "scenes", "sc.", "scs."],
+	section: ["section", "sections", "sec.", "secs.", "§", "§§"],
+	"sub-verbo": ["s.v.", "s.vv."],
+	supplement: ["supplement", "supplements", "supp.", "supps."],
+	table: ["table", "tables", "tbl.", "tbls."],
+	verse: ["verse", "verses", "v.", "vv."],
+	volume: ["volume", "volumes", "vol.", "vols."],
+};
+
+/**
+ * Every label word, lowercased, mapped back to its CSL label: the locale's
+ * terms above, the CSL label names themselves, and the abbreviations the
+ * plugin writes (`src/pandoc.ts`).
+ */
 const LABELS: Record<string, string> = Object.fromEntries(
-	Object.entries(LOCATOR_LABELS).map(([label, short]) => [short, label])
+	[
+		...Object.entries(LOCALE_LABELS).flatMap(([label, words]) =>
+			words.map((word): [string, string] => [word, label])
+		),
+		...Object.keys(LOCATOR_LABELS).map((label): [string, string] => [
+			label.toLowerCase(),
+			label,
+		]),
+		...Object.entries(LOCATOR_LABELS).map(
+			([label, short]): [string, string] => [short.toLowerCase(), label]
+		),
+	]
 );
 
 /**
- * A locator as it was written — `p. 33`, `ch. 2`, `33` — split into the CSL
- * label and the locator itself. An unlabelled locator keeps its label empty:
- * the style decides what an unqualified number means, and for every style that
- * has an opinion it means a page.
+ * The CSL label a word names — `p.`, `pp.`, `Pages` and `p` all name `page` —
+ * or empty for a word that is not a label. Case does not matter to pandoc, and
+ * neither does a missing full stop or a comma left after the label.
+ */
+function labelOf(word: string): string {
+	const lower = word.toLowerCase().replace(/,+$/, "");
+	const bare = lower.replace(/[.]+$/, "");
+	return LABELS[lower] ?? LABELS[bare] ?? LABELS[`${bare}.`] ?? "";
+}
+
+/**
+ * A locator as it was written — `p. 33`, `pp. 33–35`, `ch. 2`, `33` — split
+ * into the CSL label and the locator itself. An unlabelled locator keeps its
+ * label empty: the style decides what an unqualified number means, and for
+ * every style that has an opinion it means a page.
  */
 export function splitLocator(text: string): { label: string; locator: string } {
 	const trimmed = text.trim();
@@ -58,22 +119,15 @@ export function splitLocator(text: string): { label: string; locator: string } {
 	if (space === -1) {
 		return { label: "", locator: trimmed };
 	}
-	const head = trimmed.slice(0, space);
-	const label = LABELS[head] ?? (head in LOCATOR_LABELS ? head : "");
+	const label = labelOf(trimmed.slice(0, space));
 	return label
 		? { label, locator: trimmed.slice(space + 1).trim() }
 		: { label: "", locator: trimmed };
 }
 
-/** Whether a word opens a locator by naming what it counts: `p.`, `ch.`. */
+/** Whether a word opens a locator by naming what it counts: `p.`, `pp.`. */
 function isLabel(word: string): boolean {
-	const bare = word.replace(/[.,]+$/, "");
-	return (
-		bare in LOCATOR_LABELS ||
-		word in LABELS ||
-		bare + "." in LABELS ||
-		bare in LABELS
-	);
+	return labelOf(word) !== "";
 }
 
 /**
@@ -113,27 +167,42 @@ function splitLocatorSuffix(text: string): { locator: string; suffix: string } {
 	};
 }
 
+/** A locator in braces at the start of the text, and what follows it. */
+function bracedLocator(
+	text: string
+): { locator: string; suffix: string } | null {
+	if (!text.startsWith("{")) {
+		return null;
+	}
+	const close = text.indexOf("}");
+	if (close === -1) {
+		return null;
+	}
+	return {
+		locator: text.slice(1, close),
+		suffix: text.slice(close + 1).trim(),
+	};
+}
+
 /**
  * What follows the key: the locator, then the suffix.
  *
  * Braces are pandoc's explicit locator and hold anything, so they are taken
- * whole. Otherwise a leading comma introduces a locator, which runs to the end
- * of the citation — pandoc ends it at the first thing that cannot be part of
- * one, and the plugin's own writer never puts a suffix after a bare locator
- * without a comma of its own.
+ * whole — straight after the key (`@doe2020{pp. 33, 35}`) or after the comma
+ * (`@doe2020, {pp. 33, 35}`). The pandoc manual shows both, and the second is
+ * what Better BibTeX's own pandoc formatter writes. Otherwise a leading comma
+ * introduces a locator, which runs to the end of the citation — pandoc ends it
+ * at the first thing that cannot be part of one, and the plugin's own writer
+ * never puts a suffix after a bare locator without a comma of its own.
  */
 function splitTail(tail: string): { locator: string; suffix: string } {
-	if (tail.startsWith("{")) {
-		const close = tail.indexOf("}");
-		if (close !== -1) {
-			return {
-				locator: tail.slice(1, close),
-				suffix: tail.slice(close + 1).trim(),
-			};
-		}
+	const braced = bracedLocator(tail);
+	if (braced) {
+		return braced;
 	}
 	if (tail.startsWith(",")) {
-		return splitLocatorSuffix(tail.slice(1).trim());
+		const rest = tail.slice(1).trim();
+		return bracedLocator(rest) ?? splitLocatorSuffix(rest);
 	}
 	return { locator: "", suffix: tail.trim() };
 }

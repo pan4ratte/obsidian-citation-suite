@@ -28,6 +28,12 @@ import {
 	CitationSuiteSettings,
 } from "src/types";
 
+/**
+ * The vault's local-storage key that says the bibliography pane has been put
+ * in this device's sidebar once already.
+ */
+const BIBLIOGRAPHY_PLACED_KEY = "citation-suite-bibliography-placed";
+
 export default class CitationSuitePlugin extends Plugin {
 	settings: CitationSuiteSettings = { ...DEFAULT_SETTINGS };
 	/**
@@ -105,14 +111,6 @@ export default class CitationSuitePlugin extends Plugin {
 		});
 
 		this.addCommand({
-			id: "insert-selected-citation",
-			name: t.COMMAND_INSERT_SELECTED_CITATION,
-			editorCallback: (editor: Editor) => {
-				void this.insertCitation(editor, true);
-			},
-		});
-
-		this.addCommand({
 			id: "insert-footnote",
 			name: t.COMMAND_INSERT_FOOTNOTE,
 			editorCallback: (editor: Editor) => {
@@ -168,20 +166,25 @@ export default class CitationSuitePlugin extends Plugin {
 
 	/**
 	 * Puts the bibliography pane in the right sidebar the first time the plugin
-	 * runs, without taking the focus or unfolding a collapsed sidebar. From
-	 * then on it is the workspace layout that keeps it there, so a reader who
-	 * closes it is not handed it back on every launch; the command reopens it.
+	 * runs in this vault on this device, without taking the focus or unfolding a
+	 * collapsed sidebar. From then on it is the workspace layout that keeps it
+	 * there, so a reader who closes it is not handed it back on every launch;
+	 * the command reopens it.
+	 *
+	 * That it was put there is kept in the vault's local storage, which belongs
+	 * to this device as the layout does — not in `data.json`, which is synced
+	 * to every other device and would tell a second one, whose layout has never
+	 * held the pane, that it already had.
 	 */
 	private async openBibliographyOnce(): Promise<void> {
-		if (this.settings.bibliographyPaneOpened) {
+		if (this.app.loadLocalStorage(BIBLIOGRAPHY_PLACED_KEY)) {
 			return;
 		}
 		await this.app.workspace.ensureSideLeaf(BIBLIOGRAPHY_VIEW, "right", {
 			active: false,
 			reveal: false,
 		});
-		this.settings.bibliographyPaneOpened = true;
-		await this.saveSettings();
+		this.app.saveLocalStorage(BIBLIOGRAPHY_PLACED_KEY, true);
 	}
 
 	/** The main window's document, and that of every pop-out holding a leaf. */
@@ -214,10 +217,7 @@ export default class CitationSuitePlugin extends Plugin {
 	 * its database look identical from here — a request that fails — and the
 	 * citation window would be asked for in a moment when it cannot be drawn.
 	 */
-	private async insertCitation(
-		editor: Editor,
-		fromSelection = false
-	): Promise<void> {
+	private async insertCitation(editor: Editor): Promise<void> {
 		const status = await probeZotero(this.settings.port);
 		if (status === "unreachable") {
 			new Notice(t.NOTICE_ZOTERO_UNREACHABLE);
@@ -230,7 +230,6 @@ export default class CitationSuitePlugin extends Plugin {
 
 		const options: PickOptions = {
 			port: this.settings.port,
-			selected: fromSelection,
 			minimize: this.settings.minimizeZotero,
 		};
 
