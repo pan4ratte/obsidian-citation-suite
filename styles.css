@@ -94,17 +94,16 @@
 
 /* Third: a slider row is squeezed the other way. Its control — the reset
    button, the value and the track — shares the row's width with a two-line
-   description, so the value breaks onto two lines ("1 000" over "мс") and the
-   track is left short. The control is given its own width instead, and the
-   description wraps in what remains. Obsidian marks a slider row with no class
-   of its own (`mod-slider` is only set by the graph and search panes, and a
-   setting definition takes no `cls`), so the row is found by the slider in it. */
-.setting-group.citation-suite-settings-rows
-	.setting-item:has(> .setting-item-control .slider)
-	> .setting-item-control {
-	flex: 0 0 auto;
-}
+   description, and the value is the one part of it that can wrap, so it breaks
+   onto two lines ("1 000" over "мс") and the track is left short. Kept on one
+   line, the value makes the control's narrowest width its whole width, which
+   the control does not shrink past, and the description wraps in what remains.
 
+   The row itself is not reached for: Obsidian marks a slider row with no class
+   of its own (`mod-slider` is only set by the graph and search panes, and a
+   setting definition takes no `cls`), and finding it by the slider in it takes
+   `:has`, which the review scanner advises against for the invalidation it
+   costs. Sizing the row's control on top of this changed nothing measurable. */
 .setting-group.citation-suite-settings-rows .slider-value {
 	white-space: nowrap;
 }
@@ -189,9 +188,11 @@
 	width: 0.3rem;
 	height: 0.3rem;
 	border-radius: 50%;
-	background-color: currentColor;
+	background-color: currentcolor;
+
 	/* A halo in the same colour as the dot, only much fainter. */
-	box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 20%, transparent);
+	box-shadow: 0 0 0 3px color-mix(in srgb, currentcolor 20%, transparent);
+
 	/* Centred on the first line rather than on the label, which a long enough
 	   status wraps onto a second one. */
 	margin-top: calc((1lh - 0.3rem) / 2);
@@ -311,6 +312,7 @@
 	height: auto;
 	margin: 0;
 	padding: var(--size-4-2) var(--size-4-4);
+
 	/* Opaque, so the colour the row is divided by is only seen in the gaps. */
 	background-color: var(--setting-items-background, var(--background-primary));
 	border: none;
@@ -352,12 +354,16 @@
    row's do, and the list wraps onto a line of its own under them, across the
    whole width of the card. The row has no control, so the empty control block
    is not drawn: it would otherwise hold a gap beside the description. Four
-   classes, to outrank the group's own row rule. */
+   classes, to outrank the group's own row rule; the control is reached through
+   the same four, so that it is no weaker than the rule the toggle rows' control
+   is sized by. */
 .setting-group.citation-suite-settings-rows .setting-item.citation-suite-style-setting {
 	flex-wrap: wrap;
 }
 
-.citation-suite-style-setting > .setting-item-control {
+.setting-group.citation-suite-settings-rows
+	.setting-item.citation-suite-style-setting
+	> .setting-item-control {
 	display: none;
 }
 
@@ -633,16 +639,16 @@ body.citation-suite-citation-color-custom .citation-suite-style-preview-swatch {
    from, and it would override every size below. */
 .citation-suite-markdown-modal {
 	max-width: 680px;
+
 	/* Obsidian turns selection off inside a modal, which a page meant to be
-	   read and quoted from has no use for. */
+	   read and quoted from has no use for. Its own `-webkit-user-select` is the
+	   same property under an older name, so the unprefixed one overrides it. */
 	user-select: text;
-	-webkit-user-select: text;
 	cursor: auto;
 }
 
 .citation-suite-markdown-modal * {
 	user-select: text;
-	-webkit-user-select: text;
 }
 
 /* The document's own title. Obsidian's UI sizes stop at `--font-ui-large`,
@@ -755,14 +761,17 @@ body.citation-suite-citation-italic {
 	color: var(--citation-suite-citation-color, var(--text-normal));
 	font-weight: var(--citation-suite-citation-weight, inherit);
 	font-style: var(--citation-suite-citation-style, inherit);
-	text-decoration-line: var(--citation-suite-citation-underline, underline);
-	text-decoration-style: var(--citation-suite-citation-underline-style, dotted);
-	text-decoration-color: var(
-		--citation-suite-citation-underline-color,
-		var(--text-faint)
-	);
-	text-decoration-thickness: 1px;
+	text-decoration:
+		var(--citation-suite-citation-underline, underline)
+		var(--citation-suite-citation-underline-style, dotted)
+		var(--citation-suite-citation-underline-color, var(--text-faint))
+		1px;
 	text-underline-offset: 0.25em;
+
+	/* The line runs unbroken under descenders. caniuse counts Chromium's
+	   text decoration as partial only for the `text-decoration-skip` values it
+	   lacks, which nothing here uses. */
+	/* stylelint-disable-next-line plugin/no-unsupported-browser-features */
 	text-decoration-skip-ink: none;
 	cursor: default;
 }
@@ -959,6 +968,17 @@ body.citation-suite-citation-italic .citation-suite-citation em {
 	overflow-wrap: anywhere;
 }
 
+/* A style with a hanging indent: every line of the entry but the first is set
+   in by the indent the style asks for. */
+.citation-suite-bibliography-hanging .csl-entry {
+	padding-left: var(--citation-suite-bibliography-indent);
+
+	/* caniuse counts `text-indent` as partial in Chromium before 146 only for
+	   the `hanging` and `each-line` keywords, and a length is all this is. */
+	/* stylelint-disable-next-line plugin/no-unsupported-browser-features */
+	text-indent: calc(-1 * var(--citation-suite-bibliography-indent));
+}
+
 /* A rule between one entry and the next, so that where an entry that wraps
    onto several lines ends is never in doubt. Drawn on every shown entry with
    a shown entry somewhere before it, so that filtering never leaves a rule
@@ -969,11 +989,6 @@ body.citation-suite-citation-italic .citation-suite-citation em {
 	margin-top: var(--size-4-2);
 	padding-top: var(--size-4-2);
 	border-top: 1px solid var(--background-modifier-border);
-}
-
-.citation-suite-bibliography-hanging .csl-entry {
-	padding-left: var(--citation-suite-bibliography-indent);
-	text-indent: calc(-1 * var(--citation-suite-bibliography-indent));
 }
 
 /* A numbered style's number in a column as wide as the widest number, and
@@ -1013,7 +1028,9 @@ body.citation-suite-citation-italic .citation-suite-citation em {
 
    The colour fades in and out. An entry drawn anew by a pass is drawn already
    coloured, and nothing moves. */
-.citation-suite-bibliography-list .csl-entry {
+.citation-suite-bibliography-list
+	.csl-entry:not(.citation-suite-bibliography-hidden)
+	~ .csl-entry:not(.citation-suite-bibliography-hidden) {
 	transition: border-top-color var(--anim-duration-fast) ease-in-out;
 }
 
@@ -1022,7 +1039,8 @@ body.citation-suite-citation-italic .citation-suite-citation em {
 	~ .csl-entry.is-finding:not(.citation-suite-bibliography-hidden),
 .citation-suite-bibliography-list
 	.csl-entry.is-finding:not(.citation-suite-bibliography-hidden)
-	~ .csl-entry:not(.citation-suite-bibliography-hidden):not(
+	~ .csl-entry:not(
+		.citation-suite-bibliography-hidden,
 		.csl-entry.is-finding:not(.citation-suite-bibliography-hidden)
 			~ .csl-entry:not(.citation-suite-bibliography-hidden)
 			~ .csl-entry
@@ -1195,7 +1213,9 @@ body.citation-suite-citation-italic .citation-suite-citation em {
    The selectors are the ones above, repeated so as to tie with them and win
    by coming later. */
 @media (prefers-reduced-motion: reduce) {
-	.citation-suite-bibliography-list .csl-entry {
+	.citation-suite-bibliography-list
+		.csl-entry:not(.citation-suite-bibliography-hidden)
+		~ .csl-entry:not(.citation-suite-bibliography-hidden) {
 		transition: none;
 	}
 

@@ -51,6 +51,15 @@ describe("citationKeyToken", () => {
 		expect(citationKeyToken("doe2020-")).toBe("@{doe2020-}");
 		expect(citationKeyToken("—dash")).toBe("@{—dash}");
 	});
+
+	it("decides a long key it rejects without backtracking", () => {
+		// The shape that made the old pattern exponential: a long alphanumeric
+		// run and then a character it does not accept.
+		const key = `${"0".repeat(5000)}-`;
+		const start = performance.now();
+		expect(citationKeyToken(key)).toBe(`@{${key}}`);
+		expect(performance.now() - start).toBeLessThan(100);
+	});
 });
 
 describe("locatorText", () => {

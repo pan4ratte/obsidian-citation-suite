@@ -36,8 +36,13 @@ jobs:
       - name: Verify the obsidian types resolved
         run: npm ls obsidian
 
-      - name: Lint
-        run: npm run lint -- --max-warnings 0
+      # Two steps rather than `npm run lint`, which runs both: arguments after
+      # `--` would reach only the last command in that script.
+      - name: Lint TypeScript
+        run: npm run lint:ts -- --max-warnings 0
+
+      - name: Lint CSS
+        run: npm run lint:css -- --max-warnings 0
 
       - name: Test
         run: npm test

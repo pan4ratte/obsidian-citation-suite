@@ -53,9 +53,14 @@ export function shortLabel(label: string): string {
  * a letter, digit or `_`, and internal punctuation has to be followed by
  * another alphanumeric. Anything else has to go in `@{…}`, or pandoc reads the
  * key as ending at the first character it does not accept.
+ *
+ * Written as runs of alphanumerics joined by single punctuation marks, so that
+ * a key can be matched only one way. A pattern that lets a run of alphanumerics
+ * be split between repetitions backtracks exponentially on a long run followed
+ * by a character it rejects: 26 alphanumerics and a `!` took about three
+ * minutes, with the editor frozen.
  */
-const PLAIN_CITATION_KEY =
-	/^[a-zA-Z0-9_](?:[a-zA-Z0-9_]*[:.#$%&\-+?<>~/]?[a-zA-Z0-9_]+)*$/;
+const PLAIN_CITATION_KEY = /^[a-zA-Z0-9_]+(?:[:.#$%&\-+?<>~/][a-zA-Z0-9_]+)*$/;
 
 /** `@key`, or `@{key}` for a key pandoc would otherwise cut short. */
 export function citationKeyToken(citationKey: string): string {

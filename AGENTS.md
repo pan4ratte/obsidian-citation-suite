@@ -6,7 +6,7 @@
 |---------|-------------|
 | `npm run dev` | esbuild watch mode (no typecheck) |
 | `npm test` | Vitest — 160 tests, all passing |
-| `npm run lint` / `npm run lint:fix` | ESLint flat config with the official Obsidian ruleset |
+| `npm run lint` / `npm run lint:fix` | ESLint (`lint:ts`) and Stylelint (`lint:css`) with the official Obsidian rulesets |
 | `npm run build` | `tsc -noEmit -skipLibCheck && node esbuild.config.mjs production` |
 
 ## What this plugin is
@@ -737,6 +737,29 @@ no exempting a string — write UI text that passes. It reads a value as one
 literal, so a concatenated string is silently unchecked, and it objects to a
 bare `@key` in prose (it reads the `@` as a handle): `SETTING_BRACKETS_DESC`
 shows the bracketed example and describes the other rather than printing it.
+
+### CSS
+
+`stylelint.config.mjs` extends `stylelint-config-obsidianmd`, Obsidian's own
+CSS ruleset and the one the review scanner runs over `styles.css`. It is a
+separate package from the ESLint plugin, and ESLint never looks at CSS, so an
+up-to-date `eslint-plugin-obsidianmd` alone lets the scanner's CSS findings
+through. Lint is clean here as well, and CI runs it with `--max-warnings 0`.
+
+- **The browser target is Electron 39 (Obsidian 1.11.4), not the preset's 43.**
+  That is the version the scanner reported against. `browsers` replaces the
+  preset's options rather than merging with them, so `ignore` is restated too.
+- **`:has` is not used.** The scanner advises against it for its invalidation
+  cost. The slider row it once found is sized by `white-space: nowrap` on the
+  value alone; measured in Chromium against Obsidian's own `app.css`, the row
+  came out the same at every width.
+- **Two browser-feature warnings are false positives, disabled on their line
+  with the reason beside them.** caniuse counts Chromium's text decoration as
+  partial only for `text-decoration-skip` values, and `text-indent` as partial
+  before Chromium 146 only for its `hanging` and `each-line` keywords. The
+  citation's underline is written as the `text-decoration` shorthand, which
+  the checker does not flag; `text-decoration-skip-ink` and the bibliography's
+  hanging `text-indent` carry the disable comments.
 
 ## npm audit and the lockfile
 
