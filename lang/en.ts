@@ -37,6 +37,31 @@ export default {
 	SETTING_BRACKETS_DESC:
 		"A citation is inserted as [@doe2020, p. 33], which is how pandoc reads a citation in parentheses. Turn this off to insert the same citation without its brackets.",
 
+	SECTION_FOOTNOTES: "Footnotes",
+	SETTING_FOOTNOTES_NAME: "Put citations in footnotes",
+	SETTING_FOOTNOTES_DESC:
+		"A footnote anchor is placed at the cursor, and the citation itself becomes the footnote's text. Inside an existing footnote the citation is inserted as usual, since a footnote cannot hold another.",
+	SETTING_FOOTNOTE_PLACEMENT_NAME: "Where the footnote text goes",
+	SETTING_FOOTNOTE_PLACEMENT_DESC:
+		"To pandoc and Obsidian the place makes no difference: footnotes are numbered in the order their anchors appear. It only matters for how the note reads in source mode.",
+	FOOTNOTE_PLACEMENT_PARAGRAPH: "After the current paragraph",
+	FOOTNOTE_PLACEMENT_SECTION: "At the end of the current section",
+	FOOTNOTE_PLACEMENT_DOCUMENT: "At the end of the note",
+	SETTING_FOOTNOTE_NUMBERING_NAME: "Footnote numbering",
+	SETTING_FOOTNOTE_NUMBERING_DESC:
+		"Each new footnote gets a number one higher than the highest already in the note.",
+	FOOTNOTE_NUMBERING_ARABIC: "Arabic numerals",
+	FOOTNOTE_NUMBERING_ROMAN_LOWER: "Lowercase roman numerals",
+	FOOTNOTE_NUMBERING_ROMAN_UPPER: "Uppercase roman numerals",
+	SETTING_FOOTNOTE_PREFIX_NAME: "Text before the number",
+	SETTING_FOOTNOTE_PREFIX_DESC:
+		"Added to the footnote label before the number: for example, n turns [^1] into [^n1].",
+	SETTING_FOOTNOTE_SUFFIX_NAME: "Text after the number",
+	SETTING_FOOTNOTE_SUFFIX_DESC:
+		"Added to the footnote label after the number: for example, -cite turns [^1] into [^1-cite].",
+	SETTING_FOOTNOTE_LABEL_INVALID:
+		"A footnote label cannot hold spaces or the characters [ ] ^ \\ |.",
+
 	SECTION_CONNECTION: "Connection to Zotero",
 	SETTING_PORT_NAME: "Zotero port",
 	SETTING_PORT_DESC:
@@ -52,6 +77,11 @@ export default {
 
 	// ─── Preview ─────────────────────────────────────────────────────────────
 	PREVIEW_TITLE: "Preview",
+	// The modes are named as Obsidian itself names them.
+	PREVIEW_MODE: "Preview mode",
+	PREVIEW_MODE_READING: "Reading view",
+	PREVIEW_MODE_SOURCE: "Source mode",
+	PREVIEW_MODE_LIVE: "Live preview",
 	// Followed by a space, a citation of Kuhn's "The Structure of Scientific
 	// Revolutions" and a full stop, which is why it has no punctuation of its
 	// own at the end. Nor does it name Kuhn: the citation does.

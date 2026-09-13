@@ -8,6 +8,7 @@ import {
 	probeZotero,
 } from "src/cayw";
 import { ChangelogModal } from "src/changelogModal";
+import { footnoteEdit, FootnoteOptions } from "src/footnote";
 import { citationExtension } from "src/live";
 import { applyLook, clearLook } from "src/look";
 import { formatCitations } from "src/pandoc";
@@ -186,9 +187,54 @@ export default class ZoterikPlugin extends Plugin {
 
 		// A closed window with nothing chosen is not a failure and says
 		// nothing: the reader changed their mind.
-		if (citation) {
+		if (!citation) {
+			return;
+		}
+		if (this.settings.footnotes) {
+			this.insertFootnote(editor, citation);
+		} else {
 			editor.replaceSelection(citation);
 		}
+	}
+
+	/**
+	 * How a footnote is written, as the settings say. The insertion, the
+	 * settings' example and the style preview all read it from here, so none of
+	 * them can label a footnote differently from the others.
+	 */
+	footnoteOptions(): FootnoteOptions {
+		return {
+			placement: this.settings.footnotePlacement,
+			numbering: this.settings.footnoteNumbering,
+			prefix: this.settings.footnotePrefix,
+			suffix: this.settings.footnoteSuffix,
+		};
+	}
+
+	/**
+	 * The citation as a footnote: its anchor in place of the selection, and its
+	 * text where the settings put it. Both go in as one transaction, so a single
+	 * undo takes the whole footnote back out.
+	 *
+	 * The cursor is set afterwards rather than in the transaction, because the
+	 * transaction reads positions against the note as it was before the edit.
+	 */
+	private insertFootnote(editor: Editor, citation: string): void {
+		const edit = footnoteEdit(
+			editor.getValue(),
+			editor.posToOffset(editor.getCursor("from")),
+			editor.posToOffset(editor.getCursor("to")),
+			citation,
+			this.footnoteOptions()
+		);
+		editor.transaction({
+			changes: edit.changes.map((change) => ({
+				from: editor.offsetToPos(change.from),
+				to: editor.offsetToPos(change.to),
+				text: change.text,
+			})),
+		});
+		editor.setCursor(editor.offsetToPos(edit.cursor));
 	}
 
 	/**

@@ -78,6 +78,18 @@ end the citation at that character and leave the rest as stray text in your sent
   style you have just installed appears after a restart.
 - **Wrap citations in brackets** — on by default. Turn it off to insert
   `@doe2020, p. 33` without the brackets around it.
+- **Put citations in footnotes** — off by default. Turn it on and a footnote anchor `[^1]`
+  is placed at the cursor, with the citation as its text: `[^1]: [@doe2020, p. 33]`.
+  Inside an existing footnote the citation is inserted as usual, since a footnote cannot
+  hold another. While it is on, three more settings are available:
+  - **Where the footnote text goes** — after the current paragraph, at the end of the
+    current section (before the next heading), or at the end of the note, which is the
+    default. A new footnote goes after the ones already there.
+  - **Footnote numbering** — arabic numerals, lowercase roman numerals or uppercase roman
+    numerals. The number is one higher than the highest already in the note.
+  - **Text before the number** and **Text after the number** — for example, `n` before the
+    number gives `[^n1]`. Spaces and the characters `[ ] ^ \ |` would break the footnote,
+    so they cannot be typed.
 - **Zotero port** — `23119`, which is where Zotero listens. The Zotero beta runs its
   server one port up, on `24119`, so both can be open at once.
 - **Minimize Zotero after picking** — sends Zotero's window away as soon as the citation

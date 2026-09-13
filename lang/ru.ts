@@ -37,6 +37,31 @@ export default {
 	SETTING_BRACKETS_DESC:
 		"Ссылка вставляется как [@doe2020, p. 33] — именно так pandoc читает ссылку в скобках. Отключите, чтобы та же ссылка вставлялась без квадратных скобок.",
 
+	SECTION_FOOTNOTES: "Сноски",
+	SETTING_FOOTNOTES_NAME: "Ставить ссылки в сноски",
+	SETTING_FOOTNOTES_DESC:
+		"На месте курсора появляется знак сноски, а сама ссылка становится текстом сноски. Внутри уже существующей сноски ссылка вставляется как обычно: сноска в сноске невозможна.",
+	SETTING_FOOTNOTE_PLACEMENT_NAME: "Куда ставить текст сноски",
+	SETTING_FOOTNOTE_PLACEMENT_DESC:
+		"Для pandoc и Obsidian место не имеет значения: сноски нумеруются по порядку знаков в тексте. Оно важно лишь для того, как заметка читается в режиме исходного кода.",
+	FOOTNOTE_PLACEMENT_PARAGRAPH: "После текущего абзаца",
+	FOOTNOTE_PLACEMENT_SECTION: "В конце текущего раздела",
+	FOOTNOTE_PLACEMENT_DOCUMENT: "В конце заметки",
+	SETTING_FOOTNOTE_NUMBERING_NAME: "Нумерация сносок",
+	SETTING_FOOTNOTE_NUMBERING_DESC:
+		"Каждая новая сноска получает номер на единицу больше самого большого из уже стоящих в заметке.",
+	FOOTNOTE_NUMBERING_ARABIC: "Арабские цифры",
+	FOOTNOTE_NUMBERING_ROMAN_LOWER: "Римские строчные цифры",
+	FOOTNOTE_NUMBERING_ROMAN_UPPER: "Римские прописные цифры",
+	SETTING_FOOTNOTE_PREFIX_NAME: "Текст перед номером",
+	SETTING_FOOTNOTE_PREFIX_DESC:
+		"Добавляется к метке сноски перед номером — например, n превращает [^1] в [^n1].",
+	SETTING_FOOTNOTE_SUFFIX_NAME: "Текст после номера",
+	SETTING_FOOTNOTE_SUFFIX_DESC:
+		"Добавляется к метке сноски после номера — например, -cite превращает [^1] в [^1-cite].",
+	SETTING_FOOTNOTE_LABEL_INVALID:
+		"Метка сноски не может содержать пробелы и символы [ ] ^ \\ |.",
+
 	SECTION_CONNECTION: "Подключение к Zotero",
 	SETTING_PORT_NAME: "Порт Zotero",
 	SETTING_PORT_DESC:
@@ -52,6 +77,11 @@ export default {
 
 	// ─── Предпросмотр ────────────────────────────────────────────────────────
 	PREVIEW_TITLE: "Предпросмотр",
+	// Названия режимов — те же, что в самом Obsidian.
+	PREVIEW_MODE: "Режим предпросмотра",
+	PREVIEW_MODE_READING: "Просмотр",
+	PREVIEW_MODE_SOURCE: "Исходный код",
+	PREVIEW_MODE_LIVE: "Динамический просмотр",
 	// За ней следуют пробел, ссылка на книгу Куна «Структура научных
 	// революций» и точка, поэтому своей пунктуации в конце у неё нет. Имени
 	// Куна в ней тоже нет: его называет сама ссылка.

@@ -287,6 +287,15 @@ body .zoterik-changelog-close:hover {
 	background-color: var(--background-secondary);
 }
 
+/* The title and, beside it, the buttons that switch the view the sample is
+   shown in. */
+.zoterik-style-preview-heading {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-4-2);
+}
+
 .zoterik-style-preview-title {
 	font-size: var(--font-ui-smaller);
 	font-weight: var(--font-medium);
@@ -380,6 +389,72 @@ body.zoterik-citation-color-custom .zoterik-style-preview-swatch {
 	line-height: var(--line-height-normal);
 	color: var(--text-normal);
 	user-select: text;
+}
+
+/* The footnote's anchor in reading view, in the sentence and before the
+   footnote's text, set in the colour reading view gives a footnote's link. */
+.zoterik-style-preview-anchor {
+	color: var(--link-color);
+	font-family: var(--font-interface);
+	font-size: 0.7em;
+	line-height: 0;
+}
+
+/* The footnote under the sentence: smaller, and under a short rule, the way a
+   page sets its footnotes apart from the text. */
+.zoterik-style-preview-footnote {
+	position: relative;
+	margin: var(--size-4-3) 0 0;
+	padding-top: var(--size-4-2);
+	font-family: var(--font-text);
+	font-size: var(--font-ui-small);
+	line-height: var(--line-height-normal);
+	color: var(--text-normal);
+	user-select: text;
+}
+
+.zoterik-style-preview-footnote::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 25%;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/* A footnote's `[^1]` in the sentence, as source mode and live preview set it:
+   small and raised, in the muted colour, with its brackets fainter still.
+   Values from Obsidian's own `span.cm-footref`. */
+.zoterik-style-preview-footref {
+	position: relative;
+	top: -0.2em;
+	vertical-align: text-top;
+	font-size: var(--font-smallest);
+	color: var(--text-muted);
+}
+
+.zoterik-style-preview-formatting {
+	color: var(--text-faint);
+}
+
+/* The footnote's own line in source mode and live preview: the text in the
+   footnote size, and `[^1]:` before it set as Obsidian sets it on a
+   `HyperMD-footnote` line. No rule above it, since the editor draws none. */
+.zoterik-style-preview-footnote-line {
+	margin: var(--size-4-3) 0 0;
+	font-family: var(--font-text);
+	font-size: var(--footnote-size);
+	line-height: var(--line-height-normal);
+	color: var(--text-normal);
+	user-select: text;
+}
+
+.zoterik-style-preview-footnote-label {
+	display: inline-block;
+	position: relative;
+	top: -0.3em;
+	font-size: var(--font-smallest);
+	color: var(--text-muted);
 }
 
 /* A citation with no style to be drawn in, shown as the note holds it. */

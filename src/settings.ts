@@ -2,6 +2,7 @@ import {
 	App,
 	PluginSettingTab,
 	Setting,
+	SettingDefinitionControl,
 	SettingDefinitionItem,
 	SettingDefinitionRender,
 	setIcon,
@@ -9,6 +10,11 @@ import {
 import { getChangelogContent, t } from "lang/helpers";
 import ZoterikPlugin from "src/main";
 import { ChangelogModal } from "src/changelogModal";
+import {
+	FootnoteNumbering,
+	FootnotePlacement,
+	isValidLabelText,
+} from "src/footnote";
 import { renderStylePreview, StylePreview } from "src/preview";
 import { renderStylePicker, StyleChoice } from "src/stylePicker";
 import { asIndexable } from "src/types";
@@ -16,17 +22,45 @@ import { asIndexable } from "src/types";
 const MIN_PORT = 1;
 const MAX_PORT = 65535;
 
+/** What the placement dropdown offers, in the order it offers it. */
+const PLACEMENT_OPTIONS: Record<FootnotePlacement, string> = {
+	paragraph: t.FOOTNOTE_PLACEMENT_PARAGRAPH,
+	section: t.FOOTNOTE_PLACEMENT_SECTION,
+	document: t.FOOTNOTE_PLACEMENT_DOCUMENT,
+};
+
+/** What the numbering dropdown offers, in the order it offers it. */
+const NUMBERING_OPTIONS: Record<FootnoteNumbering, string> = {
+	arabic: t.FOOTNOTE_NUMBERING_ARABIC,
+	"roman-lower": t.FOOTNOTE_NUMBERING_ROMAN_LOWER,
+	"roman-upper": t.FOOTNOTE_NUMBERING_ROMAN_UPPER,
+};
+
+/**
+ * The settings the style preview is drawn from: the style, how a citation is
+ * written without one, and whether it stands in a footnote, labelled how.
+ */
+const PREVIEW_KEYS = new Set([
+	"citationStyle",
+	"brackets",
+	"footnotes",
+	"footnoteNumbering",
+	"footnotePrefix",
+	"footnoteSuffix",
+]);
+
 /**
  * The settings tab, declared through Obsidian 1.13's `getSettingDefinitions()`.
  * `display()` is gone: a non-empty array of definitions renders the tab instead
  * of it, and `minAppVersion` is 1.13.0, so there is no version left that would
  * reach it.
  *
- * Every setting but one is a control the API already describes — two toggles
- * and a number — so each is declared as a `control` and the framework draws it,
- * indexes it for the settings search, and asks this tab to store the new value.
- * `render` is used for the changelog banner, which is not a setting, and for the
- * citation style, which is chosen from a list no control type draws.
+ * Every setting but one is a control the API already describes — toggles,
+ * dropdowns, text fields and a number — so each is declared as a `control` and
+ * the framework draws it, indexes it for the settings search, and asks this tab
+ * to store the new value. `render` is used for the changelog banner, which is
+ * not a setting, and for the citation style, which is chosen from a list no
+ * control type draws.
  */
 export class ZoterikSettingTab extends PluginSettingTab {
 	plugin: ZoterikPlugin;
@@ -57,11 +91,43 @@ export class ZoterikSettingTab extends PluginSettingTab {
 			// like, and neither redraws them on its own.
 			await this.plugin.restyle();
 		}
-		if (key === "citationStyle" || key === "brackets") {
+		if (PREVIEW_KEYS.has(key)) {
 			// The preview shows the sample in the style, or as a note would
-			// hold it — with or without its brackets — when there is none.
+			// hold it — with or without its brackets — when there is none, and
+			// in a footnote labelled as a new one would be when they are on.
 			this.preview?.refresh();
 		}
+		if (key === "footnotes") {
+			// The footnote's own settings are drawn only while it is on.
+			this.refreshDomState();
+		}
+	}
+
+	/** Whether citations go into footnotes, which the rows under it depend on. */
+	private footnotesOn = (): boolean => this.plugin.settings.footnotes;
+
+	/**
+	 * A field for the text on one side of a footnote's number. What would break
+	 * the footnote is refused as it is typed, with the characters named.
+	 */
+	private labelTextSetting(
+		key: "footnotePrefix" | "footnoteSuffix",
+		name: string,
+		desc: string
+	): SettingDefinitionControl {
+		return {
+			name,
+			desc,
+			visible: this.footnotesOn,
+			control: {
+				type: "text",
+				key,
+				validate: (value: string) =>
+					isValidLabelText(value)
+						? undefined
+						: t.SETTING_FOOTNOTE_LABEL_INVALID,
+			},
+		};
 	}
 
 	/**
@@ -238,6 +304,48 @@ export class ZoterikSettingTab extends PluginSettingTab {
 						desc: t.SETTING_BRACKETS_DESC,
 						control: { type: "toggle", key: "brackets" },
 					},
+				],
+			},
+			{
+				type: "group",
+				cls: "zoterik-settings-rows",
+				heading: t.SECTION_FOOTNOTES,
+				items: [
+					{
+						name: t.SETTING_FOOTNOTES_NAME,
+						desc: t.SETTING_FOOTNOTES_DESC,
+						control: { type: "toggle", key: "footnotes" },
+					},
+					{
+						name: t.SETTING_FOOTNOTE_PLACEMENT_NAME,
+						desc: t.SETTING_FOOTNOTE_PLACEMENT_DESC,
+						visible: this.footnotesOn,
+						control: {
+							type: "dropdown",
+							key: "footnotePlacement",
+							options: PLACEMENT_OPTIONS,
+						},
+					},
+					{
+						name: t.SETTING_FOOTNOTE_NUMBERING_NAME,
+						desc: t.SETTING_FOOTNOTE_NUMBERING_DESC,
+						visible: this.footnotesOn,
+						control: {
+							type: "dropdown",
+							key: "footnoteNumbering",
+							options: NUMBERING_OPTIONS,
+						},
+					},
+					this.labelTextSetting(
+						"footnotePrefix",
+						t.SETTING_FOOTNOTE_PREFIX_NAME,
+						t.SETTING_FOOTNOTE_PREFIX_DESC
+					),
+					this.labelTextSetting(
+						"footnoteSuffix",
+						t.SETTING_FOOTNOTE_SUFFIX_NAME,
+						t.SETTING_FOOTNOTE_SUFFIX_DESC
+					),
 				],
 			},
 			{

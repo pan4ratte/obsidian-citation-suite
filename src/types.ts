@@ -1,3 +1,5 @@
+import { FootnoteNumbering, FootnotePlacement } from "src/footnote";
+
 /**
  * One picked citation, as Better BibTeX's CAYW endpoint reports it.
  *
@@ -42,6 +44,12 @@ export interface CitationStyle {
 	path: string;
 }
 
+/**
+ * Which of a note's views the settings preview shows the sample in: reading
+ * view, source mode, or live preview.
+ */
+export type PreviewMode = "reading" | "source" | "live";
+
 /** How a rendered citation is underlined in a note. */
 export type CitationUnderline = "dotted" | "solid" | "wavy" | "none";
 
@@ -71,6 +79,21 @@ export interface ZoterikSettings {
 	citationBold: boolean;
 	/** Set a rendered citation in italics. */
 	citationItalic: boolean;
+	/** The view the settings preview shows the sample in. */
+	previewMode: PreviewMode;
+	/**
+	 * Put a citation into a footnote: its anchor at the cursor, and the
+	 * citation itself as the footnote's text.
+	 */
+	footnotes: boolean;
+	/** Where the footnote's text goes: after the paragraph, the section or the note. */
+	footnotePlacement: FootnotePlacement;
+	/** How the number in a footnote's label is written. */
+	footnoteNumbering: FootnoteNumbering;
+	/** Text before the number in a footnote's label: the `n` of `[^n1]`. */
+	footnotePrefix: string;
+	/** Text after the number in a footnote's label. */
+	footnoteSuffix: string;
 	/** Minimize Zotero's window once the pick is done, handing focus back. */
 	minimizeZotero: boolean;
 	/** The version whose changelog banner has been dismissed. Never drawn as a setting. */
@@ -85,6 +108,14 @@ export const DEFAULT_SETTINGS: ZoterikSettings = {
 	citationUnderline: "dotted",
 	citationBold: false,
 	citationItalic: false,
+	// The view a note is written in, which is where most citations are read.
+	previewMode: "live",
+	footnotes: false,
+	// Where Obsidian's own "Insert footnote" command puts it.
+	footnotePlacement: "document",
+	footnoteNumbering: "arabic",
+	footnotePrefix: "",
+	footnoteSuffix: "",
 	minimizeZotero: false,
 	dismissedChangelogVersion: "",
 };

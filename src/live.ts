@@ -8,6 +8,7 @@ import {
 	ViewUpdate,
 	WidgetType,
 } from "@codemirror/view";
+import { editorLivePreviewField } from "obsidian";
 import { parseGroups } from "src/citation";
 import { citationEl } from "src/reading";
 import { CitationRenderer, RenderedCitation } from "src/render";
@@ -20,6 +21,10 @@ import { CitationRenderer, RenderedCitation } from "src/render";
  * cursor is inside is left alone and shows its own source, the way live preview
  * treats every other piece of markup: what is being edited has to be legible as
  * what it is.
+ *
+ * Source mode is left alone entirely. The editor behind it is the same one, and
+ * so is this extension, but a reader who switched to it asked to see the note
+ * as it is written.
  *
  * Decorations are built as the editor asks for them, which is to say
  * synchronously, and citeproc will not wait for a library lookup. So a citation
@@ -85,8 +90,14 @@ export function citationExtension(context: LiveContext) {
 				const loaded = update.transactions.some((transaction) =>
 					transaction.effects.some((effect) => effect.is(LOADED))
 				);
+				// Switching between source mode and live preview changes nothing
+				// else about the editor's state, so it is looked for itself.
+				const switched =
+					update.startState.field(editorLivePreviewField, false) !==
+					update.state.field(editorLivePreviewField, false);
 				if (
 					loaded ||
+					switched ||
 					update.docChanged ||
 					update.viewportChanged ||
 					update.selectionSet
@@ -98,7 +109,7 @@ export function citationExtension(context: LiveContext) {
 			private build(view: EditorView): DecorationSet {
 				const builder = new RangeSetBuilder<Decoration>();
 				const styleId = context.styleId();
-				if (!styleId) {
+				if (!styleId || !view.state.field(editorLivePreviewField, false)) {
 					return builder.finish();
 				}
 

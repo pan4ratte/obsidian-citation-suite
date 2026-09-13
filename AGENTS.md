@@ -5,7 +5,7 @@
 | Command | What it does |
 |---------|-------------|
 | `npm run dev` | esbuild watch mode (no typecheck) |
-| `npm test` | Vitest — 23 tests, all passing |
+| `npm test` | Vitest — 82 tests, all passing |
 | `npm run lint` / `npm run lint:fix` | ESLint flat config with the official Obsidian ruleset |
 | `npm run build` | `tsc -noEmit -skipLibCheck && node esbuild.config.mjs production` |
 
@@ -89,6 +89,42 @@ Two things follow from that, and both have to be kept:
 The narrative form brackets the *locator*, not the citation — `@doe2020 [p. 33]`
 — so the `brackets` setting does not reach it. There is a test that says so.
 
+## Footnotes
+
+With `footnotes` on, `insertFootnote` in `src/main.ts` hands the citation to
+`footnoteEdit` in `src/footnote.ts`, which is pure — text and offsets in, a list
+of changes out — and every rule below is tested there.
+
+- **Both edits go in as one `editor.transaction`**, so one undo takes the whole
+  footnote back out. The changes are in offsets into the note *before* the edit,
+  which is what the transaction reads; the cursor is set afterwards with
+  `setCursor`, rather than through the transaction's `selection`, so nothing
+  depends on which coordinate space that field is read in.
+- **The place for the text is worked out on the note with the anchor already
+  in**, then mapped back by the anchor's length. The text always lands after
+  the anchor, so that one subtraction is the whole mapping — and the line the
+  anchor stands on is never mistaken for a blank one.
+- **The label is one past the highest number already written between the same
+  prefix and suffix**, read in any of the three numberings, not a count and not
+  the footnote's position. Pandoc and Obsidian number footnotes by the order of
+  their anchors whatever the labels say, so renumbering the note's existing
+  footnotes would rewrite text for nothing. A label differing only in case is
+  stepped over.
+- **A section ends at the next heading of any level**, outside code fences and
+  front matter. Setext headings are not read.
+- **A citation made inside a footnote's text is written there plainly** — a
+  footnote cannot hold a footnote.
+- **The prefix and suffix are refused by `validate` when they hold whitespace or
+  `[ ] ^ \ |`**, and cleaned of the same when a label is built, because
+  `validate` does not stop a hand-edited `data.json`.
+
+The footnote's rows are drawn only while the toggle is on: `visible` reads the
+setting and `setControlValue` calls `refreshDomState()` when it changes. What a
+footnote looks like is shown by the style preview, which redraws on every change
+to the numbering, prefix or suffix — not by a row of its own, and not through
+`update()`, which would redraw the tab and take the focus out of the field being
+typed in.
+
 ## Settings tab
 
 Declared through Obsidian 1.13's `getSettingDefinitions()`. `display()` is gone:
@@ -96,11 +132,11 @@ a non-empty array of definitions renders the tab **instead of** it, and
 `minAppVersion` is 1.13.0, so nothing reaches it.
 
 Unlike the sibling Classy PDF Extractor, almost every setting here **is** a
-control the API describes — two toggles and a number — so each is declared as a
-`control` and Obsidian draws it, indexes it for the settings search, and asks the
-tab to store the value. Keep it that way; a `render` definition for any of them
-would mean hand-drawing something the API already draws, and `render` does not
-auto-save.
+control the API describes — toggles, dropdowns, text fields and a number — so
+each is declared as a `control` and Obsidian draws it, indexes it for the
+settings search, and asks the tab to store the value. Keep it that way; a
+`render` definition for any of them would mean hand-drawing something the API
+already draws, and `render` does not auto-save.
 
 The one exception is the **citation style**. It is chosen from a list drawn in
 the tab itself, `src/stylePicker.ts`, laid out after the style list in Zotero's
@@ -120,6 +156,25 @@ that bar — three colours, four underlines, bold and italic — with the ones i
 effect pressed; there are no menus to open. The sample is rendered by
 `CitationRenderer.sample()` without asking Zotero anything, and its id holds a
 space so that it can never share a key with a real source.
+
+Beside the preview's title, three more buttons switch the **preview mode**
+(`previewMode`, live preview by default) — reading view, source mode and live
+preview, with the icons Obsidian's own view header uses. The mode is not part of
+the look: it changes nothing outside the box, so it redraws the sample instead
+of touching the body classes.
+
+- **Reading view and live preview** draw an inline citation alike; they differ
+  once footnotes are on. Reading view sets the anchor as a superscript and the
+  footnote under a short rule. Live preview shows the note's own `[^1]` and
+  `[^1]:`, small and raised with fainter brackets — values copied from
+  Obsidian's `span.cm-footref` and `HyperMD-footnote` line rules in its
+  `app.css`.
+- **Source mode** is live preview with the citation as written: the style is
+  never asked for. That matches the editor, since `src/live.ts` draws nothing
+  unless `editorLivePreviewField` is on.
+- The anchor goes **before the full stop in Russian and after it otherwise**, in
+  every mode, and both it and the footnote are labelled through
+  `plugin.footnoteOptions()` — the same options the insertion uses.
 
 The **citation look** — colour, underline, bold and italic — is not drawn onto
 citations. It
@@ -224,6 +279,7 @@ src/
   main.ts           — Plugin class, 4 commands, settings load/save
   cayw.ts           — the Better BibTeX CAYW client: probe, pick, parse
   pandoc.ts         — citations → pandoc syntax (pure; no Obsidian, no network)
+  footnote.ts       — a citation as a footnote: label, numbering, placement (pure)
   settings.ts       — the declarative settings tab and the changelog banner
   stylePicker.ts    — the Zotero-like list the citation style is chosen from
   preview.ts        — the style preview and its bar of look buttons
@@ -239,6 +295,7 @@ lang/
 tests/
   pandoc.test.ts    — the formatter, every form and every field
   cayw.test.ts      — parsing what the endpoint answers, incl. a real answer
+  footnote.test.ts  — labels, roman numerals, and where a footnote's text goes
   mocks/obsidian.ts — stands in for the module at import time
 styles.css          — the settings header, the banner, the changelog window
 CHANGELOG_RU.md     — release notes; the original
@@ -259,8 +316,8 @@ layer to configure, and nothing here needs one. `tests/` is **in** the tsconfig
 program, so `npm run build` type-checks the tests too and the type-aware lint
 rules can read them.
 
-Only the pure halves are tested — the formatter, and the parsing of what CAYW
-answers with. The modules they live in still import from `obsidian`, which is
+Only the pure halves are tested — the formatter, the footnote edits, and the
+parsing of what CAYW answers with. The modules they live in still import from `obsidian`, which is
 aliased to `tests/mocks/obsidian.ts`; that mock stubs only what importing the
 code under test evaluates. Extend it when a test needs more, rather than faking
 Obsidian's behaviour.

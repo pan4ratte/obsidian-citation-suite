@@ -1,5 +1,6 @@
 import { debounce, setIcon, setTooltip } from "obsidian";
-import { t } from "lang/helpers";
+import { lang, t } from "lang/helpers";
+import { footnoteLabel } from "src/footnote";
 import {
 	COLOR_ACCENT,
 	isAccentColor,
@@ -9,7 +10,7 @@ import {
 import type ZoterikPlugin from "src/main";
 import { citationEl } from "src/reading";
 import { sampleSource } from "src/sample";
-import { CitationUnderline } from "src/types";
+import { CitationUnderline, PreviewMode } from "src/types";
 
 /**
  * How long a colour being dragged about in the picker has to rest before it is
@@ -29,6 +30,17 @@ const UNDERLINE_BUTTONS: Record<
 	solid: { icon: "minus", tooltip: t.LOOK_UNDERLINE_SOLID },
 	wavy: { icon: "waves", tooltip: t.LOOK_UNDERLINE_WAVY },
 	none: { icon: "remove-formatting", tooltip: t.LOOK_UNDERLINE_NONE },
+};
+
+/**
+ * The icon and the tooltip each preview mode's button carries, in the order the
+ * bar shows them. The icons are the ones Obsidian's own view header switches
+ * between: an open book for reading view, a pen for editing.
+ */
+const MODE_BUTTONS: Record<PreviewMode, { icon: string; tooltip: string }> = {
+	reading: { icon: "book-open", tooltip: t.PREVIEW_MODE_READING },
+	source: { icon: "code-xml", tooltip: t.PREVIEW_MODE_SOURCE },
+	live: { icon: "pen-line", tooltip: t.PREVIEW_MODE_LIVE },
 };
 
 /** What the settings row holds on to: redraw the sample, or let go of it. */
@@ -51,6 +63,9 @@ export interface StylePreview {
  * Every option is a button of its own in the bar, in three groups — colour,
  * underline, emphasis — and the ones in effect are pressed, so the whole look
  * can be read off the bar at a glance and changed in one click.
+ *
+ * Beside the title, three more switch the view the sample is shown in: reading
+ * view, source mode and live preview, each drawn as that view draws a note.
  */
 export function renderStylePreview(
 	parent: HTMLElement,
@@ -60,7 +75,8 @@ export function renderStylePreview(
 	const preview = parent.createDiv({ cls: "zoterik-style-preview" });
 
 	const bar = preview.createDiv({ cls: "zoterik-style-preview-bar" });
-	bar.createDiv({
+	const heading = bar.createDiv({ cls: "zoterik-style-preview-heading" });
+	heading.createDiv({
 		cls: "zoterik-style-preview-title",
 		text: t.PREVIEW_TITLE,
 	});
@@ -119,6 +135,33 @@ export function renderStylePreview(
 		buttons.push({ el, pressed });
 		return el;
 	};
+
+	// ─── Mode ─────────────────────────────────────────────────────────────────
+
+	// Not part of the look: it changes nothing outside this box, so it redraws
+	// the sample rather than restyling every window.
+	const modes = heading.createDiv({
+		cls: "zoterik-style-preview-group",
+		attr: { role: "group", "aria-label": t.PREVIEW_MODE },
+	});
+	for (const [mode, { icon, tooltip }] of Object.entries(MODE_BUTTONS) as [
+		PreviewMode,
+		{ icon: string; tooltip: string },
+	][]) {
+		addButton(
+			modes,
+			icon,
+			tooltip,
+			() => settings.previewMode === mode,
+			() => {
+				settings.previewMode = mode;
+				sync();
+				save();
+				save.run();
+				refresh();
+			}
+		);
+	}
 
 	// ─── Colour ───────────────────────────────────────────────────────────────
 
@@ -227,25 +270,28 @@ export function renderStylePreview(
 		const current = ++generation;
 		const source = sampleSource();
 		const styleId = settings.citationStyle;
+		const mode = settings.previewMode;
 		const written = settings.brackets
 			? `[@${source.citekey}]`
 			: `@${source.citekey}`;
 
-		const draw = (citation: HTMLElement): void => {
+		const draw = (citation: Node): void => {
 			if (current !== generation) {
 				return;
 			}
 			body.empty();
-			const text = body.createEl("p", { cls: "zoterik-style-preview-text" });
-			text.appendText(`${t.PREVIEW_SENTENCE} `);
-			text.appendChild(citation);
-			// A note style writes the whole footnote, full stop included, and a
-			// second one after it would read as a typo.
-			if (!/[.!?…]$/.test((citation.textContent ?? "").trim())) {
-				text.appendText(".");
+			if (settings.footnotes) {
+				drawFootnote(mode, citation);
+			} else {
+				drawInline(citation);
 			}
 		};
 
+		// Source mode shows the note as it is written, whatever the style.
+		if (mode === "source") {
+			draw(activeDocument.createTextNode(written));
+			return;
+		}
 		// Not rendered at all, or not renderable: the citation as a note holds
 		// it, which is also what a note would show.
 		const unstyled = (): HTMLElement =>
@@ -258,6 +304,76 @@ export function renderStylePreview(
 		void plugin.renderer.sample(styleId, source.item).then((rendered) => {
 			draw(rendered ? citationEl(rendered, written) : unstyled());
 		});
+	};
+
+	/** The sentence with the citation in it, as every view draws it alike. */
+	const drawInline = (citation: Node): void => {
+		const text = body.createEl("p", { cls: "zoterik-style-preview-text" });
+		text.appendText(`${t.PREVIEW_SENTENCE} `);
+		text.appendChild(citation);
+		// A note style writes the whole footnote, full stop included, and a
+		// second one after it would read as a typo.
+		if (!/[.!?…]$/.test((citation.textContent ?? "").trim())) {
+			text.appendText(".");
+		}
+	};
+
+	/**
+	 * The sentence with a footnote's anchor in it, and the footnote holding the
+	 * citation under it, both labelled as a note's first footnote would be.
+	 *
+	 * Reading view sets the anchor as a superscript and the footnote under a
+	 * rule. Source mode and live preview both show the note's own `[^1]` and
+	 * `[^1]:`, small and raised, the brackets fainter than the label — the two
+	 * differ only in whether the citation is drawn in its style.
+	 *
+	 * Where the anchor stands against the full stop is the language's
+	 * convention, not a setting: Russian sets it before the stop, English
+	 * after.
+	 */
+	const drawFootnote = (mode: PreviewMode, citation: Node): void => {
+		const label = footnoteLabel(1, plugin.footnoteOptions());
+		const reading = mode === "reading";
+
+		const marker = (parent: HTMLElement, cls: string, close: string): void => {
+			const el = parent.createSpan({ cls });
+			el.createSpan({ cls: "zoterik-style-preview-formatting", text: "[^" });
+			el.appendText(label);
+			el.createSpan({ cls: "zoterik-style-preview-formatting", text: close });
+		};
+		const anchor = (parent: HTMLElement): void => {
+			if (reading) {
+				parent.createEl("sup", {
+					cls: "zoterik-style-preview-anchor",
+					text: label,
+				});
+			} else {
+				marker(parent, "zoterik-style-preview-footref", "]");
+			}
+		};
+
+		const text = body.createEl("p", { cls: "zoterik-style-preview-text" });
+		text.appendText(t.PREVIEW_SENTENCE);
+		if (lang === "ru") {
+			anchor(text);
+			text.appendText(".");
+		} else {
+			text.appendText(".");
+			anchor(text);
+		}
+
+		const footnote = body.createEl("p", {
+			cls: reading
+				? "zoterik-style-preview-footnote"
+				: "zoterik-style-preview-footnote-line",
+		});
+		if (reading) {
+			anchor(footnote);
+		} else {
+			marker(footnote, "zoterik-style-preview-footnote-label", "]:");
+		}
+		footnote.appendText(" ");
+		footnote.appendChild(citation);
 	};
 
 	refresh();
