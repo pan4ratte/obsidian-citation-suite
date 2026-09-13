@@ -5,6 +5,7 @@ import {
 	citable,
 	PickOptions,
 	pickCitations,
+	pickedNotes,
 	probeZotero,
 } from "src/cayw";
 import { BIBLIOGRAPHY_VIEW, BibliographyView } from "src/bibliography";
@@ -22,6 +23,7 @@ import { CitationTooltip, renderCitations } from "src/reading";
 import { CitationRenderer } from "src/render";
 import { CitationSuiteSettingTab } from "src/settings";
 import { installedStyles, readStyleFile, zoteroCitePrefs } from "src/styles";
+import { asBlock, noteMarkdown } from "src/zoteroNote";
 import {
 	CitationStyle,
 	DEFAULT_SETTINGS,
@@ -33,6 +35,14 @@ import {
  * in this device's sidebar once already.
  */
 const BIBLIOGRAPHY_PLACED_KEY = "citation-suite-bibliography-placed";
+
+/** What one pick in the citation window puts into the note. */
+interface Pick {
+	/** The pandoc citation of every source picked, or empty. */
+	citation: string;
+	/** The Markdown of every Zotero note picked, or empty. */
+	notes: string;
+}
 
 export default class CitationSuitePlugin extends Plugin {
 	settings: CitationSuiteSettings = { ...DEFAULT_SETTINGS };
@@ -243,11 +253,11 @@ export default class CitationSuitePlugin extends Plugin {
 			minimize: this.settings.minimizeZotero,
 		};
 
-		let citation: string;
+		let pick: Pick;
 		try {
 			// This waits for as long as the citation window is open, which is
 			// as long as the reader takes.
-			citation = await this.pandocCitation(options);
+			pick = await this.pick(options);
 		} catch (error) {
 			const detail = error instanceof CaywError ? error.message : "";
 			new Notice(
@@ -260,14 +270,34 @@ export default class CitationSuitePlugin extends Plugin {
 
 		// A closed window with nothing chosen is not a failure and says
 		// nothing: the reader changed their mind.
-		if (!citation) {
-			return;
+		if (pick.citation) {
+			if (this.settings.footnotes) {
+				this.insertFootnote(editor, pick.citation, false);
+			} else {
+				editor.replaceSelection(pick.citation);
+			}
 		}
-		if (this.settings.footnotes) {
-			this.insertFootnote(editor, citation, false);
-		} else {
-			editor.replaceSelection(citation);
+		if (pick.notes) {
+			this.insertNotes(editor, pick.notes);
 		}
+	}
+
+	/**
+	 * The text of the Zotero notes picked, at the cursor — after the citation
+	 * when one was picked with them — as paragraphs of their own, with the
+	 * cursor left at the end of the text.
+	 */
+	private insertNotes(editor: Editor, markdown: string): void {
+		const text = editor.getValue();
+		const from = editor.posToOffset(editor.getCursor("from"));
+		const to = editor.posToOffset(editor.getCursor("to"));
+		const block = asBlock(text.slice(0, from), text.slice(to), markdown);
+		editor.replaceRange(
+			block.text,
+			editor.offsetToPos(from),
+			editor.offsetToPos(to)
+		);
+		editor.setCursor(editor.offsetToPos(from + block.end));
 	}
 
 	/**
@@ -402,26 +432,39 @@ export default class CitationSuitePlugin extends Plugin {
 	}
 
 	/**
-	 * The pick written as a pandoc citation. This is what goes into the note —
-	 * always, whatever style is chosen to read it in — because it is the only
-	 * form that names the source rather than describing it, and so the only one
-	 * pandoc can render later from the bibliography.
+	 * The pick, written for the note. Sources become a pandoc citation — always,
+	 * whatever style is chosen to read it in — because it is the only form that
+	 * names the source rather than describing it, and so the only one pandoc
+	 * can render later from the bibliography. Zotero notes become their text,
+	 * as Zotero's word-processor plugins insert them.
 	 */
-	private async pandocCitation(options: PickOptions): Promise<string> {
+	private async pick(options: PickOptions): Promise<Pick> {
 		const picked = await pickCitations(options);
 		if (picked.length === 0) {
-			return "";
+			return { citation: "", notes: "" };
 		}
 
 		const citations = citable(picked);
-		if (citations.length === 0) {
+		const notes = pickedNotes(picked);
+		if (citations.length === 0 && notes.length === 0) {
 			new Notice(t.NOTICE_NOTHING_TO_CITE);
-			return "";
+			return { citation: "", notes: "" };
 		}
-		if (citations.length < picked.length) {
+		if (citations.length + notes.length < picked.length) {
 			new Notice(t.NOTICE_ITEMS_WITHOUT_KEYS);
 		}
 
-		return formatCitations(citations, { brackets: this.settings.brackets });
+		return {
+			citation:
+				citations.length > 0
+					? formatCitations(citations, {
+							brackets: this.settings.brackets,
+						})
+					: "",
+			notes: notes
+				.map(noteMarkdown)
+				.filter((markdown) => markdown)
+				.join("\n\n"),
+		};
 	}
 }

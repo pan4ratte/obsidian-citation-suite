@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	CaywError,
 	citable,
+	parsePickResponse,
+	pickedNotes,
 	parseCitations,
 	pickCitations,
 	probeZotero,
@@ -87,6 +89,94 @@ describe("citable", () => {
 	});
 });
 
+describe("parsePickResponse", () => {
+	// The shape Better BibTeX 9.0.64 answers a POST with: `output` is the
+	// `pick` format's JSON, with every note filtered out of it, and `pick` is
+	// the citation window's raw result, notes included.
+	const NOTE_HTML =
+		"<html><body><h1>Reading notes</h1><p>Not cumulative</p></body></html>";
+	const response = (output: string, pick: unknown[]) =>
+		JSON.stringify({ state: {}, pick, output });
+
+	it("reads the citations from the output and the notes from the pick", () => {
+		const citations = parsePickResponse(
+			response(JSON.stringify([{ id: 1, citationKey: "doe2020" }]), [
+				{ citationItems: [{ id: 1, itemData: { type: "book" } }] },
+				{
+					citationItems: [
+						{
+							itemData: {
+								id: 7,
+								type: "note",
+								title: "Reading notes",
+								note: NOTE_HTML,
+								nonCSL: true,
+							},
+						},
+					],
+					properties: {},
+				},
+			])
+		);
+		expect(citations.map((c) => c.citationKey)).toEqual(["doe2020", ""]);
+		expect(citations[1]).toMatchObject({
+			id: 7,
+			itemType: "note",
+			title: "Reading notes",
+			note: NOTE_HTML,
+		});
+	});
+
+	it("does not insert a note twice once the output holds it too", () => {
+		const note = { itemData: { type: "note", note: NOTE_HTML } };
+		const citations = parsePickResponse(
+			response(
+				JSON.stringify([
+					{ id: 7, citationKey: "", itemType: "note", note: NOTE_HTML },
+				]),
+				[{ citationItems: [note] }]
+			)
+		);
+		expect(citations).toHaveLength(1);
+	});
+
+	it("is nothing at all for a cancelled pick", () => {
+		expect(parsePickResponse(response("", []))).toEqual([]);
+		expect(parsePickResponse("")).toEqual([]);
+	});
+
+	it("refuses a body that is not a pick", () => {
+		expect(() => parsePickResponse("CAYW failed: no such formatter")).toThrow(
+			CaywError
+		);
+		expect(() => parsePickResponse("[]")).toThrow(CaywError);
+	});
+});
+
+describe("pickedNotes", () => {
+	it("takes the HTML of every Zotero note picked, and nothing else", () => {
+		const citations = parseCitations(
+			JSON.stringify([
+				{ id: 1, citationKey: "doe2020" },
+				{
+					id: 2,
+					citationKey: "",
+					itemType: "note",
+					title: "Reading notes",
+					note: '<div data-schema-version="9"><p>Reading notes</p></div>',
+				},
+				// A note with nothing in it has nothing to insert.
+				{ id: 3, citationKey: "", itemType: "note", note: "  " },
+				// An item whose key is not generated yet is not a note.
+				{ id: 4, citationKey: "", itemType: "book" },
+			])
+		);
+		expect(pickedNotes(citations)).toEqual([
+			'<div data-schema-version="9"><p>Reading notes</p></div>',
+		]);
+	});
+});
+
 describe("a real answer", () => {
 	// Verbatim from Better BibTeX 9.0.64, `format=pick&selected=true` against a
 	// group library — field order, the empty strings, and a citation key of the
@@ -139,8 +229,39 @@ describe("what the requests carry", () => {
 	});
 
 	it("names it on the pick as well as on the probe", async () => {
-		requestUrl.mockResolvedValue({ status: 200, text: "[]" });
+		requestUrl.mockResolvedValue({
+			status: 200,
+			text: JSON.stringify({ state: {}, pick: [], output: "" }),
+		});
 		await pickCitations({ port: 23119 });
 		expect(userAgentOf()).toBe("Citation Suite");
+	});
+
+	it("posts the pick, which is what brings the notes back", async () => {
+		requestUrl.mockResolvedValue({
+			status: 200,
+			text: JSON.stringify({ state: {}, pick: [], output: "" }),
+		});
+		await pickCitations({ port: 23119 });
+		expect(requestUrl.mock.calls).toHaveLength(1);
+		expect(requestUrl.mock.calls[0][0]).toMatchObject({
+			method: "POST",
+			contentType: "application/json",
+		});
+	});
+
+	it("minimizes Zotero in a request of its own, since a POST cannot", async () => {
+		requestUrl.mockResolvedValue({
+			status: 200,
+			text: JSON.stringify({ state: {}, pick: [], output: "" }),
+		});
+		await pickCitations({ port: 23119, minimize: true });
+		const minimize = requestUrl.mock.calls[1][0] as {
+			method: string;
+			url: string;
+		};
+		expect(minimize.method).toBe("GET");
+		expect(minimize.url).toContain("selected=true");
+		expect(minimize.url).toContain("minimize=true");
 	});
 });

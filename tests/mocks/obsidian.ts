@@ -6,3 +6,11 @@
 export function requestUrl(): never {
 	throw new Error("requestUrl is not stubbed in tests");
 }
+
+export function htmlToMarkdown(): never {
+	throw new Error("htmlToMarkdown is not stubbed in tests");
+}
+
+export function sanitizeHTMLToDom(): never {
+	throw new Error("sanitizeHTMLToDom is not stubbed in tests");
+}

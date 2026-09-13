@@ -35,15 +35,32 @@ anything that touches the wire.
   JSON; `src/pandoc.ts` writes them out.
 - **Every parameter arrives as a string and is read for truth**, so
   `brackets=false` and `minimize=false` are both as true as
-  `true` is. A flag is sent only when it is on. `pickParams` is the one place
-  that builds them, and that is the rule it keeps.
-- **An empty body is a cancelled pick.** Closing the window without choosing
-  answers with `""`, and so does an error BBT handled itself (it flashes its own
-  message inside Zotero first). Both are silent here: no notice, nothing
-  inserted.
+  `true` is. A flag is sent only when it is on. `PICK_PARAMS` and
+  `MINIMIZE_PARAMS` are the only parameters sent, and they keep that rule.
+- **The pick is a POST, because a GET never returns a note.** BBT's formatters
+  are marked `@acceptsNotes` by a decorator that sets a property on the method,
+  and `getFormatter` hands out `Formatter[format].bind(Formatter)` — a bound
+  function, without the property. So `formatter.acceptsNotes` is always
+  undefined, `itemPicks()` filters every note out, and a GET that picked only a
+  note answers with an empty body. A POST (`application/json`, body `{}`; the
+  query string is still read) answers `{ state, pick, output }` instead:
+  `output` is what the GET would have said, and `pick` is the citation window's
+  raw result, where a note survives as `citationItems[].itemData` with
+  `type: "note"`. `parsePickResponse` reads the citations from `output` and the
+  notes from `pick`, and skips any note in `output` so that a fixed BBT does not
+  insert it twice. Check this again when BBT is updated.
+- **A POST does not minimize.** The handler acts on `minimize` only on the GET
+  path. So `pickCitations` sends it afterwards as a GET of its own —
+  `selected=true&minimize=true`, which reads the selection in Zotero's pane,
+  opens nothing, and minimizes on the way out.
+- **A cancelled pick is empty.** Closing the window without choosing answers a
+  POST with an empty `output` and an empty `pick`. It is silent here: no notice,
+  nothing inserted.
 - **A failure answers 500 with prose, not JSON** — literally
   `CAYW failed: {…} requested: No such formatter "…"`. That body is what a
-  `CaywError` carries, and it is appended to the notice.
+  `CaywError` carries, and it is appended to the notice. On a POST an error in
+  the pick itself reaches here too; on a GET, BBT would have swallowed it,
+  flashed "CAYW pick failed" inside Zotero and answered with an empty body.
 - **`probe=true` is answered before the handler does any work**: `ready`, or
   `starting` while BBT is still indexing the library after launch. Those two are
   worth telling apart from unreachable — one is a wait, the other is something
@@ -51,8 +68,18 @@ anything that touches the wire.
   than an error path.
 - **The picker can return things with no citation key**: a standalone Zotero
   note (BBT's `pick` formatter accepts notes, unlike its `pandoc` one), and an
-  item whose key has not been generated. `citable()` drops them and the caller
-  says how many, rather than writing a bare `@` into the note.
+  item whose key has not been generated. `citable()` keeps only what has a key;
+  the caller says how many were left out, rather than writing a bare `@` into
+  the note.
+- **A picked note is inserted as its text.** Zotero's window hands a picked note
+  to the "document" as `Document.insertText` with the note's HTML, and BBT's
+  `Picker.extractPickResults` (`content/cayw/pick.ts`) turns it into a pick of
+  `itemType: "note"` with that HTML in `note` — unless the note holds citations
+  or annotations, in which case BBT returns those citations instead and the
+  note's text is lost before it reaches the plugin. `pickedNotes()` takes the
+  HTML, `src/zoteroNote.ts` sanitises it and converts it with Obsidian's
+  `htmlToMarkdown`, and `insertNotes` puts it at the cursor as paragraphs of
+  its own, after the citation when one was picked with it.
 - **The port is a setting because the beta moves it.** Zotero listens on 23119,
   Zotero Beta on 24119, so both can run at once.
 
@@ -61,8 +88,8 @@ The shape of one citation — `id`, `citationKey`, `locator`, `label`, `prefix`,
 BBT's `citationItems()`. `label` is filled in as `"page"` whenever a locator was
 typed without a label of its own, so a locator practically always arrives
 labelled; `selected=true` — which the fixture below is captured with, and which
-the plugin does not send — is the exception, since there is no window there to
-type either into. A real answer is pinned as a fixture in `tests/cayw.test.ts`.
+the plugin sends only to minimize Zotero, ignoring the answer — is the
+exception, since there is no window there to type either into. A real answer is pinned as a fixture in `tests/cayw.test.ts`.
 
 ## The JSON-RPC contract
 
