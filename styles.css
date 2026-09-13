@@ -801,6 +801,219 @@ body.zoterik-citation-italic .zoterik-citation em {
 	font-variant: small-caps;
 }
 
+/* The entry whose mentions are being gone through, set apart by the rules
+   above and below it, drawn in the accent: the rule over the entry is its
+   own, and the rule under it — under its mention bar — is the next shown
+   entry's. The first entry has no rule above and the last none below, and
+   they are not given one: that would move the list.
+
+   The rule below is picked out among the entries after the found one as the
+   one with no shown entry between them, which is what lets it skip entries
+   the search hides.
+
+   The colour fades in and out. An entry drawn anew by a pass is drawn already
+   coloured, and nothing moves. */
+.zoterik-bibliography-list .csl-entry {
+	transition: border-top-color var(--anim-duration-fast) ease-in-out;
+}
+
+.zoterik-bibliography-list
+	.csl-entry:not(.zoterik-bibliography-hidden)
+	~ .csl-entry.is-finding:not(.zoterik-bibliography-hidden),
+.zoterik-bibliography-list
+	.csl-entry.is-finding:not(.zoterik-bibliography-hidden)
+	~ .csl-entry:not(.zoterik-bibliography-hidden):not(
+		.csl-entry.is-finding:not(.zoterik-bibliography-hidden)
+			~ .csl-entry:not(.zoterik-bibliography-hidden)
+			~ .csl-entry
+	) {
+	border-top-color: var(--interactive-accent);
+}
+
+/* The bar under that entry: which mention is shown out of how many, and the
+   buttons that step through them and close it. It sits inside the entry's
+   rules, so the two read as one.
+
+   It opens and shuts the way the search field does — a one-track grid whose
+   track goes between `0fr` and `1fr`, its content fading and dropping into
+   place — pushing the rule below down as it opens. The bar is put in and
+   taken out rather than kept, so these are animations that
+   `src/bibliography.ts` plays by class, not transitions. */
+.zoterik-bibliography-mentions {
+	display: grid;
+	grid-template-rows: 1fr;
+	padding-top: var(--size-2-2);
+	font-family: var(--font-interface);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	user-select: none;
+}
+
+/* What the track clips. The padding is room for a button's focus ring, which
+   the clipping would otherwise cut off, and the negative margin gives that
+   room back to the layout. */
+.zoterik-bibliography-mentions-content {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-1);
+	min-height: 0;
+	overflow: hidden;
+	padding: var(--size-2-2);
+	margin: calc(-1 * var(--size-2-2));
+}
+
+.zoterik-bibliography-mentions-label {
+	margin-right: auto;
+}
+
+/* The number rolls in from where the step went: from below for the next
+   mention, which is further down the note, and from above for the previous. */
+.zoterik-bibliography-mentions-count {
+	display: inline-block;
+	font-variant-numeric: tabular-nums;
+}
+
+@keyframes zoterik-mentions-open {
+	from {
+		grid-template-rows: 0fr;
+		padding-top: 0;
+	}
+}
+
+@keyframes zoterik-mentions-close {
+	to {
+		grid-template-rows: 0fr;
+		padding-top: 0;
+	}
+}
+
+@keyframes zoterik-mentions-fade-in {
+	from {
+		opacity: 0;
+	}
+}
+
+@keyframes zoterik-mentions-fade-out {
+	to {
+		opacity: 0;
+	}
+}
+
+@keyframes zoterik-mentions-drop-in {
+	from {
+		transform: translateY(calc(-1 * var(--size-4-2)));
+	}
+}
+
+@keyframes zoterik-mentions-lift-out {
+	to {
+		transform: translateY(calc(-1 * var(--size-4-2)));
+	}
+}
+
+@keyframes zoterik-mentions-roll-up {
+	from {
+		opacity: 0;
+		transform: translateY(0.6em);
+	}
+}
+
+@keyframes zoterik-mentions-roll-down {
+	from {
+		opacity: 0;
+		transform: translateY(-0.6em);
+	}
+}
+
+@keyframes zoterik-mentions-pop-in {
+	from {
+		opacity: 0;
+		transform: scale(0.6);
+	}
+}
+
+@keyframes zoterik-mentions-pop-out {
+	to {
+		opacity: 0;
+		transform: scale(0.6);
+	}
+}
+
+.zoterik-bibliography-mentions.is-opening {
+	animation: zoterik-mentions-open var(--anim-duration-moderate)
+		var(--anim-motion-swing);
+}
+
+.zoterik-bibliography-mentions.is-opening
+	> .zoterik-bibliography-mentions-content {
+	animation:
+		zoterik-mentions-fade-in var(--anim-duration-fast) ease-in-out,
+		zoterik-mentions-drop-in var(--anim-duration-moderate)
+			var(--anim-motion-swing);
+}
+
+/* After the opening, so that closing a bar still opening takes over. */
+.zoterik-bibliography-mentions.is-closing {
+	animation: zoterik-mentions-close var(--anim-duration-moderate)
+		var(--anim-motion-swing) forwards;
+}
+
+.zoterik-bibliography-mentions.is-closing
+	> .zoterik-bibliography-mentions-content {
+	animation:
+		zoterik-mentions-fade-out var(--anim-duration-fast) ease-in-out forwards,
+		zoterik-mentions-lift-out var(--anim-duration-moderate)
+			var(--anim-motion-swing) forwards;
+}
+
+.zoterik-bibliography-mentions-count.is-stepping-next {
+	animation: zoterik-mentions-roll-up var(--anim-duration-moderate)
+		var(--anim-motion-swing);
+}
+
+.zoterik-bibliography-mentions-count.is-stepping-previous {
+	animation: zoterik-mentions-roll-down var(--anim-duration-moderate)
+		var(--anim-motion-swing);
+}
+
+.zoterik-bibliography-mentions-count.is-changing {
+	animation: zoterik-mentions-fade-in var(--anim-duration-moderate) ease-in-out;
+}
+
+/* The previous and next buttons, when a second mention comes or goes. */
+.zoterik-bibliography-mentions .clickable-icon.is-appearing {
+	animation: zoterik-mentions-pop-in var(--anim-duration-fast)
+		var(--anim-motion-swing);
+}
+
+.zoterik-bibliography-mentions .clickable-icon.is-disappearing {
+	animation: zoterik-mentions-pop-out var(--anim-duration-fast) ease-in
+		forwards;
+}
+
+/* A reader who asked the system for less motion gets every change at once.
+   The selectors are the ones above, repeated so as to tie with them and win
+   by coming later. */
+@media (prefers-reduced-motion: reduce) {
+	.zoterik-bibliography-list .csl-entry {
+		transition: none;
+	}
+
+	.zoterik-bibliography-mentions.is-opening,
+	.zoterik-bibliography-mentions.is-opening
+		> .zoterik-bibliography-mentions-content,
+	.zoterik-bibliography-mentions.is-closing,
+	.zoterik-bibliography-mentions.is-closing
+		> .zoterik-bibliography-mentions-content,
+	.zoterik-bibliography-mentions-count.is-stepping-next,
+	.zoterik-bibliography-mentions-count.is-stepping-previous,
+	.zoterik-bibliography-mentions-count.is-changing,
+	.zoterik-bibliography-mentions .clickable-icon.is-appearing,
+	.zoterik-bibliography-mentions .clickable-icon.is-disappearing {
+		animation: none;
+	}
+}
+
 /* The keys the note cites that Zotero had nothing for, under a rule. */
 .zoterik-bibliography-missing {
 	margin-top: var(--size-4-4);

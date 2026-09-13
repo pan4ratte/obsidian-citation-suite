@@ -126,6 +126,19 @@ export default {
 	BIBLIOGRAPHY_MISSING: "Не найдены в Zotero",
 	BIBLIOGRAPHY_MISSING_DESC:
 		"Для этих ключей цитирования в Better BibTeX нет элементов — или Zotero не был запущен, когда их искали. Запустите Zotero и обновите список кнопкой над ним.",
+	// Меню записи в списке.
+	BIBLIOGRAPHY_REVEAL: "Показать в Zotero",
+	BIBLIOGRAPHY_REVEAL_NOT_FOUND: "Этого источника больше нет в Zotero.",
+	BIBLIOGRAPHY_COPY_ENTRY: "Скопировать запись",
+	BIBLIOGRAPHY_ENTRY_COPIED: "Запись скопирована.",
+	BIBLIOGRAPHY_ENTRY_COPY_FAILED: "Не удалось скопировать запись.",
+	BIBLIOGRAPHY_FIND: "Найти в заметке",
+	BIBLIOGRAPHY_FIND_NONE: "Заметка больше не ссылается на этот источник.",
+	// За ним следует «номер / всего».
+	BIBLIOGRAPHY_MENTION: "Упоминание",
+	BIBLIOGRAPHY_MENTION_PREVIOUS: "Предыдущее упоминание",
+	BIBLIOGRAPHY_MENTION_NEXT: "Следующее упоминание",
+	BIBLIOGRAPHY_MENTION_CLOSE: "Закрыть",
 
 	// ─── Список изменений ────────────────────────────────────────────────────
 	// Сразу после этой строки подставляется номер версии, поэтому она

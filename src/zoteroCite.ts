@@ -153,3 +153,25 @@ export function formattedBibliography(
 			'<div class="csl-indent" style="margin: .5em 0 0 2em; padding: 0 0 .2em .5em; border-left: 5px solid #ccc;">'
 		);
 }
+
+/**
+ * The link that selects an item in Zotero's window, from the URI Zotero knows
+ * the item by — `http://zotero.org/users/…/items/KEY` for My Library,
+ * `http://zotero.org/groups/ID/items/KEY` for a group — or `null` for anything
+ * else. The two forms are the ones Zotero 7's `zotero://select` handler routes
+ * (`SelectExtension` in `ZoteroProtocolHandler.mjs`), built the way Better
+ * BibTeX's own Quick Copy builds them.
+ */
+export function selectLink(uri: string): string | null {
+	const match =
+		/^https?:\/\/zotero\.org\/(users|groups)\/((?:local\/)?[^/]+)\/items\/([^/]+)$/.exec(
+			uri
+		);
+	if (!match) {
+		return null;
+	}
+	const [, kind, library, key] = match;
+	return kind === "users"
+		? `zotero://select/library/items/${key}`
+		: `zotero://select/groups/${library}/items/${key}`;
+}

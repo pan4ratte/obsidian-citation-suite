@@ -5,7 +5,7 @@
 | Command | What it does |
 |---------|-------------|
 | `npm run dev` | esbuild watch mode (no typecheck) |
-| `npm test` | Vitest — 111 tests, all passing |
+| `npm test` | Vitest — 120 tests, all passing |
 | `npm run lint` / `npm run lint:fix` | ESLint flat config with the official Obsidian ruleset |
 | `npm run build` | `tsc -noEmit -skipLibCheck && node esbuild.config.mjs production` |
 
@@ -102,6 +102,9 @@ once:
   default, and the whole request fails if that style is not installed. So
   `installedStyle()` names APA when it is on disk and any installed style
   otherwise.
+- **`item.search(terms, library)`** is the one method that tells an item's URI
+  (`http://zotero.org/users|groups/…/items/KEY`), which the pane's "Reveal in
+  Zotero" needs; see the bibliography pane below.
 - **`user.groups`** answers with every library as `{ id: libraryID, name }`.
   The renderer keeps that list until `reset()` or `forgetUnknown()`.
 
@@ -244,8 +247,9 @@ and reveals it, and `onunload` does not detach it.
 - **Keys come from `citedKeys`** in `src/citation.ts`: bracketed groups only,
   as everywhere else, once each, in order of first citation, with the front
   matter, fenced and inline code, and `%%`/`<!-- -->` comments emptied out
-  first. Lines are emptied rather than removed so that no bracket meets another
-  across a gap.
+  first. `proseOf` overwrites them with spaces, newlines kept, rather than
+  removing them: no bracket meets another across a gap, and an offset into the
+  prose is an offset into the note, which `mentionsOf` depends on.
 - **The list is written by the citation engine, not the tooltips' number-less
   one**, through `CitationRenderer.bibliographyOf`: in a reference list the
   numbers belong. The keys are handed to `updateItems` in first-citation order,
@@ -292,6 +296,78 @@ and reveals it, and `onunload` does not detach it.
   ties with those. The divider is drawn on
   `.csl-entry:not(.hidden) ~ .csl-entry:not(.hidden)` rather than `+`, so a
   filtered list never shows a rule over its first remaining entry.
+- **Right-clicking an entry opens an Obsidian `Menu`** with three items, in
+  this order: reveal in Zotero, copy the entry, find in the note. Missing keys
+  have no menu. Right-clicking marks nothing: only a finding colours an entry.
+- **The entry being found is set apart by its dividers, in the accent.** The
+  rule above is the entry's own `border-top`; the rule below, under the mention
+  bar, is the next shown entry's, picked out by `~` with a `:not()` that
+  excludes any entry with a shown one between — which is how it skips entries
+  the search hides. If another state is ever coloured the same way, give it a
+  selector of its own rather than an `:is()` in that `:not()`: shared, a mark on
+  an earlier entry would stop the finding's rule below from being found.
+  Only the colour changes, never the width: the first entry has no rule above
+  and the last none below, and are not given one, because adding a border
+  would move the list.
+- **Reveal in Zotero** opens a `zotero://select` link with `window.open`, which
+  Obsidian hands to the system. The link must name the library the entry was
+  rendered from — a key can stand for items in My Library and a group at once —
+  so `load()` records each key's library, and `CitationRenderer.itemLink` asks
+  BBT's `item.search` for `[["citationKey","is",key],["libraryID","is",id]]`.
+  Its answer is Zotero's CSL with the item's URI as `id` (plus BBT's `citekey`,
+  matched again since `is` ignores case), which `selectLink` turns into
+  `zotero://select/library/items/KEY` or `…/groups/GROUPID/items/KEY` — the two
+  routes of Zotero 7's `SelectExtension`, built as BBT's Quick Copy builds them.
+  Do not switch to BBT's `zotero://select/items/@key`: its patched
+  `parseLibraryKeyHash` looks the key up in My Library only. Checked by opening
+  a group item's link and reading `item.citationkey("selected")` back.
+- **Copy entry** is `copyBibliography` with an index: one entry, as HTML and
+  text, numbered as it is in the list: it copies what the reader right-clicked.
+- **Find in note** cannot be a submenu of mentions: Obsidian 1.13 has no public
+  submenu API, and a menu has no room to tell forty mentions apart. It selects
+  the first mention (`mentionsOf` — the `@key`, with a `-` before it) and puts a
+  **mention bar** under the entry: `Mention 1 / 5`, previous, next and close.
+  Previous and next count from the editor's selection, not from a stored index,
+  so a cursor the reader moved is respected, and both wrap round. The bar is
+  relabelled rather than redrawn on a step, so the pressed button keeps the
+  focus; the editor takes the focus only from the menu item, never from the
+  bar, so pressing a button from the keyboard again cannot type into the note.
+  A pass redraws the bar with the count taken afresh from the text it read, and
+  ends it when the note is another one or no longer cites the source. The bar
+  is hidden with its entry by the search. The note is found in its open view
+  (the most recent leaf first, a deferred one by its view state) or opened in a
+  new tab; in reading view `previewMode.applyScroll` scrolls to the line.
+  Finding the source already being found keeps its bar instead of closing it
+  and opening another in the same place.
+- **Every state change the menu and the bar make is animated, and a pass
+  redraw is not.** A pass rebuilds the body on every save, so anything keyed to
+  an element appearing would replay while the reader types. Two mechanisms:
+  - **The dividers' colour is a transition** on `border-top-color`, so the
+    accent fades in and out. An entry built by a pass with `is-finding` already
+    on has no before-style, so nothing transitions.
+  - **The bar is animations played by class**, because it is put in and taken
+    out rather than kept: `play(el, cls)` in `src/bibliography.ts` restarts the
+    class's keyframes (taking the class off, calling `getAnimations()` to bring
+    the style up to date, putting it back), awaits every `CSSAnimation` in the
+    subtree, and takes the class off. `is-opening` and `is-closing` run the
+    search row's slide — the grid track between `0fr` and `1fr`, the content
+    fading and dropping 8px, on `--anim-duration-moderate` and
+    `--anim-motion-swing` — and closing is `forwards` and `inert`, with the
+    element removed once `play` settles, in the same microtask checkpoint, so
+    no frame shows it open again. The count rolls up for next
+    (`is-stepping-next`), down for previous, and only fades
+    (`is-changing`) when a pass changed it; the previous and next buttons pop
+    in and out when the count crosses one.
+  - What a bar last showed is kept on the finding as `drawn`, and
+    `drawMentionBar` animates only the difference from it: no `drawn` opens
+    the bar, and a bar rebuilt by a pass with the same count moves nothing.
+  - `prefers-reduced-motion` turns it all off with the same selectors, later
+    in the file, rather than `!important`; `play` then settles at once, which
+    is what removes a closed bar. Checked in headless Chrome by pausing each
+    animation at fixed `currentTime`s and reading the bar's height, the
+    dividers' colours — a hidden neighbour, the first and last entry, a menu
+    and a finding at once — and the count's transform, with and without
+    `--force-prefers-reduced-motion`.
 - **The refresh button calls `forgetUnknown()`** before redrawing. A key missed
   once is never asked about again, and a Zotero that was closed at that moment
   misses every key; this is the one way back short of changing the style or

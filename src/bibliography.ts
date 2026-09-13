@@ -2,6 +2,7 @@ import {
 	debounce,
 	ItemView,
 	MarkdownView,
+	Menu,
 	Notice,
 	sanitizeHTMLToDom,
 	SearchComponent,
@@ -11,7 +12,7 @@ import {
 	WorkspaceLeaf,
 } from "obsidian";
 import { t } from "lang/helpers";
-import { citedKeys } from "src/citation";
+import { citedKeys, mentionsOf } from "src/citation";
 import { CitationRenderer, RenderedBibliography } from "src/render";
 import { matchesTerms, queryTerms } from "src/search";
 import { formattedBibliography } from "src/zoteroCite";
@@ -50,16 +51,22 @@ const HIDDEN_CLASS = "zoterik-bibliography-hidden";
 /**
  * Puts the bibliography on the clipboard as Zotero's "Copy bibliography" does:
  * as HTML with its layout written in, for a word processor to paste with the
- * italics and the indents, and as text for everywhere else.
+ * italics and the indents, and as text for everywhere else. The whole list, or
+ * the one entry at `index`, numbered as the list numbers it.
  */
 async function copyBibliography(
-	bibliography: RenderedBibliography
+	bibliography: RenderedBibliography,
+	index?: number
 ): Promise<void> {
-	const html = formattedBibliography(
-		bibliography.params,
-		bibliography.entries
-	);
-	const text = bibliography.text.join("");
+	const one = index !== undefined;
+	const entries = one
+		? bibliography.entries.slice(index, index + 1)
+		: bibliography.entries;
+	const lines = one
+		? bibliography.text.slice(index, index + 1)
+		: bibliography.text;
+	const html = formattedBibliography(bibliography.params, entries);
+	const text = lines.join("");
 	try {
 		await navigator.clipboard.write([
 			new ClipboardItem({
@@ -67,10 +74,60 @@ async function copyBibliography(
 				"text/plain": new Blob([text], { type: "text/plain" }),
 			}),
 		]);
-		new Notice(t.BIBLIOGRAPHY_COPIED);
+		new Notice(one ? t.BIBLIOGRAPHY_ENTRY_COPIED : t.BIBLIOGRAPHY_COPIED);
 	} catch {
-		new Notice(t.BIBLIOGRAPHY_COPY_FAILED);
+		new Notice(
+			one ? t.BIBLIOGRAPHY_ENTRY_COPY_FAILED : t.BIBLIOGRAPHY_COPY_FAILED
+		);
 	}
+}
+
+/**
+ * The source whose mentions in the note are being gone through: the keys its
+ * entry was written for, the note they are looked for in, which mention was
+ * shown last and how many there are — and what the bar said when it was last
+ * drawn, or `null` before it has been.
+ */
+interface Finding {
+	keys: string[];
+	file: TFile;
+	index: number;
+	count: number;
+	drawn: { index: number; count: number } | null;
+}
+
+/** The bar under the entry being found, drawn once and then only relabelled. */
+interface MentionBar {
+	el: HTMLElement;
+	count: HTMLElement;
+	previous: HTMLElement;
+	next: HTMLElement;
+}
+
+/** The ways the bar's count rolls to a new number, one class each. */
+const COUNT_ROLLS = ["is-stepping-next", "is-stepping-previous", "is-changing"];
+
+/**
+ * Plays the one-off animation a class gives an element and its children —
+ * from the start, if it was already playing — and takes the class off once it
+ * has finished or been cut short. styles.css gives the class no animation for
+ * a reader who asked for less motion, and then this settles at once.
+ *
+ * An animation that leaves its element changed (`forwards`) keeps it so until
+ * the class comes off, which is after whatever is chained on here has run:
+ * no frame is drawn in between.
+ */
+async function play(el: HTMLElement, cls: string): Promise<void> {
+	el.removeClass(cls);
+	// Asking for the animations brings the element's style up to date, which
+	// ends the one taken off above before the class starts it again.
+	el.getAnimations();
+	el.addClass(cls);
+	const running = el
+		.getAnimations({ subtree: true })
+		.filter((animation) => animation instanceof CSSAnimation);
+	await Promise.allSettled(running.map((animation) => animation.finished));
+	el.removeClass(cls);
 }
 
 /** What the plugin hands the pane: the renderer, and the style to render in. */
@@ -112,6 +169,10 @@ export class BibliographyView extends ItemView {
 	private bibliography: RenderedBibliography | null = null;
 	/** Every entry and missing key on screen, with the text it is searched in. */
 	private searchable: { el: HTMLElement; text: string }[] = [];
+	/** Every entry on screen, with the keys it was written for. */
+	private entries: { el: HTMLElement; keys: string[] }[] = [];
+	private finding: Finding | null = null;
+	private mentionBar: MentionBar | null = null;
 
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -240,7 +301,8 @@ export class BibliographyView extends ItemView {
 			return;
 		}
 
-		const keys = citedKeys(await this.noteText(file));
+		const text = await this.noteText(file);
+		const keys = citedKeys(text);
 		if (pass !== this.pass) {
 			return;
 		}
@@ -274,6 +336,7 @@ export class BibliographyView extends ItemView {
 		if (missing.length > 0) {
 			this.drawMissing(missing);
 		}
+		this.redrawFinding(file, text);
 		this.applySearch();
 	}
 
@@ -408,6 +471,8 @@ export class BibliographyView extends ItemView {
 		this.bodyEl.empty();
 		this.bibliography = bibliography;
 		this.searchable = [];
+		this.entries = [];
+		this.mentionBar = null;
 
 		const searchable = bibliography !== null || hasMissing;
 		this.searchButton.toggleClass(HIDDEN_CLASS, !searchable);
@@ -420,6 +485,7 @@ export class BibliographyView extends ItemView {
 	}
 
 	private showMessage(file: TFile | null, text: string): void {
+		this.finding = null;
 		this.startBody(file, null, false);
 		this.drawMessage(text);
 	}
@@ -458,11 +524,16 @@ export class BibliographyView extends ItemView {
 			const el = fragment.querySelector<HTMLElement>(".csl-entry");
 			list.appendChild(fragment);
 			if (el) {
-				const keys = (entryIds[index] ?? []).map((id) => `@${String(id)}`);
+				const keys = (entryIds[index] ?? []).map((id) => String(id));
+				const handles = keys.map((key) => `@${key}`).join(" ");
 				this.searchable.push({
 					el,
-					text: `${keys.join(" ")} ${el.textContent ?? ""}`,
+					text: `${handles} ${el.textContent ?? ""}`,
 				});
+				this.entries.push({ el, keys });
+				el.addEventListener("contextmenu", (event) =>
+					this.showEntryMenu(event, index, keys)
+				);
 			}
 		});
 	}
@@ -510,6 +581,15 @@ export class BibliographyView extends ItemView {
 			}
 		}
 
+		// The mention bar goes with the entry it is under.
+		if (this.mentionBar) {
+			const entry = this.mentionBar.el.previousElementSibling;
+			this.mentionBar.el.toggleClass(
+				HIDDEN_CLASS,
+				entry?.hasClass(HIDDEN_CLASS) ?? false
+			);
+		}
+
 		// A missing-keys section with every key hidden is hidden with them.
 		const missing = this.bodyEl.querySelector<HTMLElement>(
 			".zoterik-bibliography-missing"
@@ -535,5 +615,335 @@ export class BibliographyView extends ItemView {
 			"aria-label",
 			`${filtered ? t.BIBLIOGRAPHY_SHOWN : t.BIBLIOGRAPHY_COUNT} ${count}`
 		);
+	}
+
+	/**
+	 * The menu of one entry: show its item in Zotero, copy it, or go to where
+	 * the note cites it.
+	 */
+	private showEntryMenu(
+		event: MouseEvent,
+		index: number,
+		keys: string[]
+	): void {
+		const bibliography = this.bibliography;
+		if (!bibliography || keys.length === 0) {
+			return;
+		}
+		event.preventDefault();
+		const menu = new Menu();
+		menu.addItem((item) =>
+			item
+				.setTitle(t.BIBLIOGRAPHY_REVEAL)
+				.setIcon("arrow-up-right")
+				.onClick(() => void this.revealInZotero(keys[0]))
+		);
+		menu.addItem((item) =>
+			item
+				.setTitle(t.BIBLIOGRAPHY_COPY_ENTRY)
+				.setIcon("copy")
+				.onClick(() => void copyBibliography(bibliography, index))
+		);
+		menu.addItem((item) =>
+			item
+				.setTitle(t.BIBLIOGRAPHY_FIND)
+				.setIcon("search")
+				.onClick(() => void this.findInNote(keys))
+		);
+		menu.showAtMouseEvent(event);
+	}
+
+	/**
+	 * Selects the key's item in Zotero's window, through the `zotero://select`
+	 * link the system hands over to Zotero.
+	 */
+	private async revealInZotero(key: string): Promise<void> {
+		const found = await this.context.renderer.itemLink(key);
+		if ("link" in found) {
+			window.open(found.link);
+		} else {
+			new Notice(
+				found.error === "unreachable"
+					? t.NOTICE_ZOTERO_UNREACHABLE
+					: t.BIBLIOGRAPHY_REVEAL_NOT_FOUND
+			);
+		}
+	}
+
+	/**
+	 * Goes to the first place the note cites the source, and puts a bar under
+	 * its entry that steps through the rest. A source is often cited many
+	 * times over, and a menu has no room to list every mention in a way that
+	 * tells them apart; the bar says which mention is shown out of how many,
+	 * and stays until it is closed, the note is left, or the note stops citing
+	 * the source.
+	 */
+	private async findInNote(keys: string[]): Promise<void> {
+		const file = this.file;
+		if (!file) {
+			return;
+		}
+		// Found again, the source keeps the bar it has rather than one closing
+		// and another opening in the same place.
+		const current = this.finding;
+		const same =
+			current?.file === file &&
+			current.keys.length === keys.length &&
+			current.keys.every((key) => keys.includes(key));
+		if (!same) {
+			this.stopFinding();
+		}
+		this.finding = {
+			keys,
+			file,
+			index: 0,
+			count: 0,
+			drawn: same ? current.drawn : null,
+		};
+		await this.showMention(0, true);
+	}
+
+	/**
+	 * Selects a mention in the note's editor and scrolls to it: the first when
+	 * `step` is 0, and otherwise the next or the previous one from the cursor —
+	 * the mention last shown, unless the reader has moved it since — going
+	 * round at either end.
+	 *
+	 * The editor takes the focus only when asked to. The bar's buttons leave it
+	 * where it is, so that they can be pressed from the keyboard again and
+	 * again without a keystroke landing in the note.
+	 */
+	private async showMention(step: -1 | 0 | 1, focus: boolean): Promise<void> {
+		const finding = this.finding;
+		if (!finding) {
+			return;
+		}
+		const mentions = mentionsOf(
+			await this.noteText(finding.file),
+			finding.keys
+		);
+		if (this.finding !== finding) {
+			return;
+		}
+		if (mentions.length === 0) {
+			new Notice(t.BIBLIOGRAPHY_FIND_NONE);
+			this.stopFinding();
+			return;
+		}
+
+		const view = await this.noteView(finding.file);
+		if (!view || this.finding !== finding) {
+			return;
+		}
+		const { editor } = view;
+		if (step === 0) {
+			finding.index = 0;
+		} else if (step === 1) {
+			const cursor = editor.posToOffset(editor.getCursor("to"));
+			const next = mentions.findIndex((mention) => mention.from >= cursor);
+			finding.index = next === -1 ? 0 : next;
+		} else {
+			const cursor = editor.posToOffset(editor.getCursor("from"));
+			const before = mentions.filter((mention) => mention.to <= cursor);
+			finding.index =
+				before.length === 0 ? mentions.length - 1 : before.length - 1;
+		}
+		finding.count = mentions.length;
+		this.drawMentionBar(step);
+
+		const mention = mentions[finding.index];
+		const range = {
+			from: editor.offsetToPos(mention.from),
+			to: editor.offsetToPos(mention.to),
+		};
+		editor.setSelection(range.from, range.to);
+		editor.scrollIntoView(range, true);
+		if (view.getMode() === "preview") {
+			view.previewMode.applyScroll(range.from.line);
+		}
+		if (focus) {
+			this.app.workspace.setActiveLeaf(view.leaf, { focus: true });
+			editor.focus();
+		}
+	}
+
+	/**
+	 * The view the note is open in, brought to the front: the most recent
+	 * one when it is open in several, and a new tab when it is open in none.
+	 */
+	private async noteView(file: TFile): Promise<MarkdownView | null> {
+		const { workspace } = this.app;
+		const holds = (leaf: WorkspaceLeaf): boolean =>
+			leaf.view instanceof MarkdownView
+				? leaf.view.file === file
+				: // A tab not shown since launch has no view loaded yet.
+					leaf.getViewState().state?.file === file.path;
+		const recent = workspace.getMostRecentLeaf();
+		let leaf =
+			recent && holds(recent)
+				? recent
+				: workspace.getLeavesOfType("markdown").find(holds);
+		if (!leaf) {
+			leaf = workspace.getLeaf("tab");
+			await leaf.openFile(file);
+		}
+		await workspace.revealLeaf(leaf);
+		return leaf.view instanceof MarkdownView ? leaf.view : null;
+	}
+
+	/**
+	 * Puts the bar under the entry being found, or relabels the one already
+	 * there — relabelled rather than drawn again, so that the button just
+	 * pressed keeps the focus. The finding ends when its entry has left the
+	 * list.
+	 *
+	 * What changed since the bar was last drawn is animated, and nothing else:
+	 * a pass draws the bar anew on every save, and one that looks as it did
+	 * must not open again or roll its count. The count rolls the way the step
+	 * went — `step` — or only fades when a pass changed it.
+	 */
+	private drawMentionBar(step: -1 | 0 | 1 = 0): void {
+		const finding = this.finding;
+		const entry = finding
+			? this.entries.find((candidate) =>
+					candidate.keys.some((key) => finding.keys.includes(key))
+				)
+			: undefined;
+		if (!finding || !entry) {
+			this.stopFinding();
+			return;
+		}
+		const drawn = finding.drawn;
+
+		let bar = this.mentionBar;
+		if (!bar || bar.el.previousElementSibling !== entry.el) {
+			this.clearMentionBar();
+			bar = this.createMentionBar(entry.el);
+			this.mentionBar = bar;
+			if (!drawn) {
+				void play(bar.el, "is-opening");
+			}
+		}
+		bar.el.toggleClass(HIDDEN_CLASS, entry.el.hasClass(HIDDEN_CLASS));
+
+		bar.count.setText(`${finding.index + 1} / ${finding.count}`);
+		const changed =
+			drawn !== null &&
+			(drawn.index !== finding.index || drawn.count !== finding.count);
+		if (drawn && (step !== 0 || changed)) {
+			const roll =
+				step === 1
+					? "is-stepping-next"
+					: step === -1
+						? "is-stepping-previous"
+						: "is-changing";
+			bar.count.removeClass(...COUNT_ROLLS);
+			void play(bar.count, roll);
+		}
+
+		// With one mention there is nowhere to step to.
+		const steppable = finding.count > 1;
+		const wasSteppable = drawn ? drawn.count > 1 : steppable;
+		for (const button of [bar.previous, bar.next]) {
+			if (steppable === wasSteppable) {
+				button.toggleClass(HIDDEN_CLASS, !steppable);
+			} else if (steppable) {
+				button.removeClass(HIDDEN_CLASS, "is-disappearing");
+				void play(button, "is-appearing");
+			} else {
+				void play(button, "is-disappearing").then(() => {
+					// Unless a mention came back while it went.
+					if (finding.count < 2) {
+						button.addClass(HIDDEN_CLASS);
+					}
+				});
+			}
+		}
+		finding.drawn = { index: finding.index, count: finding.count };
+	}
+
+	/** A mention bar under the entry, its count still to be written. */
+	private createMentionBar(entryEl: HTMLElement): MentionBar {
+		// The bar is a one-track grid, which opens and shuts by its track as
+		// the search row does; its content sits in an element the track clips.
+		const el = createDiv({ cls: "zoterik-bibliography-mentions" });
+		entryEl.after(el);
+		entryEl.addClass("is-finding");
+		const content = el.createDiv({
+			cls: "zoterik-bibliography-mentions-content",
+		});
+		const label = content.createSpan({
+			cls: "zoterik-bibliography-mentions-label",
+			// Read out as the reader steps, since the note is where they look.
+			attr: { "aria-live": "polite" },
+		});
+		label.appendText(`${t.BIBLIOGRAPHY_MENTION} `);
+		const count = label.createSpan({
+			cls: "zoterik-bibliography-mentions-count",
+		});
+		const previous = this.iconButton(
+			content,
+			"chevron-up",
+			t.BIBLIOGRAPHY_MENTION_PREVIOUS,
+			() => void this.showMention(-1, false)
+		);
+		const next = this.iconButton(
+			content,
+			"chevron-down",
+			t.BIBLIOGRAPHY_MENTION_NEXT,
+			() => void this.showMention(1, false)
+		);
+		this.iconButton(content, "x", t.BIBLIOGRAPHY_MENTION_CLOSE, () =>
+			this.stopFinding()
+		);
+		el.addEventListener("keydown", (event) => {
+			if (event.key === "Escape") {
+				event.preventDefault();
+				this.stopFinding();
+			}
+		});
+		return { el, count, previous, next };
+	}
+
+	/**
+	 * Draws the bar again after a pass, with the mentions counted afresh in the
+	 * text the pass read, so that citing the source once more or once less
+	 * shows in the count at once. A pass for another note, or one in which the
+	 * note no longer cites the source, ends the finding.
+	 */
+	private redrawFinding(file: TFile, text: string): void {
+		const finding = this.finding;
+		if (!finding) {
+			return;
+		}
+		finding.count =
+			finding.file === file ? mentionsOf(text, finding.keys).length : 0;
+		if (finding.count === 0) {
+			this.stopFinding();
+			return;
+		}
+		finding.index = Math.min(finding.index, finding.count - 1);
+		this.drawMentionBar();
+	}
+
+	private stopFinding(): void {
+		this.finding = null;
+		this.clearMentionBar();
+	}
+
+	/**
+	 * Shuts the bar and takes it out once it has shut. It stops answering at
+	 * once: a click on a bar on its way out would act on a finding that has
+	 * ended.
+	 */
+	private clearMentionBar(): void {
+		const bar = this.mentionBar;
+		if (!bar) {
+			return;
+		}
+		this.mentionBar = null;
+		bar.el.previousElementSibling?.removeClass("is-finding");
+		bar.el.setAttr("inert", "");
+		void play(bar.el, "is-closing").then(() => bar.el.remove());
 	}
 }

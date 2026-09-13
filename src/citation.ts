@@ -200,23 +200,29 @@ export function parseGroups(text: string): CitationGroup[] {
 
 const FENCE = /^ {0,3}(`{3,}|~{3,})/;
 
+/** The text as spaces, its line breaks kept where they were. */
+function blank(text: string): string {
+	return text.replace(/[^\n]/g, " ");
+}
+
 /**
  * The note with everything that is not prose emptied out: the front matter,
  * fenced code, inline code, and both kinds of comment. A citation key in any
  * of them is stored or talked about rather than cited — reading view does not
  * draw one in code either, and pandoc renders none of them.
  *
- * Lines are emptied rather than dropped, so a bracket never meets another one
- * across the gap a block left.
+ * Everything emptied out is overwritten with spaces, newlines kept, rather than
+ * dropped: a bracket never meets another one across the gap a block left, and
+ * an offset into the result is the same offset into the note.
  */
 export function proseOf(text: string): string {
 	const lines = text.split("\n");
 	let i = 0;
 	if (lines[0]?.trimEnd() === "---") {
-		lines[0] = "";
+		lines[0] = blank(lines[0]);
 		for (i = 1; i < lines.length; i++) {
 			const end = ["---", "..."].includes(lines[i].trimEnd());
-			lines[i] = "";
+			lines[i] = blank(lines[i]);
 			if (end) {
 				i++;
 				break;
@@ -236,10 +242,10 @@ export function proseOf(text: string): string {
 			) {
 				fence = null;
 			}
-			lines[i] = "";
+			lines[i] = blank(lines[i]);
 		} else if (opening) {
 			fence = opening[1];
-			lines[i] = "";
+			lines[i] = blank(lines[i]);
 		}
 	}
 
@@ -248,9 +254,9 @@ export function proseOf(text: string): string {
 			.join("\n")
 			// A code span closes on a run of as many backticks as opened it,
 			// and never runs on past the end of its paragraph.
-			.replace(/(`+)(?:(?!\n[ \t]*\n)[\s\S])*?[^`]\1(?!`)/g, "")
-			.replace(/%%[\s\S]*?(?:%%|$)/g, "")
-			.replace(/<!--[\s\S]*?(?:-->|$)/g, "")
+			.replace(/(`+)(?:(?!\n[ \t]*\n)[\s\S])*?[^`]\1(?!`)/g, blank)
+			.replace(/%%[\s\S]*?(?:%%|$)/g, blank)
+			.replace(/<!--[\s\S]*?(?:-->|$)/g, blank)
 	);
 }
 
@@ -266,4 +272,36 @@ export function citedKeys(text: string): string[] {
 		}
 	}
 	return [...keys];
+}
+
+/** Where a citation stands in the text: its `@key`, and the `-` before it. */
+export interface Mention {
+	from: number;
+	to: number;
+}
+
+/**
+ * Every place the text cites any of the keys, in the order they come — read
+ * exactly as `citedKeys` reads them, so a source is found wherever the list
+ * counts it as cited and nowhere else.
+ */
+export function mentionsOf(text: string, citekeys: string[]): Mention[] {
+	const wanted = new Set(citekeys);
+	const prose = proseOf(text);
+	const mentions: Mention[] = [];
+	for (const group of parseGroups(prose)) {
+		// Cut between the brackets as `parseGroups` cuts it, keeping count of
+		// where each piece starts.
+		let start = group.from + 1;
+		for (const part of prose.slice(start, group.to - 1).split(";")) {
+			const match = CITATION.exec(part);
+			const id = match ? (match[2] ?? match[3]) : undefined;
+			if (match && id && wanted.has(id)) {
+				const from = start + match.index;
+				mentions.push({ from, to: from + match[0].length });
+			}
+			start += part.length + 1;
+		}
+	}
+	return mentions;
 }

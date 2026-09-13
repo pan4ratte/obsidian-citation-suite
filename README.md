@@ -90,6 +90,18 @@ Above the list are the number of entries in it and three buttons:
   text. The whole list is copied, even while the search hides some of it.
 - **Refresh** asks Zotero again.
 
+Right-clicking an entry opens its menu:
+
+- **Reveal in Zotero** selects the source in Zotero's window, in the library the entry
+  was taken from.
+- **Copy entry** copies just that entry the way the copy button copies the whole list,
+  with the number it has in the list.
+- **Find in note** selects the note's first citation of the source and scrolls to it, and
+  a "Mention 1 / 5" bar appears under the entry. Its arrows go to the previous and the
+  next citation, counting from the cursor, and go back to the first after the last. The
+  count updates as you type, and the bar closes with its cross, with `Esc`, or when you
+  move to another note.
+
 The entries are what Zotero itself writes: the plugin takes each item in the form Zotero
 hands it to citeproc, and sets citeproc up the way Zotero does. Of the CSL locales, the
 plugin carries Russian, American and British English, German and French — enough for the

@@ -4,6 +4,7 @@ import {
 	asZoteroCites,
 	eventToEventTitle,
 	formattedBibliography,
+	selectLink,
 	uppercasesSubtitles,
 } from "src/zoteroCite";
 
@@ -160,5 +161,28 @@ describe("formattedBibliography", () => {
 				'<div class="csl-entry">2. Roe.</div>' +
 				"</div>"
 		);
+	});
+});
+
+describe("selectLink", () => {
+	it("links an item in My Library by its key alone", () => {
+		expect(selectLink("http://zotero.org/users/9070599/items/9NUEPUXZ")).toBe(
+			"zotero://select/library/items/9NUEPUXZ"
+		);
+		expect(selectLink("http://zotero.org/users/local/Ab12cD/items/ABCD1234")).toBe(
+			"zotero://select/library/items/ABCD1234"
+		);
+	});
+
+	it("links an item in a group through the group", () => {
+		expect(selectLink("http://zotero.org/groups/6069354/items/7ENTQEMH")).toBe(
+			"zotero://select/groups/6069354/items/7ENTQEMH"
+		);
+	});
+
+	it("links nothing that is not an item's URI", () => {
+		expect(selectLink("doe2020")).toBeNull();
+		expect(selectLink("http://zotero.org/groups/1/collections/ABCD")).toBeNull();
+		expect(selectLink("https://example.com/users/1/items/ABCD")).toBeNull();
 	});
 });

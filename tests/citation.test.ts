@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
 	citedKeys,
+	mentionsOf,
 	parseCitation,
 	parseGroups,
+	proseOf,
 	splitLocator,
 } from "src/citation";
 import { formatCitations } from "src/pandoc";
@@ -198,5 +200,55 @@ describe("citedKeys", () => {
 		expect(citedKeys("A [[link]] and [text](url) and me@example.com")).toEqual(
 			[]
 		);
+	});
+});
+
+describe("proseOf", () => {
+	it("keeps every offset where it was in the note", () => {
+		const text =
+			"---\ntitle: x\n---\n```\ncode\n```\n`a` %%b%% <!-- c\nd --> [@doe2020]";
+		const prose = proseOf(text);
+		expect(prose).toHaveLength(text.length);
+		expect(prose.indexOf("[@doe2020]")).toBe(text.indexOf("[@doe2020]"));
+		expect(prose.split("\n")).toHaveLength(text.split("\n").length);
+	});
+});
+
+describe("mentionsOf", () => {
+	/** What each mention found covers in the text. */
+	function found(text: string, keys: string[]): string[] {
+		return mentionsOf(text, keys).map(({ from, to }) => text.slice(from, to));
+	}
+
+	it("finds every citation of the key in order, from the @ to the key's end", () => {
+		const text =
+			"First [@doe2020, p. 3]. Then [see -@doe2020; @roe2021] and [@{doe2020}].";
+		expect(found(text, ["doe2020"])).toEqual([
+			"@doe2020",
+			"-@doe2020",
+			"@{doe2020}",
+		]);
+		expect(mentionsOf(text, ["doe2020"])[0].from).toBe(text.indexOf("@doe2020"));
+	});
+
+	it("finds any of several keys", () => {
+		expect(found("[@a] [@b] [@c]", ["c", "a"])).toEqual(["@a", "@c"]);
+	});
+
+	it("does not take a key for a longer one it begins", () => {
+		expect(found("[@doe2020a] [@doe2020]", ["doe2020"])).toEqual(["@doe2020"]);
+	});
+
+	it("leaves out what the list leaves out, and counts the offsets past it", () => {
+		const text = "---\nx: [@doe2020]\n---\n`[@doe2020]` %%[@doe2020]%% [@doe2020]";
+		expect(mentionsOf(text, ["doe2020"])).toEqual([
+			{ from: text.lastIndexOf("@doe2020"), to: text.length - 1 },
+		]);
+	});
+
+	it("does not cut a group at a semicolon inside a code span", () => {
+		expect(
+			found("[see `a;b` @doe2020; @roe2021]", ["doe2020", "roe2021"])
+		).toEqual(["@doe2020", "@roe2021"]);
 	});
 });

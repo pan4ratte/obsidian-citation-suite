@@ -125,6 +125,19 @@ export default {
 	BIBLIOGRAPHY_MISSING: "Not found in Zotero",
 	BIBLIOGRAPHY_MISSING_DESC:
 		"Better BibTeX has no items for these citation keys, or Zotero was not running when they were looked up. Start Zotero and refresh the list with the button above it.",
+	// The menu of an entry in the list.
+	BIBLIOGRAPHY_REVEAL: "Reveal in Zotero",
+	BIBLIOGRAPHY_REVEAL_NOT_FOUND: "Zotero no longer has this source.",
+	BIBLIOGRAPHY_COPY_ENTRY: "Copy entry",
+	BIBLIOGRAPHY_ENTRY_COPIED: "Entry copied.",
+	BIBLIOGRAPHY_ENTRY_COPY_FAILED: "Could not copy the entry.",
+	BIBLIOGRAPHY_FIND: "Find in note",
+	BIBLIOGRAPHY_FIND_NONE: "The note no longer cites this source.",
+	// Followed by "number / total".
+	BIBLIOGRAPHY_MENTION: "Mention",
+	BIBLIOGRAPHY_MENTION_PREVIOUS: "Previous mention",
+	BIBLIOGRAPHY_MENTION_NEXT: "Next mention",
+	BIBLIOGRAPHY_MENTION_CLOSE: "Close",
 
 	// ─── Changelog ───────────────────────────────────────────────────────────
 	// The version number is appended as a link right after this string, which

@@ -8,6 +8,7 @@ import { CitationStyle } from "src/types";
 import {
 	asZoteroCites,
 	eventToEventTitle,
+	selectLink,
 	uppercasesSubtitles,
 } from "src/zoteroCite";
 import localeDeDe from "../locales/locales-de-DE.xml";
@@ -120,6 +121,18 @@ export interface CslItem {
 	[field: string]: unknown;
 }
 
+/** An item, and the library it was taken from. */
+interface FoundItem {
+	item: CslItem;
+	library: number;
+}
+
+/**
+ * What asking Zotero for an item's `zotero://select` link comes to: the link,
+ * or why there is none — Zotero not answering, or no longer holding the item.
+ */
+export type ItemLink = { link: string } | { error: "unreachable" | "not-found" };
+
 /**
  * One call to Better BibTeX's JSON-RPC endpoint: its result, or `null` when
  * there is none — Zotero closed, the method refused, an answer that is not JSON.
@@ -203,8 +216,8 @@ async function fetchItems(
 	citekeys: string[],
 	libraries: number[],
 	style: string | undefined
-): Promise<CslItem[]> {
-	const found: CslItem[] = [];
+): Promise<FoundItem[]> {
+	const found: FoundItem[] = [];
 	let remaining = citekeys;
 	for (const library of libraries) {
 		if (remaining.length === 0) {
@@ -231,7 +244,7 @@ async function fetchItems(
 
 		const zotero = await exportZoteroCsl(port, [...better.keys()], library);
 		for (const [key, item] of better) {
-			found.push(zotero.get(key) ?? item);
+			found.push({ item: zotero.get(key) ?? item, library });
 		}
 		remaining = remaining.filter((key) => !better.has(key));
 	}
@@ -357,6 +370,8 @@ function styleLocale(csl: string): string {
 export class CitationRenderer {
 	/** CSL data by citation key, for everything asked about so far. */
 	private items = new Map<string, CslItem>();
+	/** The library each item in `items` was taken from, by citation key. */
+	private itemLibraries = new Map<string, number>();
 	/** Keys Better BibTeX has no item for. Asked once, then left alone. */
 	private unknown = new Set<string>();
 	/** Zotero's libraries, in the order a key is looked for in them. */
@@ -377,6 +392,7 @@ export class CitationRenderer {
 		this.styles = styles;
 		this.zotero = zotero;
 		this.items.clear();
+		this.itemLibraries.clear();
 		this.unknown.clear();
 		this.libraries = null;
 		this.engine = null;
@@ -411,9 +427,10 @@ export class CitationRenderer {
 					this.installedStyle()
 				)
 			: [];
-		for (const item of items) {
+		for (const { item, library } of items) {
 			if (typeof item.id === "string") {
 				this.items.set(item.id, item);
+				this.itemLibraries.set(item.id, library);
 			}
 		}
 		for (const key of wanted) {
@@ -444,6 +461,44 @@ export class CitationRenderer {
 	/** Whether Better BibTeX has handed over an item for the key. */
 	has(citekey: string): boolean {
 		return this.items.has(citekey);
+	}
+
+	/**
+	 * The link that selects a key's item in Zotero's window — the item in the
+	 * library it was rendered from, since the same key can stand for an item in
+	 * My Library and another in a group.
+	 *
+	 * Neither the export nor `item.pandoc_filter` says which item a key is, so
+	 * Better BibTeX's `item.search` is asked, for that key in that library: it
+	 * answers with Zotero's own CSL, whose `id` is the item's URI, and with
+	 * Better BibTeX's key for it as `citekey`. The key is matched again on
+	 * that, since Zotero's `is` does not tell case apart.
+	 */
+	async itemLink(citekey: string): Promise<ItemLink> {
+		const library = this.itemLibraries.get(citekey);
+		if (library === undefined) {
+			return { error: "not-found" };
+		}
+		const found = await rpc<Record<string, unknown>[]>(
+			this.port,
+			"item.search",
+			[
+				[
+					["citationKey", "is", citekey],
+					["libraryID", "is", library],
+				],
+			]
+		);
+		if (!Array.isArray(found)) {
+			return { error: "unreachable" };
+		}
+		const item = found.find(
+			(candidate) =>
+				candidate.citekey === citekey ||
+				candidate["citation-key"] === citekey
+		);
+		const link = typeof item?.id === "string" ? selectLink(item.id) : null;
+		return link ? { link } : { error: "not-found" };
 	}
 
 	/**
