@@ -5,7 +5,7 @@
 | Command | What it does |
 |---------|-------------|
 | `npm run dev` | esbuild watch mode (no typecheck) |
-| `npm test` | Vitest — 138 tests, all passing |
+| `npm test` | Vitest — 160 tests, all passing |
 | `npm run lint` / `npm run lint:fix` | ESLint flat config with the official Obsidian ruleset |
 | `npm run build` | `tsc -noEmit -skipLibCheck && node esbuild.config.mjs production` |
 
@@ -563,28 +563,58 @@ Obsidian's, and Obsidian's group card is already the right frame for them, which
 is the same call Advanced Word Count makes with `wcp-settings-rows`. Don't add a
 card idiom here until there is hand-drawn DOM that needs one.
 
-Everything else in `styles.css` is the header (title and muted description, set
-the way Publish to Telegram sets the same paragraph), the changelog banner, and
-the changelog window.
+Everything else in `styles.css` is the status card at the head of the tab and
+the window the changelog and the user guide are read in. The tab has no title or
+description of its own: it opens straight onto the status card.
 
 - `getControlValue` / `setControlValue` are overridden so that writing a setting
   goes through the plugin's own `saveSettings()` — the one place that writes
   `data.json`. The base class already points at `plugin.settings`; stating it
   keeps a second path from existing.
-- The **changelog banner** is the one `render` definition, and the one thing in
-  the tab that is not a setting: `searchable: false`, because there is nothing
-  in it to search for. `update()` re-runs a render on the row it already drew,
-  so the root is looked up before it is created — appending a fresh one each
-  time would draw the banner twice.
-- Closing the banner writes `manifest.version` into `dismissedChangelogVersion`,
-  a settings field the tab never draws. The next release is a version that no
-  longer matches, so the banner comes back.
+- The **status card** row is the one `render` definition that is not a setting:
+  `searchable: false`, because there is nothing in it to search for. Its stock
+  name and description (`PLUGIN_NAME`, `PLUGIN_DESCRIPTION`) are required by the
+  definition and hidden by styles.css. `update()` re-runs a render on
+  the row it already drew, so the root is looked up before it is created and
+  emptied — appending a fresh one each time would draw the card twice.
+- The **status card** (`src/statusCard.ts`) is drawn after the one at the head
+  of Pandoc GUI's settings (`PandocDashboard`, `PandocNotices`, `PandocLinks`,
+  `ChangelogNotice` there), with its classes and values carried over under this
+  plugin's prefix: one card, a row to each thing it is read for. Top to bottom:
+  what this release brought (until dismissed); then one row of panels divided
+  by upright rules — "Zotero status" with a dot and a button to check again,
+  and to the right of it the changelog and user guide buttons — and last a
+  notice across the card only when Better BibTeX is missing or still starting.
+  The upright rules are the row's 1px `gap` over a border-coloured background,
+  so they survive the row wrapping; every panel is opaque for that reason.
+  Zotero's version is deliberately not shown. Better BibTeX deliberately has no
+  panel of its own: it is only worth a line when something is wrong with it.
+- `checkZotero()` in `src/cayw.ts` asks two things, and neither opens anything:
+  Zotero's own `/connector/ping` (200 when Zotero runs, whether or not Better
+  BibTeX is installed), then the CAYW `probe`. Zotero
+  answers a path nothing registered with `404 No endpoint found`, which is how
+  a Zotero without Better BibTeX is told from one that is not running. The
+  answer is kept on the tab (`lastCheck`) so that a redraw from `update()` does
+  not ask again; `hide()` drops it, and a port change asks again.
+- Dismissing the changelog notice writes `manifest.version` into
+  `dismissedChangelogVersion`, a settings field the tab never draws. The next
+  release is a version that no longer matches, so the notice comes back.
 
-## Changelog in the plugin
+## Changelog and user guide in the plugin
 
-`src/changelogModal.ts` renders `getChangelogContent()` — the changelog in the
-interface language — with `MarkdownRenderer.render`, into a `Component` of its
-own that is unloaded with the modal. The sizes and spacing in `styles.css` are
+`src/markdownModal.ts` renders either document — `getChangelogContent()` or
+`getUserGuideContent()`, each in the interface language — with
+`MarkdownRenderer.render`, into a `Component` of its own that is unloaded with
+the modal.
+
+The **user guide is the README's own guide section**, not a copy:
+`guideOf()` (`src/userGuide.ts`) takes `README_RU.md` / `README.md` from their
+`# Руководство пользователя` / `# User guide` heading up to the next top-level
+heading, then adds the `# Об авторе` / `# About the Author` section up to its
+first subheading — which leaves out the third-party licenses under it. Renaming
+any of those headings empties the modal or drops the author;
+`tests/userGuide.test.ts` reads the shipped READMEs to catch exactly that. The guide's tables get Pandoc
+GUI's table rules. The sizes and spacing in `styles.css` are
 **replicated value for value from the sibling Classy PDF Extractor and Publish
 to Telegram plugins**, which draw the same window. Check those before changing
 any of it — the three changelogs are meant to read alike.
@@ -612,7 +642,7 @@ was renamed with it, from `pan4ratte/obsidian-zoterik` to
 ```
 src/
   main.ts           — Plugin class, 6 commands, the bibliography view, settings load/save
-  cayw.ts           — the Better BibTeX CAYW client: probe, pick, parse
+  cayw.ts           — the Better BibTeX CAYW client: probe, Zotero check, pick, parse
   pandoc.ts         — citations → pandoc syntax (pure; no Obsidian, no network)
   footnote.ts       — a citation as a footnote: label, numbering, placement (pure)
   citation.ts       — pandoc citations read back out of a note, and its cited keys (pure)
@@ -620,24 +650,27 @@ src/
   bibliography.ts   — the right-sidebar pane listing the note's bibliography
   zoteroCite.ts     — what Zotero does around citeproc, ported (pure)
   search.ts         — the pane's filter: words, normalisation, matching (pure)
-  settings.ts       — the declarative settings tab and the changelog banner
+  settings.ts       — the declarative settings tab
+  statusCard.ts     — the card at the head of the settings: status, notices, documents
   stylePicker.ts    — the Zotero-like list the citation style is chosen from
   preview.ts        — the style preview and its bar of look buttons
   sample.ts         — the source the preview cites
   look.ts           — the citation colour and underline, as body classes
-  changelogModal.ts — the changelog, rendered as markdown
+  markdownModal.ts  — the changelog or the user guide, rendered as markdown
+  userGuide.ts      — the guide section cut out of a README (pure)
+  zoteroNote.ts     — a picked Zotero note as Markdown at the cursor
   types.ts          — Citation, CitationForm, settings + defaults
 lang/
   ru.ts             — every user-facing string; the original
   en.ts             — the same keys, in the same order, translated from ru.ts
-  helpers.ts        — picks the locale, exports `t` and getChangelogContent()
+  helpers.ts        — picks the locale, exports `t`, getChangelogContent() and getUserGuideContent()
   markdown.d.ts     — declares the "*.md" text imports for tsc
 tests/
   pandoc.test.ts    — the formatter, every form and every field
   cayw.test.ts      — parsing what the endpoint answers, incl. a real answer
   footnote.test.ts  — labels, roman numerals, and where a footnote's text goes
   mocks/obsidian.ts — stands in for the module at import time
-styles.css          — the settings header, the banner, the changelog window
+styles.css          — the status card, the settings rows, the document window
 CHANGELOG_RU.md     — release notes; the original
 CHANGELOG.md        — translated from CHANGELOG_RU.md; the workflow's source
 versions.json       — plugin version → the minAppVersion it shipped with
@@ -694,9 +727,10 @@ Three things about this config are load-bearing:
 - **`brands` and `ignoreWords` replace the rule's default lists**, they do not
   add to them. That is why `Obsidian` is named alongside `Citation Suite`, `Zotero` and
   `Better BibTeX`: dropping it would lowercase it.
-- **`pandoc` is an ignored word, not a brand.** It is lowercase in its own
-  documentation and in the syntax it names; as a brand the rule would capitalise
-  it.
+- **`Pandoc` is a brand in `lang/en.ts`.** The interface text writes it with its
+  capital, as `manifest.json`, the READMEs and `ru.ts` do, so the locale-module
+  rule keeps it that way. The plain `sentence-case` rule still ignores the
+  lowercase `pandoc`, which names the command in code.
 
 The sentence-case rule also **bans the disable comment for itself**, so there is
 no exempting a string — write UI text that passes. It reads a value as one

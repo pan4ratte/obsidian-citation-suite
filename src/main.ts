@@ -1,5 +1,5 @@
 import { Editor, MarkdownView, Notice, Plugin } from "obsidian";
-import { getChangelogContent, t } from "lang/helpers";
+import { getChangelogContent, getUserGuideContent, t } from "lang/helpers";
 import {
 	CaywError,
 	citable,
@@ -9,7 +9,6 @@ import {
 	probeZotero,
 } from "src/cayw";
 import { BIBLIOGRAPHY_VIEW, BibliographyView } from "src/bibliography";
-import { ChangelogModal } from "src/changelogModal";
 import {
 	footnoteEdit,
 	FootnoteOptions,
@@ -18,6 +17,7 @@ import {
 } from "src/footnote";
 import { citationExtension } from "src/live";
 import { applyLook, clearLook } from "src/look";
+import { MarkdownModal } from "src/markdownModal";
 import { formatCitations } from "src/pandoc";
 import { CitationTooltip, renderCitations } from "src/reading";
 import { CitationRenderer } from "src/render";
@@ -154,7 +154,15 @@ export default class CitationSuitePlugin extends Plugin {
 			id: "show-changelog",
 			name: t.COMMAND_SHOW_CHANGELOG,
 			callback: () => {
-				new ChangelogModal(this.app, getChangelogContent()).open();
+				new MarkdownModal(this.app, getChangelogContent()).open();
+			},
+		});
+
+		this.addCommand({
+			id: "open-user-guide",
+			name: t.COMMAND_OPEN_USER_GUIDE,
+			callback: () => {
+				new MarkdownModal(this.app, getUserGuideContent()).open();
 			},
 		});
 	}

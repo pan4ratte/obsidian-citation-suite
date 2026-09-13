@@ -5,11 +5,9 @@ import {
 	SettingDefinitionControl,
 	SettingDefinitionItem,
 	SettingDefinitionRender,
-	setIcon,
 } from "obsidian";
-import { getChangelogContent, lang, t } from "lang/helpers";
+import { lang, t } from "lang/helpers";
 import CitationSuitePlugin from "src/main";
-import { ChangelogModal } from "src/changelogModal";
 import {
 	FootnoteNumbering,
 	FootnotePlacement,
@@ -17,6 +15,8 @@ import {
 } from "src/footnote";
 import { renderStylePreview, StylePreview } from "src/preview";
 import { renderStylePicker, StyleChoice } from "src/stylePicker";
+import { ZoteroCheck } from "src/cayw";
+import { renderStatusCard, StatusCard } from "src/statusCard";
 import { asIndexable, DEFAULT_TOOLTIP_DELAY } from "src/types";
 
 const MIN_PORT = 1;
@@ -87,6 +87,14 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 	plugin: CitationSuitePlugin;
 	/** The preview under the style list, while the tab is drawn. */
 	private preview: StylePreview | null = null;
+	/** The status card at the head of the tab, while the tab is drawn. */
+	private statusCard: StatusCard | null = null;
+	/**
+	 * What Zotero said the last time the card asked, kept for as long as the
+	 * tab is open: `update()` draws the card again whenever a row's
+	 * visibility changes, and that is no reason to ask Zotero again.
+	 */
+	private lastCheck: ZoteroCheck | null = null;
 
 	constructor(app: App, plugin: CitationSuitePlugin) {
 		super(app, plugin);
@@ -107,6 +115,10 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 	async setControlValue(key: string, value: unknown): Promise<void> {
 		asIndexable(this.plugin.settings)[key] = value;
 		await this.plugin.saveSettings();
+		if (key === "port") {
+			// The card was answering for the port the settings pointed at.
+			this.statusCard?.refresh();
+		}
 		if (key === "citationStyle" || key === "port") {
 			// Both change what the citations already on screen should look
 			// like, and neither redraws them on its own.
@@ -228,7 +240,7 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 	 * false`; and `update()` redraws the row it already owns, so the root is
 	 * looked up before it is created rather than appended a second time.
 	 */
-	private changelogBanner(): SettingDefinitionRender {
+	private statusSetting(): SettingDefinitionRender {
 		return {
 			name: t.PLUGIN_NAME,
 			desc: t.PLUGIN_DESCRIPTION,
@@ -243,71 +255,50 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 						":scope > .citation-suite-settings-root"
 					) ?? setting.settingEl.createDiv("citation-suite-settings-root");
 				root.empty();
-				this.renderHeader(root);
+				this.renderStatus(root);
 			},
 		};
 	}
 
 	/**
-	 * The tab's own header: the plugin's name and what it does, with the
-	 * changelog banner under them. It is drawn rather than left to the row's
-	 * stock label so that the name reads as a heading and the banner has the
-	 * full width of the tab to stand across.
+	 * The status card, first in the tab and across its full width. The row it
+	 * stands in keeps the plugin's name and description as its stock label,
+	 * which styles.css does not draw: the tab opens straight onto the card.
 	 */
-	private renderHeader(root: HTMLElement): void {
-		const header = root.createDiv({ cls: "citation-suite-settings-header" });
-		header.createDiv({
-			cls: "citation-suite-settings-title",
-			text: t.PLUGIN_NAME,
+	private renderStatus(root: HTMLElement): void {
+		const version = this.plugin.manifest.version;
+		this.statusCard = renderStatusCard(root, {
+			app: this.app,
+			version,
+			dismissedVersion: this.plugin.settings.dismissedChangelogVersion,
+			onDismiss: () => {
+				this.plugin.settings.dismissedChangelogVersion = version;
+				void this.plugin.saveSettings();
+			},
+			port: () => this.plugin.settings.port,
+			lastCheck: this.lastCheck,
+			onChecked: (check) => {
+				this.lastCheck = check;
+			},
 		});
-		header.createDiv({
-			cls: "citation-suite-settings-description",
-			text: t.PLUGIN_DESCRIPTION,
-		});
-		this.renderChangelogBanner(root);
 	}
 
-	private renderChangelogBanner(root: HTMLElement): void {
-		const currentVersion = this.plugin.manifest.version;
-		if (this.plugin.settings.dismissedChangelogVersion === currentVersion) {
-			return;
-		}
-
-		const banner = root.createDiv({ cls: "citation-suite-changelog-banner" });
-		const text = banner.createSpan({ cls: "citation-suite-changelog-banner-text" });
-		text.appendText(t.CHANGELOG_BANNER_PREFIX);
-		// A button rather than a link: it opens a modal, it does not go
-		// anywhere.
-		const versionButton = text.createEl("button", {
-			text: currentVersion,
-			cls: "citation-suite-changelog-version",
-		});
-		versionButton.addEventListener("click", () => {
-			new ChangelogModal(this.app, getChangelogContent()).open();
-		});
-
-		const closeButton = banner.createEl("button", {
-			cls: "clickable-icon citation-suite-changelog-close",
-			attr: { "aria-label": t.CHANGELOG_BANNER_DISMISS },
-		});
-		setIcon(closeButton, "x");
-		closeButton.addEventListener("click", () => {
-			this.plugin.settings.dismissedChangelogVersion = currentVersion;
-			void this.plugin.saveSettings();
-			banner.remove();
-		});
+	/** A tab opened again asks Zotero again: it may have started or quit since. */
+	hide(): void {
+		super.hide();
+		this.lastCheck = null;
+		this.statusCard = null;
 	}
 
 	getSettingDefinitions(): SettingDefinitionItem[] {
 		return [
-			// The header stands in a group of its own whose card styles.css
-			// blanks: it brings its own look, and putting it inside the first
-			// section's card would make the plugin's name read as a setting of
-			// that section.
+			// The status card stands in a group of its own whose card styles.css
+			// blanks: it is a card of its own, and putting it inside the first
+			// section's card would make it read as a setting of that section.
 			{
 				type: "group",
 				cls: "citation-suite-settings-group",
-				items: [this.changelogBanner()],
+				items: [this.statusSetting()],
 			},
 			// Every setting below is a control 1.13 draws itself, so these
 			// groups keep the card Obsidian gives them. `citation-suite-settings-rows`

@@ -8,7 +8,7 @@
 <br>
 <a href="https://pay.cloudtips.ru/p/c0e8eac4"><img alt="badge" src="https://shieldcn.dev/badge/Поддержать%20разработку-(RU%20карты).svg?size=lg&amp;logo=ri%3AFaHeart&amp;logoColor=ef4444&amp;color=09090b&amp;labelTextColor=ef4444"></a>
 <br>
-<p>Citation Suite is citing sources from your Zotero library in Pandoc format, viewing the bibliography in the sidebar, previewing formatted citations in the note with citation styles, automating footnote creation, and much more.</p>
+<p>With Citation Suite you can cite sources from your Zotero library in Pandoc format, view the bibliography in the sidebar, preview formatted citations in the note with citation styles, automate footnote creation, and much more.</p>
 </div>
 
 <div align="center">
@@ -60,6 +60,8 @@ If you want to test beta-versions of the plugin or use previous versions, you ca
 
 # User guide
 
+You can open this guide right inside Obsidian: with the "Open user guide" command from the command palette, or with the "User guide" button at the top of the plugin settings.
+
 ## 1. Requirements
 
 The plugin needs Zotero and Better BibTeX to work.
@@ -69,6 +71,8 @@ The plugin needs Zotero and Better BibTeX to work.
 2. Then install the Better BibTeX extension in Zotero — it gives sources their citation keys and opens the citation window when the plugin asks for it. Installation instructions: [https://retorque.re/zotero-better-bibtex/installation/](https://retorque.re/zotero-better-bibtex/installation/).
 
 3. Make sure Zotero's local server is on: *Settings → Advanced → Allow other applications on this computer to communicate with Zotero*. It is on by default.
+
+You can check that everything is ready at the top of the plugin settings: it shows whether Zotero is running, and if Better BibTeX is not installed in it, a warning with a link to the instructions appears.
 
 
 ## 2. Commands
@@ -82,6 +86,7 @@ None of the commands is bound to a key out of the box — assign your own in *Se
 | **Renumber footnotes in order** | Rewrites the labels of every footnote in the note in the order of their anchors — `[^1]`, `[^2]`, `[^3]`, as the footnote settings write them — and puts the footnote texts that stand together in that order. Named labels such as `[^kuhn]` get numbers too, unless **Do not edit named footnotes when renumbering** is on. One undo reverts it. |
 | **Show bibliography** | Brings the closed "Bibliography" tab back to the right sidebar. |
 | **View changelog** | Shows what is new in the latest versions of the plugin. |
+| **Open user guide** | Opens this guide in an Obsidian window. |
 
 ## 3. How citations are written
 

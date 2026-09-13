@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	CaywError,
+	checkZotero,
 	citable,
 	parsePickResponse,
 	pickedNotes,
@@ -263,5 +264,50 @@ describe("what the requests carry", () => {
 		expect(minimize.method).toBe("GET");
 		expect(minimize.url).toContain("selected=true");
 		expect(minimize.url).toContain("minimize=true");
+	});
+});
+
+describe("checkZotero", () => {
+	beforeEach(() => {
+		requestUrl.mockReset();
+		vi.stubGlobal("window", { setTimeout, clearTimeout });
+	});
+
+	/** Zotero's server, answering the ping and the probe as 9.0.6 does. */
+	const zotero = (probe: { status: number; text: string }) =>
+		requestUrl.mockImplementation(({ url }: { url: string }) =>
+			Promise.resolve(
+				url.includes("/connector/ping")
+					? { status: 200, text: "Zotero is running" }
+					: probe
+			)
+		);
+
+	it("finds Zotero running with Better BibTeX ready", async () => {
+		zotero({ status: 200, text: "ready" });
+		expect(await checkZotero(23119)).toEqual({
+			running: true,
+			betterBibTeX: "ready",
+		});
+	});
+
+	it("tells a Zotero without Better BibTeX by the probe's 404", async () => {
+		zotero({ status: 404, text: "No endpoint found" });
+		expect((await checkZotero(23119)).betterBibTeX).toBe("missing");
+	});
+
+	it("says Better BibTeX is starting while it indexes", async () => {
+		zotero({ status: 200, text: "starting" });
+		expect((await checkZotero(23119)).betterBibTeX).toBe("starting");
+	});
+
+	it("is not running when nothing answers the ping", async () => {
+		requestUrl.mockRejectedValue(new Error("connect ECONNREFUSED"));
+		expect(await checkZotero(23119)).toEqual({
+			running: false,
+			betterBibTeX: "unknown",
+		});
+		// The probe is not asked of a server that is not there.
+		expect(requestUrl.mock.calls).toHaveLength(1);
 	});
 });

@@ -1,4 +1,4 @@
-import { requestUrl } from "obsidian";
+import { requestUrl, RequestUrlResponse } from "obsidian";
 import { Citation } from "src/types";
 
 /**
@@ -57,10 +57,20 @@ export type ZoteroStatus = "ready" | "starting" | "unreachable";
 /** The endpoint refused the request, or answered something unreadable. */
 export class CaywError extends Error {}
 
-function endpointUrl(port: number, params: Record<string, string>): string {
+/**
+ * Zotero's own answer to "are you there", part of Zotero rather than of Better
+ * BibTeX: `Zotero is running`.
+ */
+const PING = "/connector/ping";
+
+function serverUrl(port: number, path: string): string {
 	// 127.0.0.1 rather than localhost: the name can resolve to ::1 first, and
 	// Zotero's server binds the IPv4 loopback.
-	return `http://127.0.0.1:${port}${ENDPOINT}?${new URLSearchParams(
+	return `http://127.0.0.1:${port}${path}`;
+}
+
+function endpointUrl(port: number, params: Record<string, string>): string {
+	return `${serverUrl(port, ENDPOINT)}?${new URLSearchParams(
 		params
 	).toString()}`;
 }
@@ -109,6 +119,60 @@ export async function probeZotero(port: number): Promise<ZoteroStatus> {
 		// the port. They are one case here: nothing to cite from.
 		return "unreachable";
 	}
+}
+
+/** What Better BibTeX says about itself, as far as the settings need to know. */
+export type BetterBibTeXState = "ready" | "starting" | "missing" | "unknown";
+
+/** Whether Zotero is there to cite from, for the settings to show. */
+export interface ZoteroCheck {
+	/** Something that is Zotero answers on the port. */
+	running: boolean;
+	/** Better BibTeX's state; `unknown` when Zotero is not running at all. */
+	betterBibTeX: BetterBibTeXState;
+}
+
+/** A GET to Zotero's server that answers `null` rather than failing. */
+async function ask(url: string): Promise<RequestUrlResponse | null> {
+	try {
+		return await withTimeout(
+			requestUrl({
+				url,
+				method: "GET",
+				headers: REQUEST_HEADERS,
+				throw: false,
+			}),
+			PROBE_TIMEOUT_MS
+		);
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Whether Zotero is running, and whether Better BibTeX is installed in it.
+ * Neither question opens anything.
+ *
+ * The two are asked apart because they fail apart. Zotero's ping is Zotero's
+ * own endpoint, so it answers whether Better BibTeX is there or not; the CAYW
+ * probe is Better BibTeX's, and Zotero answers a path nothing has registered
+ * with `404 No endpoint found` — which is how a Zotero without Better BibTeX
+ * is told from one that is not running.
+ */
+export async function checkZotero(port: number): Promise<ZoteroCheck> {
+	const ping = await ask(serverUrl(port, PING));
+	if (!ping || ping.status !== 200) {
+		return { running: false, betterBibTeX: "unknown" };
+	}
+
+	const probe = await ask(endpointUrl(port, { probe: "true" }));
+	let betterBibTeX: BetterBibTeXState = "unknown";
+	if (probe?.status === 200) {
+		betterBibTeX = probe.text.trim() === "starting" ? "starting" : "ready";
+	} else if (probe?.status === 404) {
+		betterBibTeX = "missing";
+	}
+	return { running: true, betterBibTeX };
 }
 
 export interface PickOptions {

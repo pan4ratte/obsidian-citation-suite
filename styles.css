@@ -1,7 +1,7 @@
 /* Ordered as the settings tab is: the group rules that decide how a row is
-   laid out, then the header the plugin's name stands in, the changelog banner
-   under it, the list the citation style is chosen from and the preview under
-   that, the changelog window, and last the citations drawn in a note.
+   laid out, then the status card at the head of the tab, the list the citation
+   style is chosen from and the preview under that, the changelog and user guide
+   window, and last the citations drawn in a note.
 
    Obsidian 1.13 renders a declarative tab inside setting groups: the group is
    drawn as a card and every row inside it is restyled by
@@ -26,9 +26,9 @@
    Settings tab — the groups
    ────────────────────────────────────────────────────────────────────────── */
 
-/* The header's group. It holds one row, and that row is a host for the
+/* The status card's group. It holds one row, and that row is a host for the
    plugin's own DOM rather than a setting, so the card 1.13 draws around it is
-   blanked and the header brings its own look. */
+   blanked and the status card brings its own look. */
 .citation-suite-settings-group > .setting-items {
 	background-color: transparent;
 	border: none;
@@ -53,8 +53,8 @@
 	content: none;
 }
 
-/* The row's stock name and description are not drawn: the header renders both
-   itself, one as a title and one as the paragraph under it. */
+/* The row's stock name and description are not drawn: the tab opens straight
+   onto the status card. */
 .citation-suite-settings-anchor > .setting-item-info,
 .citation-suite-settings-anchor > .setting-item-control {
 	display: none;
@@ -92,100 +92,256 @@
 	flex: 0 1 max-content;
 }
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   Settings tab — header
-   ────────────────────────────────────────────────────────────────────────── */
-
-.citation-suite-settings-header {
-	margin-bottom: var(--size-4-2);
+/* Third: a slider row is squeezed the other way. Its control — the reset
+   button, the value and the track — shares the row's width with a two-line
+   description, so the value breaks onto two lines ("1 000" over "мс") and the
+   track is left short. The control is given its own width instead, and the
+   description wraps in what remains. Obsidian marks a slider row with no class
+   of its own (`mod-slider` is only set by the graph and search panes, and a
+   setting definition takes no `cls`), so the row is found by the slider in it. */
+.setting-group.citation-suite-settings-rows
+	.setting-item:has(> .setting-item-control .slider)
+	> .setting-item-control {
+	flex: 0 0 auto;
 }
 
-.citation-suite-settings-title {
+.setting-group.citation-suite-settings-rows .slider-value {
+	white-space: nowrap;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Settings tab — status card
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* Everything about the plugin's footing in one card, drawn after the one Pandoc
+   GUI keeps at the head of its settings: a row to each thing it is read for —
+   what this release brought, whether Zotero answers with the documents to read
+   beside it, and what is wrong with it. `overflow` keeps a panel's hover fill
+   inside the rounded corners. */
+.citation-suite-status-panel {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--setting-items-radius);
+	background: var(--setting-items-background);
+	overflow: hidden;
+}
+
+.citation-suite-status-row {
+	display: flex;
+	flex-direction: row;
+	align-items: stretch;
+}
+
+/* The line across, between one row of the card and the next. The notices sit
+   in a wrapper of their own under the status, so the rule is drawn above each
+   of its rows. */
+.citation-suite-status-row + .citation-suite-status-row,
+.citation-suite-status-notices > .citation-suite-status-row {
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/* The status and the two documents, side by side. The upright lines between
+   them are the gaps between the panels, over a background of that colour: a
+   border would have to be taken off again at the start of every wrapped line,
+   and no selector can pick those out. A row narrower than the panels need
+   breaks onto a second line rather than squeezing them. */
+.citation-suite-status-row.citation-suite-status-panels {
+	flex-wrap: wrap;
+	gap: 1px;
+	background-color: var(--background-modifier-border);
+}
+
+/* The status takes what the buttons leave: it grows a hundred times faster
+   than they do, so on one line they keep about the width of their labels, and
+   a button wrapped onto a line of its own still fills it. Opaque, as every
+   panel of the row, so the colour the row is divided by only shows in the
+   gaps. */
+.citation-suite-status-half {
+	flex: 100 1 12rem;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	padding: var(--size-4-4);
+	background-color: var(--setting-items-background, var(--background-primary));
+}
+
+.citation-suite-status-name {
 	font-size: var(--font-ui-medium);
 	font-weight: var(--font-semibold);
 	color: var(--text-normal);
+	line-height: 1.2;
 }
 
-/* The description is set smaller and muted, as the sibling Publish to Telegram
-   plugin sets the same paragraph: it is read once, and the settings under it
-   are what the eye should land on. */
-.citation-suite-settings-description {
-	margin-top: 4px;
+/* The dot and its label share the state colour. The button that checks again
+   follows the label. */
+.citation-suite-status-line {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: var(--size-4-2);
+	margin-top: var(--size-2-2);
 	font-size: var(--font-ui-smaller);
-	line-height: var(--line-height-normal);
 	color: var(--text-muted);
 }
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   Settings tab — changelog banner
-   ────────────────────────────────────────────────────────────────────────── */
+.citation-suite-status-indicator {
+	flex: none;
+	width: 0.3rem;
+	height: 0.3rem;
+	border-radius: 50%;
+	background-color: currentColor;
+	/* A halo in the same colour as the dot, only much fainter. */
+	box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 20%, transparent);
+	/* Centred on the first line rather than on the label, which a long enough
+	   status wraps onto a second one. */
+	margin-top: calc((1lh - 0.3rem) / 2);
+}
 
-/* A row of its own under the plugin's name, drawn as the setting cards below it
-   are so that it reads as part of the tab rather than as a notice pasted over
-   it. It is gone the moment it is dismissed, so nothing below it moves while it
-   is being read. */
-.citation-suite-changelog-banner {
-	display: flex;
+.citation-suite-status-line.is-ok {
+	color: var(--text-success);
+}
+
+/* Zotero not answering is something to do rather than something broken: it is
+   most often just not started yet. */
+.citation-suite-status-line.is-absent {
+	color: var(--text-warning);
+}
+
+.citation-suite-status-line.is-checking .citation-suite-status-indicator {
+	box-shadow: none;
+}
+
+/* The button in the status line: no fill, no border, the colour of the line it
+   belongs to, and one line of it tall. Two classes, as every button rule here:
+   a theme's `button` rules would otherwise be the ones that land. */
+.citation-suite-status-inline.citation-suite-status-inline {
+	flex: none;
+	display: inline-flex;
 	align-items: center;
-	justify-content: space-between;
-	gap: 8px;
-	margin-top: var(--size-4-3);
-	padding: 12px 16px;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--setting-items-radius);
-	background-color: var(--setting-items-background);
-	font-size: var(--font-ui-small);
-	color: var(--text-normal);
-}
-
-.citation-suite-changelog-banner-text {
-	flex: 1;
-}
-
-/* A button, because it opens a modal rather than going anywhere, and Obsidian
-   styles a bare `button` as a raised control. Everything that makes it one is
-   taken back off, leaving the accent-coloured link it looks like. `body` wins
-   the specificity of the app's own `button` rule. */
-body .citation-suite-changelog-version {
-	height: auto;
-	padding: 0;
+	font-size: inherit;
+	line-height: inherit;
+	height: 1lh;
 	margin: 0;
+	padding: 0;
+	background: none;
+	border: none;
+	border-radius: 0;
+	box-shadow: none;
+	color: inherit;
+	cursor: var(--cursor);
+}
+
+.citation-suite-status-inline.citation-suite-status-inline:hover {
+	color: var(--text-accent);
+}
+
+.citation-suite-status-inline .svg-icon {
+	display: block;
+	width: var(--icon-xs);
+	height: var(--icon-xs);
+}
+
+/* A line too long to stand beside a version: one run of text across the card. */
+.citation-suite-status-row.citation-suite-status-notice {
+	display: block;
+	padding: var(--size-4-2) var(--size-4-4);
+	font-size: var(--font-ui-smaller);
+	line-height: var(--line-height-tight);
+	color: var(--text-muted);
+}
+
+.citation-suite-status-notice.is-warning {
+	color: var(--text-warning);
+}
+
+/* What this release brought, the first row of the card until it is dismissed.
+   `overflow` is for the closing: the row is animated down to no height, and
+   what stands in it is cut rather than spilling over the row below. */
+.citation-suite-status-row.citation-suite-changelog-notice {
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-4-2) var(--size-4-4);
+	overflow: hidden;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.citation-suite-changelog-notice-text {
+	flex: 1;
+	min-width: 0;
+}
+
+/* The version is what opens the changelog — a link in the line of text rather
+   than a button standing beside it. */
+.citation-suite-changelog-notice .citation-suite-changelog-version {
+	height: auto;
+	margin: 0;
+	padding: 0;
+	background: none;
 	border: none;
 	box-shadow: none;
-	background: none;
 	color: var(--text-accent);
 	font-family: inherit;
 	font-size: inherit;
 	font-weight: var(--font-semibold);
 	text-decoration: underline;
-	cursor: pointer;
+	cursor: var(--cursor);
 }
 
-body .citation-suite-changelog-version:hover {
+.citation-suite-changelog-notice .citation-suite-changelog-version:hover {
+	color: var(--text-accent-hover);
 	background: none;
 	box-shadow: none;
-	color: var(--text-accent-hover);
 }
 
-body .citation-suite-changelog-close {
-	display: flex;
+.citation-suite-changelog-dismiss {
+	flex: none;
+	color: var(--text-muted);
+}
+
+/* The documents to read, as panels to the right of the status, as tall as the
+   row and never narrower than their labels. */
+.citation-suite-action.citation-suite-action {
+	flex: 1 0 auto;
+	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	flex-shrink: 0;
-	width: 22px;
-	height: 22px;
-	padding: 2px;
+	gap: var(--size-4-2);
+	min-width: max-content;
+	height: auto;
+	margin: 0;
+	padding: var(--size-4-2) var(--size-4-4);
+	/* Opaque, so the colour the row is divided by is only seen in the gaps. */
+	background-color: var(--setting-items-background, var(--background-primary));
 	border: none;
+	border-radius: 0;
 	box-shadow: none;
-	background: none;
-	border-radius: var(--radius-s);
-	color: var(--text-muted);
-	cursor: pointer;
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	cursor: var(--cursor);
+	transition: background-color 100ms ease-in-out, color 100ms ease-in-out;
 }
 
-body .citation-suite-changelog-close:hover {
+.citation-suite-action.citation-suite-action:hover,
+.citation-suite-action.citation-suite-action:focus-visible {
 	background-color: var(--background-modifier-hover);
-	color: var(--text-normal);
+	color: var(--text-accent);
+}
+
+/* Reached by tab, so it has to show where it is — inside the card, where an
+   outline would be clipped by the corners. */
+.citation-suite-action.citation-suite-action:focus-visible {
+	outline: none;
+	box-shadow: inset 0 0 0 2px var(--background-modifier-border-focus);
+}
+
+.citation-suite-action-icon {
+	display: flex;
+}
+
+.citation-suite-action .svg-icon {
+	width: var(--icon-s);
+	height: var(--icon-s);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -465,48 +621,89 @@ body.citation-suite-citation-color-custom .citation-suite-style-preview-swatch {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Changelog modal
+   Changelog and user guide modal
    ────────────────────────────────────────────────────────────────────────── */
 
 /* The sizes and the spacing are the ones the sibling Classy PDF Extractor and
-   Publish to Telegram plugins use for the same window, replicated value for
-   value so that the changelogs of all three read alike. The window deliberately
+   Publish to Telegram plugins use for the changelog window, replicated value
+   for value so that the changelogs of all three read alike; the user guide is
+   read out of the same window, with Pandoc GUI's rules for its tables. The window deliberately
    carries no `markdown-rendered` class — that one sizes rendered markdown for
    reading a note, which is far larger than the settings this window is opened
    from, and it would override every size below. */
-.citation-suite-changelog-modal {
+.citation-suite-markdown-modal {
 	max-width: 680px;
+	/* Obsidian turns selection off inside a modal, which a page meant to be
+	   read and quoted from has no use for. */
+	user-select: text;
+	-webkit-user-select: text;
+	cursor: auto;
 }
 
-.citation-suite-changelog-modal h2 {
+.citation-suite-markdown-modal * {
+	user-select: text;
+	-webkit-user-select: text;
+}
+
+/* The document's own title. Obsidian's UI sizes stop at `--font-ui-large`,
+   which the sections below are set in, so the title is a step above it rather
+   than a variable of its own — there is no `--font-ui-larger`, and an unknown
+   variable would hand the heading back to the theme's note-sized `h1`. */
+.citation-suite-markdown-modal h1 {
 	margin-top: 0;
+	margin-bottom: 12px;
+	font-size: calc(var(--font-ui-large) * 1.2);
+	line-height: var(--line-height-tight);
+}
+
+/* A version of the changelog, or a section of the guide: a heading of the page
+   rather than of a part of it, so it is given the air that says so. */
+.citation-suite-markdown-modal h2 {
+	margin-top: var(--size-4-6);
 	margin-bottom: 12px;
 	font-size: var(--font-ui-large);
 }
 
-.citation-suite-changelog-modal h3 {
+.citation-suite-markdown-modal h3 {
 	margin-top: 20px;
 	margin-bottom: 8px;
 	font-size: var(--font-ui-medium);
 	color: var(--text-normal);
 }
 
-.citation-suite-changelog-modal p,
-.citation-suite-changelog-modal li {
+.citation-suite-markdown-modal p,
+.citation-suite-markdown-modal li {
 	font-size: var(--font-ui-small);
 	color: var(--text-muted);
 	line-height: var(--line-height-normal);
 }
 
-.citation-suite-changelog-modal ul,
-.citation-suite-changelog-modal ol {
+.citation-suite-markdown-modal ul,
+.citation-suite-markdown-modal ol {
 	padding-left: 20px;
 	margin-bottom: 12px;
 }
 
-.citation-suite-changelog-modal hr {
+.citation-suite-markdown-modal hr {
 	margin: 20px 0;
 	border-color: var(--background-modifier-border);
+}
+
+/* The guide's tables are the widest thing in it: held to the column, so their
+   cells wrap instead of the page growing sideways. */
+.citation-suite-markdown-modal table {
+	width: 100%;
+	border-collapse: collapse;
+	margin-block: var(--size-4-2) var(--size-4-4);
+	font-size: var(--font-ui-smaller);
+}
+
+.citation-suite-markdown-modal th,
+.citation-suite-markdown-modal td {
+	padding: var(--size-4-1) var(--size-4-2);
+	border: 1px solid var(--background-modifier-border);
+	text-align: start;
+	vertical-align: top;
 }
 
 /*

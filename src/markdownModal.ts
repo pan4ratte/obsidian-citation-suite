@@ -1,16 +1,17 @@
 import { App, Component, MarkdownRenderer, Modal } from "obsidian";
 
 /**
- * The changelog, rendered as the markdown it is written in. The text arrives
- * already picked for the interface language — `getChangelogContent()` in
- * `lang/helpers.ts` — so the modal itself knows nothing about locales.
+ * A document that ships with the plugin — the changelog or the user guide —
+ * rendered as the markdown it is written in. The text arrives already picked
+ * for the interface language (`lang/helpers.ts`), so the modal itself knows
+ * nothing about locales.
  *
  * `MarkdownRenderer.render` wants a component to hang the renderer's own
  * children off, and the modal is not one: a `Component` of its own is loaded
  * for the life of the modal and unloaded with it, or the internal links and
  * embeds it registers outlive the window they were drawn in.
  */
-export class ChangelogModal extends Modal {
+export class MarkdownModal extends Modal {
 	private readonly content: string;
 	private readonly renderComponent = new Component();
 
@@ -26,10 +27,11 @@ export class ChangelogModal extends Modal {
 		// styles.css sizes this window against plain rendered markdown, the
 		// way the sibling Classy PDF Extractor and Publish to Telegram plugins
 		// do. Adding the class back silently overrides every size there.
-		contentEl.addClass("citation-suite-changelog-modal");
+		contentEl.addClass("citation-suite-markdown-modal");
 		this.renderComponent.load();
-		// No source path: nothing in the changelog resolves against a note of
-		// the vault, and an empty one is what Obsidian's own docs modals pass.
+		// No source path: nothing in either document resolves against a note
+		// of the vault, and an empty one is what Obsidian's own docs modals
+		// pass.
 		void MarkdownRenderer.render(
 			this.app,
 			this.content,

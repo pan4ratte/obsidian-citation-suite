@@ -5,7 +5,7 @@ export default {
 	// Also in manifest.json, which the plugin browser reads and no translation
 	// can reach. Change both together.
 	PLUGIN_NAME: "Citation Suite settings",
-	PLUGIN_DESCRIPTION: "Cite your Zotero library from a note: a hotkey opens Zotero's citation window, and the pick is inserted as a pandoc citation.",
+	PLUGIN_DESCRIPTION: "Cite literature in Pandoc style from your Zotero library, view literature list in the sidebar, preview citations with citation styles, automate footnotes creation, and more.",
 
 	// ─── Commands ────────────────────────────────────────────────────────────
 	// The command IDs are not translated: they are persisted alongside the
@@ -15,6 +15,7 @@ export default {
 	COMMAND_RENUMBER_FOOTNOTES: "Renumber footnotes in order",
 	COMMAND_SHOW_BIBLIOGRAPHY: "Show bibliography",
 	COMMAND_SHOW_CHANGELOG: "View changelog",
+	COMMAND_OPEN_USER_GUIDE: "Open user guide",
 
 	// ─── Notices ─────────────────────────────────────────────────────────────
 	NOTICE_ZOTERO_UNREACHABLE: "Zotero is not answering. Check that it is running, that Better BibTeX is installed in it, and that the port in the settings matches its own.",
@@ -30,20 +31,20 @@ export default {
 	// ─── Settings ────────────────────────────────────────────────────────────
 	SECTION_CITATION: "Citation format",
 	SETTING_STYLE_NAME: "Choose a citation display style",
-	SETTING_STYLE_DESC: "Citations stay in pandoc format, but for easier reading you can choose a citation style from your Zotero library to preview them in. The preview does not affect how the note is exported.",
+	SETTING_STYLE_DESC: "Citations stay in Pandoc format, but for easier reading you can choose a citation style from your Zotero library to preview them in. The preview does not affect how the note is exported.",
 	SETTING_STYLE_PANDOC: "Do not style the preview",
 	SETTING_TOOLTIPS_NAME: "Show the bibliography entry on hover",
 	SETTING_TOOLTIPS_DESC: "Hovering over a styled citation shows the bibliography entry of each source.",
 	SETTING_TOOLTIP_DELAY_NAME: "Tooltip delay",
 	SETTING_TOOLTIP_DELAY_DESC: "How long the cursor has to rest on a citation before the bibliography entry appears.",
 	SETTING_BRACKETS_NAME: "Put citations in square brackets",
-	SETTING_BRACKETS_DESC: "Citations are inserted as [@doe2020, p. 33] for a correct export with pandoc.",
+	SETTING_BRACKETS_DESC: "Citations are inserted as [@doe2020, p. 33] for a correct export with Pandoc.",
 
 	SECTION_FOOTNOTES: "Footnotes",
 	SETTING_FOOTNOTES_NAME: "Automatically put citations in footnotes",
 	SETTING_FOOTNOTES_DESC: "A footnote anchor appears at the cursor, and the citation goes into the footnote's body. Inside an existing footnote the citation is inserted as usual.",
 	SETTING_FOOTNOTE_PLACEMENT_NAME: "Where the footnote text appears",
-	SETTING_FOOTNOTE_PLACEMENT_DESC: "Where the footnote text goes makes no difference to pandoc and Obsidian, so choose whichever suits you.",
+	SETTING_FOOTNOTE_PLACEMENT_DESC: "Where the footnote text goes makes no difference to Pandoc and Obsidian, so choose whichever suits you.",
 	FOOTNOTE_PLACEMENT_PARAGRAPH: "After the current paragraph",
 	FOOTNOTE_PLACEMENT_SECTION: "At the end of the current section",
 	FOOTNOTE_PLACEMENT_DOCUMENT: "At the end of the note",
@@ -128,6 +129,18 @@ export default {
 	BIBLIOGRAPHY_MENTION_PREVIOUS: "Previous mention",
 	BIBLIOGRAPHY_MENTION_NEXT: "Next mention",
 	BIBLIOGRAPHY_MENTION_CLOSE: "Close",
+
+	// ─── Status ──────────────────────────────────────────────────────────────
+	STATUS_TITLE: "Zotero status",
+	STATUS_CHECKING: "Checking…",
+	STATUS_ZOTERO_RUNNING: "Running",
+	// Followed by the port set in the settings.
+	STATUS_ZOTERO_NOT_RUNNING: "Not answering on port",
+	STATUS_RECHECK: "Check again",
+	STATUS_BETTER_BIBTEX_MISSING: "Better BibTeX is not installed in Zotero: without it the plugin cannot open the citation window or format citations.",
+	STATUS_BETTER_BIBTEX_INSTALL: "How to install it",
+	STATUS_CHANGELOG: "Changelog",
+	STATUS_USER_GUIDE: "User guide",
 
 	// ─── Changelog ───────────────────────────────────────────────────────────
 	// The version number is appended as a link right after this string, which

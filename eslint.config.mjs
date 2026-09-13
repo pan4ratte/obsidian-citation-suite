@@ -46,9 +46,11 @@ export default defineConfig([
 			// rather than adding to them, so anything that has to keep its
 			// capital — Obsidian included — is named here.
 			//
-			// "pandoc" is lowercase in its own documentation and in the
-			// citation syntax it names, so it is an ignored word rather than a
-			// brand: the rule would otherwise capitalise it.
+			// "Pandoc" is a brand in the interface text, written with its capital
+			// the way the manifest, the READMEs and ru.ts write it. The plain
+			// sentence-case rule, which reads the source rather than the locale
+			// module, still ignores the lowercase word: code comments and the
+			// citation syntax name the `pandoc` command.
 			"obsidianmd/ui/sentence-case": [
 				"warn",
 				{
@@ -61,11 +63,12 @@ export default defineConfig([
 					brands: [
 						"Citation Suite",
 						"Obsidian",
+						"Pandoc",
 						"Zotero",
 						"Better BibTeX",
 						"BibTeX",
 					],
-					ignoreWords: ["pandoc", "citekey", "citekeys"],
+					ignoreWords: ["citekey", "citekeys"],
 				},
 			],
 		},
