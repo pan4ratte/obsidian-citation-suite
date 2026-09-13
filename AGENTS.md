@@ -753,13 +753,21 @@ through. Lint is clean here as well, and CI runs it with `--max-warnings 0`.
   cost. The slider row it once found is sized by `white-space: nowrap` on the
   value alone; measured in Chromium against Obsidian's own `app.css`, the row
   came out the same at every width.
-- **Two browser-feature warnings are false positives, disabled on their line
-  with the reason beside them.** caniuse counts Chromium's text decoration as
-  partial only for `text-decoration-skip` values, and `text-indent` as partial
-  before Chromium 146 only for its `hanging` and `each-line` keywords. The
-  citation's underline is written as the `text-decoration` shorthand, which
-  the checker does not flag; `text-decoration-skip-ink` and the bibliography's
-  hanging `text-indent` carry the disable comments.
+- **The scanner ignores `stylelint-disable` comments**, so `lint:css` runs with
+  `--ignore-disables` and a warning has to be designed out, not silenced. Two
+  were, both false positives in caniuse's data (partial support there means
+  `text-decoration-skip` values and `text-indent`'s `hanging` / `each-line`
+  keywords, none of which the stylesheet uses):
+  - `text-decoration-*` longhands are flagged, but a `text-decoration`
+    shorthand whose parts are all `var()`s is not. `text-decoration-skip-ink:
+    none` is replaced by `text-underline-position: under` with a `0.05em`
+    offset: below the descenders there is nothing to skip. Screenshots with
+    skip-ink `auto` and `none` came out pixel-identical across 20 Windows
+    fonts, 6 sizes and all three line styles.
+  - `text-indent` for the hanging indent is replaced by padding on the entry
+    and a negative margin on its `::first-letter`. Measured in Chromium, lines
+    fall in the same places. It also stopped the indent being inherited by the
+    mention bar, whose label it had pulled out of its box and clipped.
 
 ## npm audit and the lockfile
 

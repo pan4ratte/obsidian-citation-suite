@@ -766,13 +766,14 @@ body.citation-suite-citation-italic {
 		var(--citation-suite-citation-underline-style, dotted)
 		var(--citation-suite-citation-underline-color, var(--text-faint))
 		1px;
-	text-underline-offset: 0.25em;
 
-	/* The line runs unbroken under descenders. caniuse counts Chromium's
-	   text decoration as partial only for the `text-decoration-skip` values it
-	   lacks, which nothing here uses. */
-	/* stylelint-disable-next-line plugin/no-unsupported-browser-features */
-	text-decoration-skip-ink: none;
+	/* Hung just below the font's descenders, so the line runs unbroken under
+	   g, p and щ with nothing for the browser to skip around. That is
+	   `text-decoration-skip-ink: none` without the property, which the review
+	   scanner flags; it sits where the old `0.25em` offset from the baseline
+	   put it, give or take a pixel. */
+	text-underline-position: under;
+	text-underline-offset: 0.05em;
 	cursor: default;
 }
 
@@ -969,14 +970,18 @@ body.citation-suite-citation-italic .citation-suite-citation em {
 }
 
 /* A style with a hanging indent: every line of the entry but the first is set
-   in by the indent the style asks for. */
+   in by the indent the style asks for. The whole entry is set in, and its
+   first letter — and the rest of the first line with it — is pulled back out.
+
+   Not `text-indent`, which the review scanner flags, and which is inherited:
+   it pulled the first line of every block inside the entry back out too,
+   the label of the mention bar included, which was clipped by it. */
 .citation-suite-bibliography-hanging .csl-entry {
 	padding-left: var(--citation-suite-bibliography-indent);
+}
 
-	/* caniuse counts `text-indent` as partial in Chromium before 146 only for
-	   the `hanging` and `each-line` keywords, and a length is all this is. */
-	/* stylelint-disable-next-line plugin/no-unsupported-browser-features */
-	text-indent: calc(-1 * var(--citation-suite-bibliography-indent));
+.citation-suite-bibliography-hanging .csl-entry::first-letter {
+	margin-left: calc(-1 * var(--citation-suite-bibliography-indent));
 }
 
 /* A rule between one entry and the next, so that where an entry that wraps
