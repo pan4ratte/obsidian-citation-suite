@@ -2,14 +2,14 @@
 
 <div align="center">
 
-<a href="https://github.com/pan4ratte/obsidian-zoterik/releases"><img alt="badge" src="https://shieldcn.dev/github/pan4ratte/obsidian-zoterik/downloads.svg?color=8a75f0"></a>
+<a href="https://github.com/pan4ratte/obsidian-citation-suite/releases"><img alt="badge" src="https://shieldcn.dev/github/pan4ratte/obsidian-citation-suite/downloads.svg?color=8a75f0"></a>
 
 <p>Cite your Zotero library without leaving the note. One hotkey opens Zotero's own citation window — the same one its word-processor plugins open, with the page, prefix, suffix and "suppress author" fields — and what you pick is written at the cursor as a pandoc citation.</p>
 
 </div>
 
 <div align="center">
-English | <a href="https://github.com/pan4ratte/obsidian-zoterik/blob/main/README_RU.md">Русский</a>
+English | <a href="https://github.com/pan4ratte/obsidian-citation-suite/blob/main/README_RU.md">Русский</a>
 </div>
 
 ## How it works
@@ -158,7 +158,7 @@ From a release, until it is in the community plugin browser: download `main.js`,
 *Settings → Community plugins*. [BRAT][brat] installs the same files and keeps them
 updated.
 
-[releases]: https://github.com/pan4ratte/obsidian-zoterik/releases
+[releases]: https://github.com/pan4ratte/obsidian-citation-suite/releases
 [brat]: https://github.com/TfTHacker/obsidian42-brat
 
 ## The citation window

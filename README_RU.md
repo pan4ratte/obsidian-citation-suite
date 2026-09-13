@@ -2,14 +2,14 @@
 
 <div align="center">
 
-<a href="https://github.com/pan4ratte/obsidian-zoterik/releases"><img alt="badge" src="https://shieldcn.dev/github/pan4ratte/obsidian-zoterik/downloads.svg?color=8a75f0"></a>
+<a href="https://github.com/pan4ratte/obsidian-citation-suite/releases"><img alt="badge" src="https://shieldcn.dev/github/pan4ratte/obsidian-citation-suite/downloads.svg?color=8a75f0"></a>
 
 <p>Цитируйте библиотеку Zotero, не выходя из заметки. Горячая клавиша открывает собственное окно цитирования Zotero — то же самое, которым пользуются плагины Zotero для текстовых редакторов, со страницей, префиксом, суффиксом и переключателем «скрыть автора», — а выбранное вставляется на месте курсора как ссылка в формате pandoc.</p>
 
 </div>
 
 <div align="center">
-<a href="https://github.com/pan4ratte/obsidian-zoterik/blob/main/README.md">English</a> | Русский
+<a href="https://github.com/pan4ratte/obsidian-citation-suite/blob/main/README.md">English</a> | Русский
 </div>
 
 ## Как это работает
@@ -160,7 +160,7 @@ Citation Suite работает только на компьютере: плаг
 `<ваше хранилище>/.obsidian/plugins/citation-suite/`, затем включите *Citation Suite* в
 *Настройки → Сторонние плагины*. [BRAT][brat] ставит те же файлы и сам их обновляет.
 
-[releases]: https://github.com/pan4ratte/obsidian-zoterik/releases
+[releases]: https://github.com/pan4ratte/obsidian-citation-suite/releases
 [brat]: https://github.com/TfTHacker/obsidian42-brat
 
 ## Окно цитирования

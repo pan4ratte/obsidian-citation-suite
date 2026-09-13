@@ -36,12 +36,12 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/pan4ratte/obsidian-zoterik.git"
+		"url": "git+https://github.com/pan4ratte/obsidian-citation-suite.git"
 	},
 	"bugs": {
-		"url": "https://github.com/pan4ratte/obsidian-zoterik/issues"
+		"url": "https://github.com/pan4ratte/obsidian-citation-suite/issues"
 	},
-	"homepage": "https://github.com/pan4ratte/obsidian-zoterik#readme",
+	"homepage": "https://github.com/pan4ratte/obsidian-citation-suite#readme",
 	"dependencies": {
 		"citeproc": "^2.4.63"
 	}

@@ -566,8 +566,8 @@ nothing here was forked from another plugin's id. It was developed as
 **Zoterik** (id `zoterik`, view type `zoterik-bibliography`, class prefix
 `zoterik-`) and renamed to Citation Suite before its first release, so no
 installed copy carries the old id and nothing reads it. The GitHub repository
-is still `pan4ratte/obsidian-zoterik`, which is why the URLs in `package.json`
-and the READMEs say so; change them when the repository is renamed.
+was renamed with it, from `pan4ratte/obsidian-zoterik` to
+`pan4ratte/obsidian-citation-suite`.
 
 ## Source layout (flat, not a monorepo)
 
