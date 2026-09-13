@@ -1,11 +1,19 @@
-import { Engine } from "citeproc";
+import { BibliographyParams, CslSys, Engine } from "citeproc";
 import { requestUrl } from "obsidian";
 import { REQUEST_HEADERS } from "src/cayw";
 import { CitationGroup } from "src/citation";
-import { withoutCitationNumbers } from "src/styles";
+import { withoutCitationNumbers, ZoteroCitePrefs } from "src/styles";
 import { tooltipEntry } from "src/typography";
 import { CitationStyle } from "src/types";
+import {
+	asZoteroCites,
+	eventToEventTitle,
+	uppercasesSubtitles,
+} from "src/zoteroCite";
+import localeDeDe from "../locales/locales-de-DE.xml";
+import localeEnGb from "../locales/locales-en-GB.xml";
 import localeEnUs from "../locales/locales-en-US.xml";
+import localeFrFr from "../locales/locales-fr-FR.xml";
 import localeRuRu from "../locales/locales-ru-RU.xml";
 
 /**
@@ -27,11 +35,33 @@ import localeRuRu from "../locales/locales-ru-RU.xml";
  * rendering is done afterwards against what was fetched.
  */
 
-/** The CSL locales the plugin carries, for the languages it is translated into. */
+/**
+ * The CSL locales the plugin carries, copied from Zotero's own, and why each:
+ *
+ * - `en-US` is CSL's fallback, which every engine loads.
+ * - `ru-RU` is the language the plugin is written in first, and the one GOST
+ *   styles are written in.
+ * - `de-DE` and `fr-FR` are the other two languages of the multilingual GOST
+ *   styles — "(ru, en, de, fr)" — which write each entry through a
+ *   `<layout locale="de">` chosen by the source's own `language`; citeproc
+ *   resolves `de` and `fr` to these two.
+ * - `en-GB` is asked for by British styles such as MHRA, which would otherwise
+ *   be written with American quotation marks.
+ *
+ * Any other language falls back to `en-US`, as CSL has it. Zotero carries 63;
+ * a language is added here when a style in use needs it.
+ */
 const LOCALES: Record<string, string> = {
+	// First among the English ones: a bare `en` is American, as in citeproc.
 	"en-US": localeEnUs,
+	"en-GB": localeEnGb,
 	"ru-RU": localeRuRu,
+	"de-DE": localeDeDe,
+	"fr-FR": localeFrFr,
 };
+
+/** The style `item.pandoc_filter` falls back to, by the id Zotero keys it by. */
+const APA_STYLE = "http://www.zotero.org/styles/apa";
 
 /** CSL's own fallback, and the one every style can be rendered with. */
 const FALLBACK_LOCALE = "en-US";
@@ -63,6 +93,27 @@ export interface RenderedCitation {
 	bibliography: string;
 }
 
+/**
+ * A note's reference list as the style writes it, for the bibliography pane.
+ * Unlike a tooltip's, it is the style's whole bibliography — numbers, markup
+ * and layout — because it is read as one.
+ */
+export interface RenderedBibliography {
+	/** One entry per source, in citeproc's HTML and in the style's order. */
+	entries: string[];
+	/** The same entries as citeproc writes them in text, each ending in a newline. */
+	text: string[];
+	/** The layout citeproc wrote the entries with, for the copy's markup. */
+	params: BibliographyParams;
+	/** How far every line of an entry but the first is indented, in em; or 0. */
+	hangingIndent: number;
+	/**
+	 * The width of the column the entry's number is set apart in, in
+	 * characters; or 0 when the style sets no number apart.
+	 */
+	numberWidth: number;
+}
+
 /** One item as Better BibTeX exports it, keyed by the citation key. */
 export interface CslItem {
 	id: string;
@@ -70,44 +121,163 @@ export interface CslItem {
 }
 
 /**
- * The CSL data for a set of citation keys, from Better BibTeX.
- *
- * `Better CSL JSON` is the translator whose output is keyed by citation key,
- * which is the name the note cites a source by, so nothing has to be matched up
- * afterwards.
+ * One call to Better BibTeX's JSON-RPC endpoint: its result, or `null` when
+ * there is none — Zotero closed, the method refused, an answer that is not JSON.
  */
-async function fetchItems(
+async function rpc<T>(
 	port: number,
-	citekeys: string[]
-): Promise<CslItem[]> {
+	method: string,
+	params: unknown[]
+): Promise<T | null> {
 	const response = await requestUrl({
 		url: `http://127.0.0.1:${port}/better-bibtex/json-rpc`,
 		method: "POST",
 		headers: { ...REQUEST_HEADERS, "Content-Type": "application/json" },
-		body: JSON.stringify({
-			jsonrpc: "2.0",
-			method: "item.export",
-			params: [citekeys, "Better CSL JSON"],
-			id: 1,
-		}),
+		body: JSON.stringify({ jsonrpc: "2.0", method, params, id: 1 }),
 		throw: false,
-	});
-	if (response.status !== 200) {
-		return [];
-	}
-
-	// The answer is JSON holding a string that is itself JSON: the translator
-	// writes a document, and the RPC hands that document over as one value.
-	const body = response.json as { result?: string } | null;
-	if (!body?.result) {
-		return [];
+	}).catch(() => null);
+	if (response?.status !== 200) {
+		return null;
 	}
 	try {
-		const items = JSON.parse(body.result) as CslItem[];
-		return Array.isArray(items) ? items : [];
+		const body = response.json as { result?: T } | null;
+		return body?.result ?? null;
 	} catch {
-		return [];
+		return null;
 	}
+}
+
+/**
+ * Every library Zotero has, by the numeric id Better BibTeX takes: My Library
+ * first, the groups after it, in Zotero's own order. `null` when Zotero does
+ * not answer.
+ */
+async function fetchLibraries(port: number): Promise<number[] | null> {
+	const libraries = await rpc<{ id: unknown }[]>(port, "user.groups", []);
+	if (!Array.isArray(libraries)) {
+		return null;
+	}
+	return libraries
+		.map((library) => library.id)
+		.filter((id): id is number => typeof id === "number");
+}
+
+/** What `item.pandoc_filter` answers with when asked for CSL. */
+interface PandocFilterAnswer {
+	/** The items found, by citation key, as `Better CSL JSON` writes them. */
+	items?: Record<string, CslItem>;
+	/** How many items each key not handed over matched: none, or several. */
+	errors?: Record<string, number>;
+}
+
+/**
+ * The CSL data for a set of citation keys, from Better BibTeX, one library at a
+ * time.
+ *
+ * A citation key is unique only inside its library, and a source is very often
+ * in more than one — My Library and the group it was shared to, holding the
+ * same key — so asking every library at once is answered with duplicates for
+ * exactly the sources cited most. The libraries are asked in turn instead, each
+ * for the keys the ones before it did not have, which is the same order a key
+ * shared between them is taken in: My Library's copy first.
+ *
+ * `item.pandoc_filter` rather than `item.export`: the export refuses the whole
+ * request when one key is missing from the library — and in all but one of
+ * them some key always is — while this reports the keys it could not hand over
+ * and hands over the rest. Both write `Better CSL JSON`, keyed by citation key.
+ *
+ * It also works out each item's author against a style, `apa` unless named,
+ * and fails the request if that style is not installed; so a style Zotero
+ * certainly has is named.
+ *
+ * What it hands over is only used to learn which keys the library has. The
+ * items themselves are then exported again, those keys and no others, through
+ * Zotero's own `CSL JSON` translator — `Zotero.Utilities.Item.itemToCSLJSON`,
+ * which is what Zotero feeds citeproc with. `Better CSL JSON` is not quite
+ * that: it turns the hyphen in an issue range into an en dash, for one, which
+ * citeproc prints as it is given. Only if that export fails is Better BibTeX's
+ * copy kept.
+ */
+async function fetchItems(
+	port: number,
+	citekeys: string[],
+	libraries: number[],
+	style: string | undefined
+): Promise<CslItem[]> {
+	const found: CslItem[] = [];
+	let remaining = citekeys;
+	for (const library of libraries) {
+		if (remaining.length === 0) {
+			break;
+		}
+		// An absent parameter takes Better BibTeX's default; a null one fails
+		// its schema, so the style is left off rather than sent empty.
+		const answer = await rpc<PandocFilterAnswer>(
+			port,
+			"item.pandoc_filter",
+			style
+				? [remaining, true, library, style]
+				: [remaining, true, library]
+		);
+		const better = new Map<string, CslItem>();
+		for (const [key, item] of Object.entries(answer?.items ?? {})) {
+			if (item && typeof item === "object") {
+				better.set(key, { ...item, id: key });
+			}
+		}
+		if (better.size === 0) {
+			continue;
+		}
+
+		const zotero = await exportZoteroCsl(port, [...better.keys()], library);
+		for (const [key, item] of better) {
+			found.push(zotero.get(key) ?? item);
+		}
+		remaining = remaining.filter((key) => !better.has(key));
+	}
+	return found;
+}
+
+/** Zotero's own "CSL JSON" export translator, by the id Zotero ships it under. */
+const CSL_JSON_TRANSLATOR = "bc03b4fe-436d-4a1f-ba59-de4d2d7a63f7";
+
+/**
+ * The keys' items as Zotero's own `CSL JSON` translator writes them, by
+ * citation key — every key must be one the library holds exactly once, since
+ * `item.export` refuses the whole request otherwise. Empty when it fails.
+ */
+async function exportZoteroCsl(
+	port: number,
+	citekeys: string[],
+	library: number
+): Promise<Map<string, CslItem>> {
+	const items = new Map<string, CslItem>();
+	// The translator writes a document, and the RPC hands that document over
+	// as one string of JSON.
+	const document = await rpc<string>(port, "item.export", [
+		citekeys,
+		CSL_JSON_TRANSLATOR,
+		library,
+	]);
+	if (typeof document !== "string") {
+		return items;
+	}
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(document);
+	} catch {
+		return items;
+	}
+	if (!Array.isArray(parsed)) {
+		return items;
+	}
+	for (const item of parsed as Record<string, unknown>[]) {
+		const key = item["citation-key"] ?? item.id;
+		if (typeof key === "string") {
+			items.set(key, { ...item, id: key });
+		}
+	}
+	return items;
 }
 
 /**
@@ -143,6 +313,41 @@ function parentId(csl: string): string {
 	return href ? href[1] : "";
 }
 
+/**
+ * The carried locale a language is written in: `ru-RU` for `ru-RU` and for a
+ * bare `ru` alike, and `de-DE` for an Austrian `de-AT` the plugin does not
+ * carry — closer than CSL's `en-US`. Empty for a language not carried at all.
+ */
+function carriedLocale(lang: string): string {
+	if (lang in LOCALES) {
+		return lang;
+	}
+	const language = lang.split(/[-_]/)[0].toLowerCase();
+	return (
+		Object.keys(LOCALES).find(
+			(locale) => locale.split("-")[0] === language
+		) ?? ""
+	);
+}
+
+/**
+ * An engine set up the way Zotero's `getCiteProc` sets one up: URLs and DOIs
+ * written as links — which is also what keeps a DOI stored as a whole URL from
+ * being printed behind a second `https://doi.org/` — and author names taken as
+ * Zotero stored them rather than parsed again.
+ */
+function zoteroEngine(
+	sys: CslSys,
+	csl: string,
+	locale: string,
+	forceLocale: boolean
+): Engine {
+	const engine = new Engine(sys, csl, locale, forceLocale);
+	engine.opt.development_extensions.wrap_url_and_doi = true;
+	engine.opt.development_extensions.parse_names = false;
+	return engine;
+}
+
 /** The locale a style asks for, when it asks for one. */
 function styleLocale(csl: string): string {
 	const match = /<style[^>]*default-locale="([^"]*)"/.exec(csl);
@@ -154,6 +359,8 @@ export class CitationRenderer {
 	private items = new Map<string, CslItem>();
 	/** Keys Better BibTeX has no item for. Asked once, then left alone. */
 	private unknown = new Set<string>();
+	/** Zotero's libraries, in the order a key is looked for in them. */
+	private libraries: number[] | null = null;
 	private engine: StyleEngines | null = null;
 	private engineStyle = "";
 
@@ -161,16 +368,17 @@ export class CitationRenderer {
 		private port: number,
 		private styles: CitationStyle[],
 		private readStyle: (style: CitationStyle) => Promise<string>,
-		private zoteroLocale: string
+		private zotero: ZoteroCitePrefs
 	) {}
 
 	/** Forget everything: the port, the styles or the library have changed. */
-	reset(port: number, styles: CitationStyle[], zoteroLocale: string): void {
+	reset(port: number, styles: CitationStyle[], zotero: ZoteroCitePrefs): void {
 		this.port = port;
 		this.styles = styles;
-		this.zoteroLocale = zoteroLocale;
+		this.zotero = zotero;
 		this.items.clear();
 		this.unknown.clear();
+		this.libraries = null;
 		this.engine = null;
 		this.engineStyle = "";
 	}
@@ -192,7 +400,17 @@ export class CitationRenderer {
 			return;
 		}
 
-		const items = await fetchItems(this.port, wanted);
+		// Asked once and kept: a library is added in Zotero far less often
+		// than a note is read, and the refresh button asks again.
+		this.libraries ??= await fetchLibraries(this.port);
+		const items = this.libraries
+			? await fetchItems(
+					this.port,
+					wanted,
+					this.libraries,
+					this.installedStyle()
+				)
+			: [];
 		for (const item of items) {
 			if (typeof item.id === "string") {
 				this.items.set(item.id, item);
@@ -208,9 +426,36 @@ export class CitationRenderer {
 		}
 	}
 
+	/**
+	 * A style Zotero has for certain, for `item.pandoc_filter` to work the
+	 * author out in: APA, which Zotero ships and is the method's default, or
+	 * failing that any style it has.
+	 */
+	private installedStyle(): string | undefined {
+		const apa = this.styles.find((style) => style.id === APA_STYLE);
+		return (apa ?? this.styles[0])?.id;
+	}
+
 	/** Whether every key in the group is one citeproc can be handed an item for. */
 	known(group: CitationGroup): boolean {
-		return group.citations.every((citation) => this.items.has(citation.id));
+		return group.citations.every((citation) => this.has(citation.id));
+	}
+
+	/** Whether Better BibTeX has handed over an item for the key. */
+	has(citekey: string): boolean {
+		return this.items.has(citekey);
+	}
+
+	/**
+	 * Let the keys Better BibTeX had no item for be asked about again. A key
+	 * is marked unknown for good the first time it is missed, and a Zotero that
+	 * was closed at that moment misses every key there is.
+	 */
+	forgetUnknown(): void {
+		this.unknown.clear();
+		// A key may be missing because its group was joined after the list
+		// of libraries was read.
+		this.libraries = null;
 	}
 
 	/**
@@ -239,6 +484,10 @@ export class CitationRenderer {
 		}
 
 		let csl = await this.readStyle(style);
+		// citeproc is only ever given the parent, so it cannot see the language
+		// a dependent style names; Zotero forces that language, and so does
+		// this.
+		let forcedLocale = "";
 		const parent = parentId(csl);
 		if (parent) {
 			const independent = this.styles.find(
@@ -247,26 +496,33 @@ export class CitationRenderer {
 			if (!independent) {
 				return null;
 			}
+			forcedLocale = styleLocale(csl);
 			style = independent;
 			csl = await this.readStyle(independent);
 		}
+		csl = eventToEventTitle(csl);
 
+		// The language Zotero asks citeproc for when none is forced; a style
+		// naming its own still wins inside citeproc, as it does in Zotero.
 		const locale =
-			styleLocale(csl) ||
-			(this.zoteroLocale in LOCALES ? this.zoteroLocale : "") ||
-			FALLBACK_LOCALE;
+			forcedLocale || carriedLocale(this.zotero.locale) || FALLBACK_LOCALE;
 
 		const sys = {
 			// A style may ask for a language the plugin does not carry, and
 			// CSL's own answer to that is `en-US`.
 			retrieveLocale: (lang: string): string =>
-				LOCALES[lang] ?? LOCALES[FALLBACK_LOCALE],
-			retrieveItem: (id: string): unknown =>
-				this.items.get(id) ?? { id, type: "document" },
+				LOCALES[carriedLocale(lang)] ?? LOCALES[FALLBACK_LOCALE],
+			retrieveItem: (id: string): unknown => {
+				const item = this.items.get(id);
+				return item
+					? asZoteroCites(item, this.zotero.citePaperArticleURLs)
+					: { id, type: "document" };
+			},
+			uppercase_subtitles: uppercasesSubtitles(styleId, style.id),
 		};
 		let citation: Engine;
 		try {
-			citation = new Engine(sys, csl, locale);
+			citation = zoteroEngine(sys, csl, locale, !!forcedLocale);
 		} catch {
 			// Not a style citeproc can run. Nothing is rendered, and the note
 			// goes on reading as the pandoc citation it holds.
@@ -275,7 +531,12 @@ export class CitationRenderer {
 
 		let bibliography: Engine | null = null;
 		try {
-			bibliography = new Engine(sys, withoutCitationNumbers(csl), locale);
+			bibliography = zoteroEngine(
+				sys,
+				withoutCitationNumbers(csl),
+				locale,
+				!!forcedLocale
+			);
 			bibliography.setOutputFormat("text");
 		} catch {
 			// The citations still render; their tooltips fall back to the
@@ -356,6 +617,57 @@ export class CitationRenderer {
 			});
 		} finally {
 			this.items.delete(item.id);
+		}
+	}
+
+	/**
+	 * The reference list of the keys, as the style writes it — or `null` for a
+	 * style without a bibliography, or one citeproc fails to write. Keys with
+	 * no item in hand are left out, since citeproc would write them as
+	 * untitled documents.
+	 *
+	 * The keys are handed over in the order the note first cites them, which
+	 * is what a numbered style that does not sort numbers its entries by. The
+	 * citation engine writes the list rather than the tooltips' number-less one:
+	 * here the numbers belong, and so does the markup.
+	 */
+	bibliographyOf(
+		engines: StyleEngines,
+		citekeys: string[]
+	): RenderedBibliography | null {
+		const ids = citekeys.filter((key) => this.has(key));
+		try {
+			engines.citation.updateItems(ids);
+			const written = engines.citation.makeBibliography();
+			if (!written) {
+				return null;
+			}
+			const [params, entries] = written;
+			// The same list again as text, which is what Zotero's own "Copy
+			// bibliography" writes as plain text. The engine goes back to HTML
+			// at once: every citation it renders asks for HTML by name, but
+			// nothing should depend on that.
+			let text: string[] = [];
+			try {
+				engines.citation.setOutputFormat("text");
+				const plain = engines.citation.makeBibliography();
+				text = plain ? plain[1] : [];
+			} finally {
+				engines.citation.setOutputFormat("html");
+			}
+			const hanging = params.hangingindent;
+			return {
+				entries,
+				text,
+				params,
+				hangingIndent:
+					typeof hanging === "number" ? hanging : hanging ? 2 : 0,
+				numberWidth: params["second-field-align"]
+					? params.maxoffset
+					: 0,
+			};
+		} catch {
+			return null;
 		}
 	}
 

@@ -197,3 +197,73 @@ export function parseGroups(text: string): CitationGroup[] {
 	}
 	return groups;
 }
+
+const FENCE = /^ {0,3}(`{3,}|~{3,})/;
+
+/**
+ * The note with everything that is not prose emptied out: the front matter,
+ * fenced code, inline code, and both kinds of comment. A citation key in any
+ * of them is stored or talked about rather than cited — reading view does not
+ * draw one in code either, and pandoc renders none of them.
+ *
+ * Lines are emptied rather than dropped, so a bracket never meets another one
+ * across the gap a block left.
+ */
+export function proseOf(text: string): string {
+	const lines = text.split("\n");
+	let i = 0;
+	if (lines[0]?.trimEnd() === "---") {
+		lines[0] = "";
+		for (i = 1; i < lines.length; i++) {
+			const end = ["---", "..."].includes(lines[i].trimEnd());
+			lines[i] = "";
+			if (end) {
+				i++;
+				break;
+			}
+		}
+	}
+
+	let fence: string | null = null;
+	for (; i < lines.length; i++) {
+		const opening = FENCE.exec(lines[i]);
+		if (fence) {
+			if (
+				opening &&
+				opening[1][0] === fence[0] &&
+				opening[1].length >= fence.length &&
+				lines[i].slice(opening[0].length).trim() === ""
+			) {
+				fence = null;
+			}
+			lines[i] = "";
+		} else if (opening) {
+			fence = opening[1];
+			lines[i] = "";
+		}
+	}
+
+	return (
+		lines
+			.join("\n")
+			// A code span closes on a run of as many backticks as opened it,
+			// and never runs on past the end of its paragraph.
+			.replace(/(`+)(?:(?!\n[ \t]*\n)[\s\S])*?[^`]\1(?!`)/g, "")
+			.replace(/%%[\s\S]*?(?:%%|$)/g, "")
+			.replace(/<!--[\s\S]*?(?:-->|$)/g, "")
+	);
+}
+
+/**
+ * Every key the note cites, once each, in the order the note first cites it —
+ * which is the order a numbered style numbers its reference list in.
+ */
+export function citedKeys(text: string): string[] {
+	const keys = new Set<string>();
+	for (const group of parseGroups(proseOf(text))) {
+		for (const citation of group.citations) {
+			keys.add(citation.id);
+		}
+	}
+	return [...keys];
+}

@@ -14,6 +14,7 @@ export default {
 	COMMAND_INSERT_CITATION: "Insert citation",
 	COMMAND_INSERT_SELECTED_CITATION:
 		"Insert a citation for the items selected in Zotero",
+	COMMAND_SHOW_BIBLIOGRAPHY: "Show bibliography",
 	COMMAND_SHOW_CHANGELOG: "View changelog",
 
 	// ─── Notices ─────────────────────────────────────────────────────────────
@@ -99,6 +100,31 @@ export default {
 	LOOK_EMPHASIS: "Citation emphasis",
 	LOOK_BOLD: "Bold",
 	LOOK_ITALIC: "Italic",
+
+	// ─── Bibliography ────────────────────────────────────────────────────────
+	BIBLIOGRAPHY_TITLE: "Bibliography",
+	BIBLIOGRAPHY_HEADING: "References",
+	// Followed by the number of entries in the list.
+	BIBLIOGRAPHY_COUNT: "Entries in the list:",
+	// Followed by "shown / total".
+	BIBLIOGRAPHY_SHOWN: "Entries shown:",
+	BIBLIOGRAPHY_SEARCH: "Search the list",
+	BIBLIOGRAPHY_SEARCH_PLACEHOLDER: "Author, title, year, key…",
+	BIBLIOGRAPHY_NO_MATCHES: "Nothing in the list matches.",
+	BIBLIOGRAPHY_COPY: "Copy bibliography",
+	BIBLIOGRAPHY_COPIED: "Bibliography copied.",
+	BIBLIOGRAPHY_COPY_FAILED: "Could not copy the bibliography.",
+	BIBLIOGRAPHY_REFRESH: "Refresh",
+	BIBLIOGRAPHY_NO_NOTE:
+		"Open a note, and the sources it cites will appear here.",
+	BIBLIOGRAPHY_NO_STYLE:
+		"Choose a style in the Zoterik settings, and the note's bibliography will appear here, written in that style.",
+	BIBLIOGRAPHY_NO_CITATIONS: "This note cites no sources.",
+	BIBLIOGRAPHY_STYLE_FAILED: "The chosen style could not be loaded.",
+	BIBLIOGRAPHY_NONE_IN_STYLE: "The chosen style writes no bibliography.",
+	BIBLIOGRAPHY_MISSING: "Not found in Zotero",
+	BIBLIOGRAPHY_MISSING_DESC:
+		"Better BibTeX has no items for these citation keys, or Zotero was not running when they were looked up. Start Zotero and refresh the list with the button above it.",
 
 	// ─── Changelog ───────────────────────────────────────────────────────────
 	// The version number is appended as a link right after this string, which

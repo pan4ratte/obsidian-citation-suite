@@ -20,6 +20,8 @@ declare module "citeproc" {
 	export interface CslSys {
 		retrieveLocale(lang: string): string;
 		retrieveItem(id: string): unknown;
+		/** Capitalise the first word of a subtitle, as APA does. */
+		uppercase_subtitles?: boolean;
 	}
 
 	export class Engine {
@@ -29,6 +31,8 @@ declare module "citeproc" {
 			locale?: string,
 			forceLocale?: boolean
 		);
+		/** The engine's options; Zotero switches some of them after construction. */
+		opt: { development_extensions: Record<string, boolean> };
 		updateItems(ids: string[]): void;
 		/**
 		 * The cluster as the style writes it, with nothing before or after it
@@ -46,7 +50,18 @@ declare module "citeproc" {
 		 * The bibliography of every item `updateItems` was last given, one
 		 * string per entry — or `false` for a style that has no bibliography.
 		 */
-		makeBibliography(): [Record<string, unknown>, string[]] | false;
+		makeBibliography(): [BibliographyParams, string[]] | false;
+	}
+
+	/** How the style lays its bibliography out, beside the entries themselves. */
+	export interface BibliographyParams {
+		/** The widest `second-field-align` label, in characters. */
+		maxoffset: number;
+		/** `2` or `true` when every line of an entry but the first is indented. */
+		hangingindent?: number | boolean;
+		/** Whether the entry's number is set in a column of its own. */
+		"second-field-align": "flush" | "margin" | false;
+		[param: string]: unknown;
 	}
 }
 

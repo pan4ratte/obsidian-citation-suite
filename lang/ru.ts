@@ -14,6 +14,7 @@ export default {
 	COMMAND_INSERT_CITATION: "Вставить ссылку на источник",
 	COMMAND_INSERT_SELECTED_CITATION:
 		"Вставить ссылку на источники, выделенные в Zotero",
+	COMMAND_SHOW_BIBLIOGRAPHY: "Показать список литературы",
 	COMMAND_SHOW_CHANGELOG: "Посмотреть список изменений",
 
 	// ─── Уведомления ─────────────────────────────────────────────────────────
@@ -99,6 +100,32 @@ export default {
 	LOOK_EMPHASIS: "Начертание ссылок",
 	LOOK_BOLD: "Полужирный",
 	LOOK_ITALIC: "Курсив",
+
+	// ─── Список литературы ───────────────────────────────────────────────────
+	BIBLIOGRAPHY_TITLE: "Список литературы",
+	BIBLIOGRAPHY_HEADING: "Список литературы",
+	// За ним следует число записей в списке.
+	BIBLIOGRAPHY_COUNT: "Записей в списке:",
+	// За ним следует «показано / всего».
+	BIBLIOGRAPHY_SHOWN: "Показано записей:",
+	BIBLIOGRAPHY_SEARCH: "Искать в списке",
+	BIBLIOGRAPHY_SEARCH_PLACEHOLDER: "Автор, название, год, ключ…",
+	BIBLIOGRAPHY_NO_MATCHES: "В списке ничего не найдено.",
+	BIBLIOGRAPHY_COPY: "Скопировать список литературы",
+	BIBLIOGRAPHY_COPIED: "Список литературы скопирован.",
+	BIBLIOGRAPHY_COPY_FAILED: "Не удалось скопировать список литературы.",
+	BIBLIOGRAPHY_REFRESH: "Обновить",
+	BIBLIOGRAPHY_NO_NOTE:
+		"Откройте заметку, и здесь появятся источники, на которые она ссылается.",
+	BIBLIOGRAPHY_NO_STYLE:
+		"Выберите стиль в настройках Zoterik, и здесь появится список литературы заметки, оформленный по этому стилю.",
+	BIBLIOGRAPHY_NO_CITATIONS: "В этой заметке нет ссылок на источники.",
+	BIBLIOGRAPHY_STYLE_FAILED: "Выбранный стиль не удалось загрузить.",
+	BIBLIOGRAPHY_NONE_IN_STYLE:
+		"Выбранный стиль не оформляет список литературы.",
+	BIBLIOGRAPHY_MISSING: "Не найдены в Zotero",
+	BIBLIOGRAPHY_MISSING_DESC:
+		"Для этих ключей цитирования в Better BibTeX нет элементов — или Zotero не был запущен, когда их искали. Запустите Zotero и обновите список кнопкой над ним.",
 
 	// ─── Список изменений ────────────────────────────────────────────────────
 	// Сразу после этой строки подставляется номер версии, поэтому она

@@ -7,6 +7,7 @@ import {
 	pickCitations,
 	probeZotero,
 } from "src/cayw";
+import { BIBLIOGRAPHY_VIEW, BibliographyView } from "src/bibliography";
 import { ChangelogModal } from "src/changelogModal";
 import { footnoteEdit, FootnoteOptions } from "src/footnote";
 import { citationExtension } from "src/live";
@@ -15,7 +16,7 @@ import { formatCitations } from "src/pandoc";
 import { renderCitations } from "src/reading";
 import { CitationRenderer } from "src/render";
 import { ZoterikSettingTab } from "src/settings";
-import { installedStyles, readStyleFile, zoteroLocale } from "src/styles";
+import { installedStyles, readStyleFile, zoteroCitePrefs } from "src/styles";
 import {
 	CitationStyle,
 	DEFAULT_SETTINGS,
@@ -36,7 +37,7 @@ export default class ZoterikPlugin extends Plugin {
 		DEFAULT_SETTINGS.port,
 		[],
 		readStyleFile,
-		""
+		{ locale: "", citePaperArticleURLs: false }
 	);
 
 	async onload(): Promise<void> {
@@ -55,7 +56,7 @@ export default class ZoterikPlugin extends Plugin {
 		this.renderer.reset(
 			this.settings.port,
 			this.styles,
-			await zoteroLocale()
+			await zoteroCitePrefs()
 		);
 		await this.renderer.prepare(this.settings.citationStyle);
 		this.addSettingTab(new ZoterikSettingTab(this.app, this));
@@ -76,6 +77,18 @@ export default class ZoterikPlugin extends Plugin {
 			})
 		);
 
+		this.registerView(
+			BIBLIOGRAPHY_VIEW,
+			(leaf) =>
+				new BibliographyView(leaf, {
+					renderer: this.renderer,
+					styleId: () => this.settings.citationStyle,
+				})
+		);
+		this.app.workspace.onLayoutReady(() => {
+			void this.openBibliographyOnce();
+		});
+
 		// The command IDs are persisted with whatever hotkey is bound to them,
 		// so they are fixed: a rename would silently unbind it.
 		this.addCommand({
@@ -91,6 +104,18 @@ export default class ZoterikPlugin extends Plugin {
 			name: t.COMMAND_INSERT_SELECTED_CITATION,
 			editorCallback: (editor: Editor) => {
 				void this.insertCitation(editor, true);
+			},
+		});
+
+		this.addCommand({
+			id: "show-bibliography",
+			name: t.COMMAND_SHOW_BIBLIOGRAPHY,
+			callback: () => {
+				void this.app.workspace.ensureSideLeaf(
+					BIBLIOGRAPHY_VIEW,
+					"right",
+					{ active: true, reveal: true }
+				);
 			},
 		});
 
@@ -118,6 +143,24 @@ export default class ZoterikPlugin extends Plugin {
 		for (const doc of this.windowDocuments()) {
 			applyLook(doc.body, this.settings);
 		}
+	}
+
+	/**
+	 * Puts the bibliography pane in the right sidebar the first time the plugin
+	 * runs, without taking the focus or unfolding a collapsed sidebar. From
+	 * then on it is the workspace layout that keeps it there, so a reader who
+	 * closes it is not handed it back on every launch; the command reopens it.
+	 */
+	private async openBibliographyOnce(): Promise<void> {
+		if (this.settings.bibliographyPaneOpened) {
+			return;
+		}
+		await this.app.workspace.ensureSideLeaf(BIBLIOGRAPHY_VIEW, "right", {
+			active: false,
+			reveal: false,
+		});
+		this.settings.bibliographyPaneOpened = true;
+		await this.saveSettings();
 	}
 
 	/** The main window's document, and that of every pop-out holding a leaf. */
@@ -245,7 +288,7 @@ export default class ZoterikPlugin extends Plugin {
 		this.renderer.reset(
 			this.settings.port,
 			this.styles,
-			await zoteroLocale()
+			await zoteroCitePrefs()
 		);
 		await this.renderer.prepare(this.settings.citationStyle);
 		// The editors are holding decorations built under the old style, and
@@ -255,6 +298,14 @@ export default class ZoterikPlugin extends Plugin {
 			const view = leaf.view;
 			if (view instanceof MarkdownView) {
 				view.previewMode.rerender(true);
+			}
+		}
+		for (const leaf of this.app.workspace.getLeavesOfType(
+			BIBLIOGRAPHY_VIEW
+		)) {
+			const view = leaf.view;
+			if (view instanceof BibliographyView) {
+				void view.refresh();
 			}
 		}
 	}

@@ -40,6 +40,7 @@ None of them is bound to a key out of the box — pick your own in *Settings →
 | --- | --- |
 | **Insert citation** | `[@doe2020, p. 33]` — the parenthetical citation, from a pick in Zotero's window. |
 | **Insert a citation for the items selected in Zotero** | The same parenthetical citation, built from whatever is selected in Zotero's middle pane. No window is opened, and there is nowhere to type a page. |
+| **Show bibliography** | Nothing: it brings the note's bibliography back to the right sidebar once its tab was closed — see below. |
 | **View changelog** | What the version you are running brought. |
 
 Anything selected in the editor is replaced by the citation, so a placeholder you typed
@@ -66,6 +67,39 @@ end the citation at that character and leave the rest as stray text in your sent
 
 [pandoc]: https://pandoc.org/MANUAL.html#citation-syntax
 [pandoc-gui]: https://github.com/pan4ratte/obsidian-pandoc-gui
+
+## Bibliography
+
+The first time the plugin runs, it opens a tab in the right sidebar with every source the
+open note cites, written as the chosen style writes a reference list: with its sorting,
+numbering and indentation. A numbered style that does not sort its entries numbers them in
+the order the note first cites them. The list follows the note you are working in and
+updates as you type; citations in code, in properties and in comments are left out of it.
+Until a style is chosen, the tab asks you to choose one. Once closed, the tab does not come back
+by itself on later launches — the **Show bibliography** command opens it again.
+
+Above the list are the number of entries in it and three buttons:
+
+- **Search** opens a field under the heading that keeps only the entries holding every
+  word typed, in any order and any case: `kuhn 1962` finds Kuhn's book of 1962. It searches
+  authors, titles, years and citation keys, and `е` finds `ё`. While a search is on, the
+  heading shows how many entries were found out of all of them. `Esc`, or the button
+  again, closes the field and shows the whole list.
+- **Copy** copies the list the way Zotero's "Copy Bibliography" does: a word processor
+  pastes it with its italics, indents and numbering, and a plain text field pastes it as
+  text. The whole list is copied, even while the search hides some of it.
+- **Refresh** asks Zotero again.
+
+The entries are what Zotero itself writes: the plugin takes each item in the form Zotero
+hands it to citeproc, and sets citeproc up the way Zotero does. Of the CSL locales, the
+plugin carries Russian, American and British English, German and French — enough for the
+multilingual GOST styles "(ru, en, de, fr)", which write each source's entry in its own
+language. A style that needs any other language is written with the American English one.
+
+Sources are looked for in every Zotero library — My Library first, then the groups — so a
+key that is in several is taken from the first. Citation keys Zotero has no item for are
+listed under the bibliography. If Zotero was
+closed when they were looked up, start it and press the refresh button above the list.
 
 ## Settings
 
@@ -129,7 +163,8 @@ The window is Zotero's own, not Zoterik's, so where it opens is Zotero's to deci
 - **A citation is not being styled.** The rendering takes its data from Zotero, so with
   Zotero closed a citation stays as the note writes it. The same happens when Better
   BibTeX does not know the citation key — one typed by hand, say, or one whose item has
-  been removed from the library.
+  been removed from the library. If Zotero was closed, start it and press the refresh
+  button in the bibliography tab.
 - **Nothing at all, no message.** The citation window was closed without picking
   anything, which is not an error.
 

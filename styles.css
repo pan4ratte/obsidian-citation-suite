@@ -604,3 +604,243 @@ body.zoterik-citation-italic .zoterik-citation em {
 	text-align: left;
 	text-wrap: pretty;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Bibliography pane
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* A little more room at the sides than the 12px Obsidian gives every sidebar
+   view, since the pane is read as running text rather than scanned as a list
+   of rows. Keyed on the view type, the way Obsidian's own panes adjust the
+   same padding (`[data-type='outline'] .view-content`), which also outranks
+   the rule it adjusts; the top and bottom are left as Obsidian has them. */
+.workspace-leaf-content[data-type="zoterik-bibliography"] .view-content {
+	padding-inline: var(--size-4-4);
+}
+
+/* The bar over the list: its heading and how many entries it holds, and the
+   buttons that copy it and ask Zotero again. */
+.zoterik-bibliography-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+	margin-bottom: var(--size-4-3);
+}
+
+.zoterik-bibliography-title {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	min-width: 0;
+}
+
+.zoterik-bibliography-heading {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+}
+
+/* The count, set as Obsidian sets the number beside a search's results. */
+.zoterik-bibliography-count {
+	flex-shrink: 0;
+	padding: 0 var(--size-4-1);
+	border-radius: var(--radius-s);
+	background-color: var(--background-modifier-hover);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+	color: var(--text-muted);
+}
+
+.zoterik-bibliography-actions {
+	display: flex;
+	flex-shrink: 0;
+	align-items: center;
+	gap: var(--size-2-1);
+}
+
+/* The search button while its field is open. */
+.zoterik-bibliography-actions .clickable-icon.is-active {
+	color: var(--interactive-accent);
+	background-color: var(--background-modifier-hover);
+}
+
+/* The field under the bar: Obsidian's own search input, drawn by its
+   SearchComponent, across the pane.
+
+   It slides open rather than appearing. The row is a one-track grid whose
+   track goes from `0fr` to `1fr`, which animates to the field's own height
+   without that height being known; the field fades in and drops into place
+   as it does. Timing is Obsidian's own: its moderate duration, and its
+   "swing" curve, quick to start and soft to land.
+
+   `visibility` takes the closed field out of the tab order and away from
+   screen readers. It turns on at once when the row opens, so the field can
+   take the focus straight away, and turns off only once the row has shut,
+   so the field does not vanish before its closing is seen. */
+.zoterik-bibliography-search {
+	display: grid;
+	grid-template-rows: 0fr;
+	margin-bottom: 0;
+	visibility: hidden;
+	transition:
+		grid-template-rows var(--anim-duration-moderate) var(--anim-motion-swing),
+		margin-bottom var(--anim-duration-moderate) var(--anim-motion-swing),
+		visibility 0s linear var(--anim-duration-moderate);
+}
+
+.zoterik-bibliography-search.is-open {
+	grid-template-rows: 1fr;
+	margin-bottom: var(--size-4-3);
+	visibility: visible;
+	transition:
+		grid-template-rows var(--anim-duration-moderate) var(--anim-motion-swing),
+		margin-bottom var(--anim-duration-moderate) var(--anim-motion-swing),
+		visibility 0s;
+}
+
+/* What the row's collapse clips. The padding is room for the input's focus
+   ring, which the clipping would otherwise cut off, and the negative margin
+   gives that room back to the layout. */
+.zoterik-bibliography-search-field {
+	min-height: 0;
+	overflow: hidden;
+	padding: var(--size-2-2);
+	margin: calc(-1 * var(--size-2-2));
+	opacity: 0;
+	transform: translateY(calc(-1 * var(--size-4-2)));
+	transition:
+		opacity var(--anim-duration-fast) ease-in-out,
+		transform var(--anim-duration-moderate) var(--anim-motion-swing);
+}
+
+.zoterik-bibliography-search.is-open .zoterik-bibliography-search-field {
+	opacity: 1;
+	transform: none;
+}
+
+.zoterik-bibliography-search .search-input-container {
+	width: 100%;
+	margin: 0;
+}
+
+/* A reader who asked the system for less motion gets the field at once. */
+@media (prefers-reduced-motion: reduce) {
+	.zoterik-bibliography-search,
+	.zoterik-bibliography-search.is-open,
+	.zoterik-bibliography-search-field {
+		transition: none;
+	}
+}
+
+.zoterik-bibliography-message,
+.zoterik-bibliography-missing-desc {
+	font-size: var(--font-ui-smaller);
+	line-height: var(--line-height-normal);
+	color: var(--text-muted);
+}
+
+/* The entries are set the way a note sets text, a size down to fit the
+   sidebar, and can be selected and copied out. */
+.zoterik-bibliography-list {
+	font-family: var(--font-text);
+	font-size: var(--font-ui-small);
+	line-height: var(--line-height-normal);
+	color: var(--text-normal);
+	user-select: text;
+}
+
+/* `flow-root` holds a number floated into its own column inside the entry. */
+.zoterik-bibliography-list .csl-entry {
+	display: flow-root;
+	overflow-wrap: anywhere;
+}
+
+/* A rule between one entry and the next, so that where an entry that wraps
+   onto several lines ends is never in doubt. Drawn on every shown entry with
+   a shown entry somewhere before it, so that filtering never leaves a rule
+   over the first entry left. */
+.zoterik-bibliography-list
+	.csl-entry:not(.zoterik-bibliography-hidden)
+	~ .csl-entry:not(.zoterik-bibliography-hidden) {
+	margin-top: var(--size-4-2);
+	padding-top: var(--size-4-2);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.zoterik-bibliography-hanging .csl-entry {
+	padding-left: var(--zoterik-bibliography-indent);
+	text-indent: calc(-1 * var(--zoterik-bibliography-indent));
+}
+
+/* A numbered style's number in a column as wide as the widest number, and
+   the entry beside it. The sidebar has no margin to hang the number in, so a
+   style that asks for `margin` is set as one asking for `flush`. */
+.zoterik-bibliography-numbered .csl-left-margin {
+	float: left;
+	min-width: var(--zoterik-bibliography-number-width);
+	padding-right: 0.5em;
+}
+
+.zoterik-bibliography-numbered .csl-right-inline {
+	margin-left: calc(var(--zoterik-bibliography-number-width) + 0.5em);
+}
+
+.zoterik-bibliography-list .csl-block {
+	display: block;
+}
+
+.zoterik-bibliography-list .csl-indent {
+	margin-left: 2em;
+}
+
+.zoterik-bibliography-list span[style*="small-caps"] {
+	font-variant: small-caps;
+}
+
+/* The keys the note cites that Zotero had nothing for, under a rule. */
+.zoterik-bibliography-missing {
+	margin-top: var(--size-4-4);
+	padding-top: var(--size-4-3);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/* Nothing above it to be set apart from: every key was missed. */
+.zoterik-bibliography-body > .zoterik-bibliography-missing:first-child {
+	margin-top: 0;
+	padding-top: 0;
+	border-top: none;
+}
+
+.zoterik-bibliography-missing-title {
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+}
+
+.zoterik-bibliography-missing-desc {
+	margin-top: var(--size-2-2);
+}
+
+.zoterik-bibliography-missing-keys {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-2-2);
+	margin-top: var(--size-4-2);
+	user-select: text;
+}
+
+.zoterik-bibliography-missing-keys code {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+/* Whatever the pane hides — a button with nothing to act on, or what the
+   search does not match. Last in the file, since it ties with the rules above
+   that give those elements a display. */
+.zoterik-bibliography .zoterik-bibliography-hidden {
+	display: none;
+}

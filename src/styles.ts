@@ -164,6 +164,39 @@ export async function readStyleFile(style: CitationStyle): Promise<string> {
 	return readFile(style.path, "utf8");
 }
 
+/** What of Zotero's preferences decides how it writes a citation. */
+export interface ZoteroCitePrefs {
+	/** The language citations are written in; see `localeFromPrefs`. */
+	locale: string;
+	/**
+	 * "Include URLs of paper articles in references": off by default, which
+	 * drops the URL of an article that has pages.
+	 */
+	citePaperArticleURLs: boolean;
+}
+
+/** A `true`/`false` preference, or nothing when Zotero has not written it. */
+function boolPrefValue(prefs: string, name: string): boolean | null {
+	const pattern = new RegExp(
+		'user_pref[(]"' + name.replace(/[.]/g, "[.]") + '", *(true|false)[)]'
+	);
+	const match = pattern.exec(prefs);
+	return match ? match[1] === "true" : null;
+}
+
+/** The preferences Zotero writes citations by, read off its profile. */
+export async function zoteroCitePrefs(): Promise<ZoteroCitePrefs> {
+	const prefs = await readProfilePrefs();
+	return {
+		locale: localeFromPrefs(prefs),
+		citePaperArticleURLs:
+			boolPrefValue(
+				prefs,
+				"extensions.zotero.export.citePaperJournalArticleURL"
+			) ?? false,
+	};
+}
+
 /**
  * The language Zotero writes citations in.
  *
@@ -172,8 +205,7 @@ export async function readStyleFile(style: CitationStyle): Promise<string> {
  * what Zotero falls back to as well. A style that names a language of its own
  * overrides both; `src/render.ts` puts the three in that order.
  */
-export async function zoteroLocale(): Promise<string> {
-	const prefs = await readProfilePrefs();
+function localeFromPrefs(prefs: string): string {
 	if (!prefs) {
 		return "";
 	}

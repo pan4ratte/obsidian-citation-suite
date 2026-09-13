@@ -98,6 +98,11 @@ export interface ZoterikSettings {
 	minimizeZotero: boolean;
 	/** The version whose changelog banner has been dismissed. Never drawn as a setting. */
 	dismissedChangelogVersion: string;
+	/**
+	 * Whether the bibliography pane has been put in the sidebar once already,
+	 * after which the workspace layout keeps it. Never drawn as a setting.
+	 */
+	bibliographyPaneOpened: boolean;
 }
 
 export const DEFAULT_SETTINGS: ZoterikSettings = {
@@ -118,6 +123,7 @@ export const DEFAULT_SETTINGS: ZoterikSettings = {
 	footnoteSuffix: "",
 	minimizeZotero: false,
 	dismissedChangelogVersion: "",
+	bibliographyPaneOpened: false,
 };
 
 /**

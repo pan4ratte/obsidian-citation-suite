@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { parseCitation, parseGroups, splitLocator } from "src/citation";
+import {
+	citedKeys,
+	parseCitation,
+	parseGroups,
+	splitLocator,
+} from "src/citation";
 import { formatCitations } from "src/pandoc";
 import { Citation } from "src/types";
 
@@ -137,5 +142,61 @@ describe("what the plugin writes, read back", () => {
 		expect(
 			roundTrip(citation({ locator: "33, 35", label: "page" }))
 		).toMatchObject({ label: "page", locator: "33, 35" });
+	});
+});
+
+describe("citedKeys", () => {
+	it("names every key once, in the order the note first cites it", () => {
+		expect(
+			citedKeys(
+				"First [@roe2021, p. 3]. Then [see @doe2020; -@roe2021].\n\nAgain [@doe2020] and [@{odd key}]."
+			)
+		).toEqual(["roe2021", "doe2020", "odd key"]);
+	});
+
+	it("reads the citations in a footnote's text", () => {
+		expect(citedKeys("Text.[^1]\n\n[^1]: [@doe2020, p. 33]")).toEqual([
+			"doe2020",
+		]);
+	});
+
+	it("passes over the front matter", () => {
+		expect(
+			citedKeys("---\nnote: [@hidden2020]\n---\nBody [@doe2020].")
+		).toEqual(["doe2020"]);
+	});
+
+	it("passes over fenced code, to the fence that closes it", () => {
+		expect(
+			citedKeys(
+				"```md\n[@code2020]\n~~~\n[@still2020]\n```\nAfter [@doe2020]."
+			)
+		).toEqual(["doe2020"]);
+	});
+
+	it("passes over inline code, however many backticks open it", () => {
+		expect(
+			citedKeys("`[@one2020]` and ``a ` [@two2020]`` but [@doe2020]")
+		).toEqual(["doe2020"]);
+	});
+
+	it("does not let a stray backtick hide the next paragraph", () => {
+		expect(citedKeys("A lone ` here.\n\nThen [@doe2020] and `x`.")).toEqual(
+			["doe2020"]
+		);
+	});
+
+	it("passes over Obsidian and HTML comments", () => {
+		expect(
+			citedKeys(
+				"%%[@obsidian2020]%% <!-- [@html2020] --> [@doe2020]"
+			)
+		).toEqual(["doe2020"]);
+	});
+
+	it("is empty for a note that cites nothing", () => {
+		expect(citedKeys("A [[link]] and [text](url) and me@example.com")).toEqual(
+			[]
+		);
 	});
 });

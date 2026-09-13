@@ -5,7 +5,7 @@
 | Command | What it does |
 |---------|-------------|
 | `npm run dev` | esbuild watch mode (no typecheck) |
-| `npm test` | Vitest — 82 tests, all passing |
+| `npm test` | Vitest — 111 tests, all passing |
 | `npm run lint` / `npm run lint:fix` | ESLint flat config with the official Obsidian ruleset |
 | `npm run build` | `tsc -noEmit -skipLibCheck && node esbuild.config.mjs production` |
 
@@ -62,6 +62,107 @@ BBT's `citationItems()`. `label` is filled in as `"page"` whenever a locator was
 typed without a label of its own, so a locator practically always arrives
 labelled; `selected=true` is the exception, since there is no window there to
 type either into. A real answer is pinned as a fixture in `tests/cayw.test.ts`.
+
+## The JSON-RPC contract
+
+Rendering needs the CSL data behind a key, and that comes from Better BibTeX's
+`/better-bibtex/json-rpc`, not from CAYW. Read out of BBT **9.0.64**'s bundle
+(`content/better-bibtex.js`, the `NSItem` class and the method schemas above it)
+and checked against a Zotero whose sources sit in My Library and two groups at
+once:
+
+- **A citation key is unique per library, not per Zotero.** An item shared to a
+  group keeps its key, so the same key commonly exists in two or three libraries.
+- **`item.export` looks in My Library alone** when no library is named, and
+  **throws for the whole request** if a single key is missing or duplicated
+  there (`not found: …` / `duplicates found: …`, code -32602). A note citing
+  one source from a group therefore lost every source in the same request. Do
+  not go back to it.
+- **`item.pandoc_filter(citekeys, true, libraryID, style)`** is what
+  `fetchItems` uses. It hands over the keys it found as `Better CSL JSON`
+  under `items`, keyed by citation key, and reports the rest under `errors` as a
+  count — 0 missing, 2+ duplicated — instead of failing. Asked for several
+  libraries at once, a key in two of them is a duplicate and comes back as
+  nothing, so `fetchItems` asks **one library at a time**, in `user.groups`
+  order (My Library first), each for what the earlier ones did not have.
+- **Its items are only used to learn which keys a library holds.** The items
+  themselves are exported again, exactly those keys, with `item.export` and
+  Zotero's own `CSL JSON` translator (`bc03b4fe-436d-4a1f-ba59-de4d2d7a63f7`,
+  `itemToCSLJSON` — what Zotero feeds citeproc). `Better CSL JSON` is not that:
+  it rewrites the hyphen in an `issue` or `page` range as an en dash, and
+  citeproc prints an issue as given, so a GOST entry read `№ 27–28` where
+  Zotero writes `№ 27-28`. The export cannot fail on a missing key because
+  `pandoc_filter` already found every one; if it fails anyway, BBT's copy is
+  kept.
+- **`libraryID` is a number, a name, or an array of names.** An array of
+  numbers fails the schema, and a number sent as a string is not found
+  (`could not find library 1`). A null parameter fails the schema too: leave a
+  parameter out rather than sending it empty.
+- **`pandoc_filter` renders each item's author against `style`**, `apa` by
+  default, and the whole request fails if that style is not installed. So
+  `installedStyle()` names APA when it is on disk and any installed style
+  otherwise.
+- **`user.groups`** answers with every library as `{ id: libraryID, name }`.
+  The renderer keeps that list until `reset()` or `forgetUnknown()`.
+
+## Rendering as Zotero renders
+
+The bibliography pane and its copy are meant to be **what Zotero's own Quick
+Copy writes**, and they are, entry for entry. That was checked by rendering a
+57-source note in every installed style through the plugin and through
+`item.bibliography` (Zotero's `QuickCopy.getContentFromItems`), one source at a
+time and as whole lists: every style came out identical. Zotero bundles the same citeproc-js
+processor (1.4.61) as the `citeproc` npm package. What made the difference was
+everything around it, read out of Zotero 7's `xpcom/style.js` and
+`xpcom/cite.js` and ported to `src/zoteroCite.ts` and `src/render.ts`:
+
+- **Item data** from Zotero's `CSL JSON` translator, not `Better CSL JSON` —
+  see the JSON-RPC contract above.
+- **`asZoteroCites`**: Zotero's `Cite.System.retrieveItem` drops `URL` and
+  `accessed` from a journal, newspaper or magazine article that has pages,
+  unless `extensions.zotero.export.citePaperJournalArticleURL` is set. The pref
+  is read off `prefs.js` with the locale, as `ZoteroCitePrefs`.
+- **`zoteroEngine`**: `wrap_url_and_doi = true` and `parse_names = false`, as
+  `getCiteProc` sets them. The first is not cosmetic: citeproc strips a
+  `https://doi.org/` already in the DOI field only on that path, and without it
+  a DOI stored as a URL prints as `https://doi.org/https://doi.org/…`. Zotero's
+  **Word integration** turns it back off (zotero/zotero#5557), so a document
+  there does print the doubled DOI; the pane follows Quick Copy.
+- **`uppercase_subtitles`** on the sys object for APA-family styles, matched on
+  the style's or the parent's short id with Zotero's own regex.
+- **`eventToEventTitle`** on the style before citeproc sees it.
+- **A dependent style's `default-locale` is forced** (`forceLang`), since
+  citeproc is only handed the parent. Otherwise the locale is the Quick Copy
+  locale or Zotero's own, and a style's `default-locale` wins inside citeproc.
+- **`formattedBibliography`** is `makeFormattedBibliography`'s HTML branch —
+  the inline styles a word processor needs — done by string replacement on
+  citeproc's fixed markup rather than on a DOM. It was compared against
+  Zotero's HTML for hanging-indent, number-column and spaced styles: identical
+  but for serialisation (`&#38;` for `&amp;`, a literal U+00A0 for `&nbsp;`)
+  and the COinS spans, which are left out.
+
+**Locales are the one place the plugin carries less than Zotero**: five of
+Zotero's 63, copied byte for byte from its `omni.ja`
+(`chrome/content/zotero/locale/csl/`). Each is there for a reason, listed
+over `LOCALES`: `en-US` is CSL's fallback, `ru-RU` the plugin's own language,
+`en-GB` for British styles (MHRA's quotes), and `de-DE` and `fr-FR` for the
+multilingual GOST styles "(ru, en, de, fr)".
+
+Those GOST styles are the case that makes an item's `language` matter. They
+hold one `<layout locale="…">` per language, citeproc picks the layout by the
+item's `language`, and `localeResolve` turns `de` and `fr` into `de-DE` and
+`fr-FR` before `retrieveLocale` is asked. Without the files a German entry
+is written with English terms (`ed.` for `hrsg.`). `carriedLocale` sends a
+regional variant the plugin does not carry (`de-AT`) to the carried locale of
+its language, and anything else to `en-US`. Add a locale when a style in use
+needs one, from Zotero's own files; the whole set is 1.6 MB.
+
+To re-run the comparison, bundle a script that imports `src/render.ts` with
+esbuild (Vitest cannot load the `.xml` imports), alias `obsidian` to a
+`requestUrl` over Node's `fetch`, and compare `bibliographyOf(...).text` with
+`item.bibliography([keys], { id, locale, contentType: "text" }, libraryID)`.
+A style whose id is a bare UUID cannot be compared that way: BBT prefixes it
+with `http://www.zotero.org/styles/` and then cannot find it.
 
 ## The pandoc formatter
 
@@ -124,6 +225,84 @@ footnote looks like is shown by the style preview, which redraws on every change
 to the numbering, prefix or suffix — not by a row of its own, and not through
 `update()`, which would redraw the tab and take the focus out of the field being
 typed in.
+
+## Bibliography pane
+
+`src/bibliography.ts` is an `ItemView` in the right sidebar. It is put there
+**once**, on the first layout-ready after install — through `ensureSideLeaf`, not
+active and not revealed — and `bibliographyPaneOpened`, a settings field the tab
+never draws, records that it was. From then on the workspace layout keeps it, so
+a reader who closes it is not handed it back on every launch; checking for a leaf
+instead of the flag would do exactly that. The `show-bibliography` command opens
+and reveals it, and `onunload` does not detach it.
+
+- **It follows the note being worked on**, like the outline and backlinks: a
+  change of active leaf or file retargets it, but a leaf that is not a note —
+  the pane itself, a PDF — leaves the last note's list standing. The text is
+  read from the note's open `MarkdownView` when there is one (unsaved typing
+  included), otherwise `vault.cachedRead`; typing is debounced.
+- **Keys come from `citedKeys`** in `src/citation.ts`: bracketed groups only,
+  as everywhere else, once each, in order of first citation, with the front
+  matter, fenced and inline code, and `%%`/`<!-- -->` comments emptied out
+  first. Lines are emptied rather than removed so that no bracket meets another
+  across a gap.
+- **The list is written by the citation engine, not the tooltips' number-less
+  one**, through `CitationRenderer.bibliographyOf`: in a reference list the
+  numbers belong. The keys are handed to `updateItems` in first-citation order,
+  which is what an unsorted numbered style numbers by. Unknown keys are dropped
+  before that — citeproc would write them as untitled documents — and are listed
+  separately under the entries.
+- **Each pass is numbered**, and a pass overtaken while it waited on Zotero draws
+  nothing. `restyle()` refreshes every open pane.
+- **The bar reads "References", with the entry count beside it**, and three
+  buttons: search, copy and refresh. Copy writes `formattedBibliography` as
+  `text/html` and the text engine's entries as `text/plain` in one
+  `ClipboardItem` — what Zotero's Copy Bibliography puts on the clipboard — and
+  always copies the whole list, not what the search leaves showing: a subset
+  of a numbered list would paste with gaps in its numbers. Entries are
+  separated by a rule.
+- **The bar, the search field and the body are built once, in `onOpen`**, and
+  a pass only empties and redraws the body. A pass runs on every save of the
+  note, which can land while the reader types into the search field, and
+  rebuilding the field would take the focus and caret out of it. The bar's
+  buttons are shown and hidden per pass instead of drawn.
+- **The search** is Obsidian's `SearchComponent`, opened by the search button
+  and closed by it or `Esc`; closing clears the query, so a list is never left
+  filtered by a field that is not on screen. `src/search.ts` decides a match:
+  every word of the query in the entry, case-insensitively, `ё` read as `е`.
+  An entry is searched in its rendered text plus `@key` for each id in
+  citeproc's `entry_ids`; a missing key in `@key`. `applySearch` runs after
+  every pass, so a filter survives the list being redrawn under it. The count
+  reads `shown / total` while filtering.
+- **The search field slides open**, and is never hidden by class: the row
+  stays in the pane as a one-track grid animated from `0fr` to `1fr`, with the
+  field fading in and dropping 8px into place, on Obsidian's
+  `--anim-duration-moderate` and `--anim-motion-swing`. `visibility` keeps a
+  closed field out of the tab order; it switches on with no delay when the row
+  opens, which is what lets `toggleSearch` focus the input in the same call,
+  and off only after the row has shut. The field's inner wrapper clips the
+  collapse, so it carries padding for the input's focus ring and a negative
+  margin giving that room back. `prefers-reduced-motion` turns it all off —
+  Obsidian 1.13 has no motion setting of its own to follow. Checked in
+  headless Chrome by scrubbing `document.getAnimations()` to fixed times,
+  since transitions do not advance there under a virtual time budget.
+- **Hiding is a class, `zoterik-bibliography-hidden`, never `hidden`.** The
+  attribute loses to the `display` given to `.csl-entry` (`flow-root`) and to
+  Obsidian's `.clickable-icon`. The rule is the last in styles.css because it
+  ties with those. The divider is drawn on
+  `.csl-entry:not(.hidden) ~ .csl-entry:not(.hidden)` rather than `+`, so a
+  filtered list never shows a rule over its first remaining entry.
+- **The refresh button calls `forgetUnknown()`** before redrawing. A key missed
+  once is never asked about again, and a Zotero that was closed at that moment
+  misses every key; this is the one way back short of changing the style or
+  port.
+- **The layout follows citeproc's bibliography params.** `hangingindent` and
+  `maxoffset` are handed to styles.css as custom properties
+  (`--zoterik-bibliography-indent`, `--zoterik-bibliography-number-width`, in
+  `ch`) on a modifier class. `second-field-align: margin` is set as `flush`:
+  a sidebar has no margin to hang a number in. `line-spacing` and
+  `entry-spacing` are ignored in the pane — APA's double spacing is for paper —
+  but the copy keeps them, as Zotero's does.
 
 ## Settings tab
 
@@ -276,10 +455,15 @@ nothing here was forked from another plugin's id.
 
 ```
 src/
-  main.ts           — Plugin class, 4 commands, settings load/save
+  main.ts           — Plugin class, 4 commands, the bibliography view, settings load/save
   cayw.ts           — the Better BibTeX CAYW client: probe, pick, parse
   pandoc.ts         — citations → pandoc syntax (pure; no Obsidian, no network)
   footnote.ts       — a citation as a footnote: label, numbering, placement (pure)
+  citation.ts       — pandoc citations read back out of a note, and its cited keys (pure)
+  render.ts         — citeproc: a citation, its tooltip, and a note's bibliography
+  bibliography.ts   — the right-sidebar pane listing the note's bibliography
+  zoteroCite.ts     — what Zotero does around citeproc, ported (pure)
+  search.ts         — the pane's filter: words, normalisation, matching (pure)
   settings.ts       — the declarative settings tab and the changelog banner
   stylePicker.ts    — the Zotero-like list the citation style is chosen from
   preview.ts        — the style preview and its bar of look buttons
