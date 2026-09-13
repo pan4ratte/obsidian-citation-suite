@@ -29,6 +29,13 @@ export const RENDERED_CLASS = "citation-suite-citation";
  */
 const TOOLTIP_CLASS = "citation-suite-citation-tooltip";
 
+/** Whether a rendered citation shows its sources on hover, and how soon. */
+export interface CitationTooltip {
+	enabled: boolean;
+	/** Milliseconds the citation is hovered before the tooltip shows. */
+	delay: number;
+}
+
 const SKIP = new Set(["CODE", "PRE", "A", "MJX-CONTAINER"]);
 
 /** Every text node under the element that a citation could be written in. */
@@ -68,7 +75,8 @@ function citableTextNodes(root: HTMLElement): Text[] {
  */
 export function citationEl(
 	rendered: RenderedCitation,
-	source: string
+	source: string,
+	tooltip: CitationTooltip
 ): HTMLElement {
 	const span = createSpan({ cls: RENDERED_CLASS });
 	// The citation is the reader's own library talking, but it is still markup
@@ -77,9 +85,12 @@ export function citationEl(
 	// The sources the citation stands for, one hover away. A style with no
 	// bibliography has no entry to show, and what the note says is the next
 	// best thing.
-	setTooltip(span, rendered.bibliography || source, {
-		classes: [TOOLTIP_CLASS],
-	});
+	if (tooltip.enabled) {
+		setTooltip(span, rendered.bibliography || source, {
+			classes: [TOOLTIP_CLASS],
+			delay: tooltip.delay,
+		});
+	}
 	return span;
 }
 
@@ -90,7 +101,8 @@ export function citationEl(
 function decorateNode(
 	node: Text,
 	engines: StyleEngines,
-	renderer: CitationRenderer
+	renderer: CitationRenderer,
+	tooltip: CitationTooltip
 ): void {
 	const text = node.nodeValue ?? "";
 	const groups = parseGroups(text);
@@ -112,7 +124,7 @@ function decorateNode(
 		}
 		fragment.appendChild(doc.createTextNode(text.slice(at, group.from)));
 		fragment.appendChild(
-			citationEl(rendered, text.slice(group.from, group.to))
+			citationEl(rendered, text.slice(group.from, group.to), tooltip)
 		);
 		at = group.to;
 		replaced = true;
@@ -127,13 +139,15 @@ function decorateNode(
 
 /**
  * The post processor Obsidian runs over every rendered block. It is given the
- * style to render in and the renderer holding the library; both come from the
- * plugin, which rebuilds them when the setting changes.
+ * style to render in, the renderer holding the library and the tooltip each
+ * citation carries; all three come from the plugin, which redraws the views
+ * when a setting changes them.
  */
 export async function renderCitations(
 	el: HTMLElement,
 	renderer: CitationRenderer,
-	styleId: string
+	styleId: string,
+	tooltip: CitationTooltip
 ): Promise<void> {
 	if (!styleId) {
 		return;
@@ -161,6 +175,6 @@ export async function renderCitations(
 	}
 
 	for (const node of nodes) {
-		decorateNode(node, engines, renderer);
+		decorateNode(node, engines, renderer, tooltip);
 	}
 }

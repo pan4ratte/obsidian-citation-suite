@@ -52,6 +52,12 @@ export type PreviewMode = "reading" | "source" | "live";
 /** How a rendered citation is underlined in a note. */
 export type CitationUnderline = "dotted" | "solid" | "wavy" | "none";
 
+/**
+ * How long a citation is hovered before its tooltip shows, unless set
+ * otherwise: Obsidian's own delay for every tooltip, as 1.13.7 has it.
+ */
+export const DEFAULT_TOOLTIP_DELAY = 1000;
+
 export interface CitationSuiteSettings {
 	/**
 	 * The port Zotero's local HTTP server listens on. 23119 for Zotero, 24119
@@ -78,6 +84,10 @@ export interface CitationSuiteSettings {
 	citationBold: boolean;
 	/** Set a rendered citation in italics. */
 	citationItalic: boolean;
+	/** Show the bibliography entry of a rendered citation's sources on hover. */
+	citationTooltips: boolean;
+	/** How long, in milliseconds, a citation is hovered before its tooltip shows. */
+	citationTooltipDelay: number;
 	/** The view the settings preview shows the sample in. */
 	previewMode: PreviewMode;
 	/**
@@ -109,6 +119,8 @@ export const DEFAULT_SETTINGS: CitationSuiteSettings = {
 	citationUnderline: "dotted",
 	citationBold: false,
 	citationItalic: false,
+	citationTooltips: true,
+	citationTooltipDelay: DEFAULT_TOOLTIP_DELAY,
 	// The view a note is written in, which is where most citations are read.
 	previewMode: "live",
 	footnotes: false,

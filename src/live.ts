@@ -10,7 +10,7 @@ import {
 } from "@codemirror/view";
 import { editorLivePreviewField } from "obsidian";
 import { parseGroups } from "src/citation";
-import { citationEl } from "src/reading";
+import { CitationTooltip, citationEl } from "src/reading";
 import { CitationRenderer, RenderedCitation } from "src/render";
 
 /**
@@ -39,26 +39,34 @@ const LOADED = StateEffect.define<null>();
 export interface LiveContext {
 	renderer: CitationRenderer;
 	styleId(): string;
+	tooltip(): CitationTooltip;
 }
 
 class CitationWidget extends WidgetType {
 	constructor(
 		private rendered: RenderedCitation,
-		private source: string
+		private source: string,
+		private tooltip: CitationTooltip
 	) {
 		super();
 	}
 
+	/**
+	 * The tooltip is compared too: a widget found equal keeps the element it
+	 * already drew, and that element carries the tooltip it was drawn with.
+	 */
 	eq(other: CitationWidget): boolean {
 		return (
 			other.rendered.html === this.rendered.html &&
 			other.rendered.bibliography === this.rendered.bibliography &&
-			other.source === this.source
+			other.source === this.source &&
+			other.tooltip.enabled === this.tooltip.enabled &&
+			other.tooltip.delay === this.tooltip.delay
 		);
 	}
 
 	toDOM(): HTMLElement {
-		return citationEl(this.rendered, this.source);
+		return citationEl(this.rendered, this.source, this.tooltip);
 	}
 
 	/** Clicking it should put the cursor in the citation, not select a widget. */
@@ -95,9 +103,15 @@ export function citationExtension(context: LiveContext) {
 				const switched =
 					update.startState.field(editorLivePreviewField, false) !==
 					update.state.field(editorLivePreviewField, false);
+				// `workspace.updateOptions()` reconfigures every editor, which
+				// is how the plugin says a setting changed what is drawn.
+				const reconfigured = update.transactions.some(
+					(transaction) => transaction.reconfigured
+				);
 				if (
 					loaded ||
 					switched ||
+					reconfigured ||
 					update.docChanged ||
 					update.viewportChanged ||
 					update.selectionSet
@@ -109,6 +123,7 @@ export function citationExtension(context: LiveContext) {
 			private build(view: EditorView): DecorationSet {
 				const builder = new RangeSetBuilder<Decoration>();
 				const styleId = context.styleId();
+				const tooltip = context.tooltip();
 				if (!styleId || !view.state.field(editorLivePreviewField, false)) {
 					return builder.finish();
 				}
@@ -143,7 +158,8 @@ export function citationExtension(context: LiveContext) {
 							Decoration.replace({
 								widget: new CitationWidget(
 									rendered,
-									text.slice(group.from, group.to)
+									text.slice(group.from, group.to),
+									tooltip
 								),
 							})
 						);

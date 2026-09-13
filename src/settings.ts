@@ -7,7 +7,7 @@ import {
 	SettingDefinitionRender,
 	setIcon,
 } from "obsidian";
-import { getChangelogContent, t } from "lang/helpers";
+import { getChangelogContent, lang, t } from "lang/helpers";
 import CitationSuitePlugin from "src/main";
 import { ChangelogModal } from "src/changelogModal";
 import {
@@ -17,10 +17,26 @@ import {
 } from "src/footnote";
 import { renderStylePreview, StylePreview } from "src/preview";
 import { renderStylePicker, StyleChoice } from "src/stylePicker";
-import { asIndexable } from "src/types";
+import { asIndexable, DEFAULT_TOOLTIP_DELAY } from "src/types";
 
 const MIN_PORT = 1;
 const MAX_PORT = 65535;
+
+/**
+ * The range of the tooltip delay slider, in milliseconds. It starts at one step
+ * rather than at zero: `setTooltip` leaves a falsy delay out, and a tooltip
+ * without one waits Obsidian's full default instead of none.
+ */
+const MIN_TOOLTIP_DELAY = 100;
+const MAX_TOOLTIP_DELAY = 2000;
+const TOOLTIP_DELAY_STEP = 100;
+
+/** The delay as the slider shows it — `500 мс`, `500 ms` — in the interface language. */
+const tooltipDelayFormat = new Intl.NumberFormat(lang, {
+	style: "unit",
+	unit: "millisecond",
+	unitDisplay: "short",
+});
 
 /** What the placement dropdown offers, in the order it offers it. */
 const PLACEMENT_OPTIONS: Record<FootnotePlacement, string> = {
@@ -47,7 +63,12 @@ const PREVIEW_KEYS = new Set([
 	"footnoteNumbering",
 	"footnotePrefix",
 	"footnoteSuffix",
+	"citationTooltips",
+	"citationTooltipDelay",
 ]);
+
+/** The settings that change the tooltip on the citations already drawn. */
+const TOOLTIP_KEYS = new Set(["citationTooltips", "citationTooltipDelay"]);
 
 /**
  * The settings tab, declared through Obsidian 1.13's `getSettingDefinitions()`.
@@ -90,6 +111,13 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 			// Both change what the citations already on screen should look
 			// like, and neither redraws them on its own.
 			await this.plugin.restyle();
+		}
+		if (TOOLTIP_KEYS.has(key)) {
+			this.plugin.redrawCitations();
+		}
+		if (key === "citationTooltips") {
+			// The delay row is shown only while there is a tooltip to delay.
+			this.update();
 		}
 		if (PREVIEW_KEYS.has(key)) {
 			// The preview shows the sample in the style, or as a note would
@@ -291,6 +319,26 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 				heading: t.SECTION_CITATION,
 				items: [
 					this.styleSetting(),
+					{
+						name: t.SETTING_TOOLTIPS_NAME,
+						desc: t.SETTING_TOOLTIPS_DESC,
+						control: { type: "toggle", key: "citationTooltips" },
+					},
+					{
+						name: t.SETTING_TOOLTIP_DELAY_NAME,
+						desc: t.SETTING_TOOLTIP_DELAY_DESC,
+						visible: () => this.plugin.settings.citationTooltips,
+						control: {
+							type: "slider",
+							key: "citationTooltipDelay",
+							min: MIN_TOOLTIP_DELAY,
+							max: MAX_TOOLTIP_DELAY,
+							step: TOOLTIP_DELAY_STEP,
+							defaultValue: DEFAULT_TOOLTIP_DELAY,
+							displayFormat: (value: number) =>
+								tooltipDelayFormat.format(value),
+						},
+					},
 					{
 						name: t.SETTING_BRACKETS_NAME,
 						desc: t.SETTING_BRACKETS_DESC,

@@ -18,7 +18,7 @@ import {
 import { citationExtension } from "src/live";
 import { applyLook, clearLook } from "src/look";
 import { formatCitations } from "src/pandoc";
-import { renderCitations } from "src/reading";
+import { CitationTooltip, renderCitations } from "src/reading";
 import { CitationRenderer } from "src/render";
 import { CitationSuiteSettingTab } from "src/settings";
 import { installedStyles, readStyleFile, zoteroCitePrefs } from "src/styles";
@@ -78,13 +78,15 @@ export default class CitationSuitePlugin extends Plugin {
 			return renderCitations(
 				el,
 				this.renderer,
-				this.settings.citationStyle
+				this.settings.citationStyle,
+				this.citationTooltip()
 			);
 		});
 		this.registerEditorExtension(
 			citationExtension({
 				renderer: this.renderer,
 				styleId: () => this.settings.citationStyle,
+				tooltip: () => this.citationTooltip(),
 			})
 		);
 
@@ -185,6 +187,14 @@ export default class CitationSuitePlugin extends Plugin {
 			reveal: false,
 		});
 		this.app.saveLocalStorage(BIBLIOGRAPHY_PLACED_KEY, true);
+	}
+
+	/** The tooltip a rendered citation carries, as the settings have it. */
+	citationTooltip(): CitationTooltip {
+		return {
+			enabled: this.settings.citationTooltips,
+			delay: this.settings.citationTooltipDelay,
+		};
 	}
 
 	/** The main window's document, and that of every pop-out holding a leaf. */
@@ -365,21 +375,28 @@ export default class CitationSuitePlugin extends Plugin {
 			await zoteroCitePrefs()
 		);
 		await this.renderer.prepare(this.settings.citationStyle);
-		// The editors are holding decorations built under the old style, and
-		// the reading views HTML built under it. Both have to be told.
-		this.app.workspace.updateOptions();
-		for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
-			const view = leaf.view;
-			if (view instanceof MarkdownView) {
-				view.previewMode.rerender(true);
-			}
-		}
+		this.redrawCitations();
 		for (const leaf of this.app.workspace.getLeavesOfType(
 			BIBLIOGRAPHY_VIEW
 		)) {
 			const view = leaf.view;
 			if (view instanceof BibliographyView) {
 				void view.refresh();
+			}
+		}
+	}
+
+	/**
+	 * Draws the citations in every open note again. The editors are holding
+	 * decorations built under the old settings, and the reading views HTML
+	 * built under them. Both have to be told.
+	 */
+	redrawCitations(): void {
+		this.app.workspace.updateOptions();
+		for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
+			const view = leaf.view;
+			if (view instanceof MarkdownView) {
+				view.previewMode.rerender(true);
 			}
 		}
 	}

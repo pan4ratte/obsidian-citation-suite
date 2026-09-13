@@ -32,6 +32,10 @@ export default {
 	SETTING_STYLE_NAME: "Choose a citation display style",
 	SETTING_STYLE_DESC: "Citations stay in pandoc format, but for easier reading you can choose a citation style from your Zotero library to preview them in. The preview does not affect how the note is exported.",
 	SETTING_STYLE_PANDOC: "Do not style the preview",
+	SETTING_TOOLTIPS_NAME: "Show the bibliography entry on hover",
+	SETTING_TOOLTIPS_DESC: "Hovering over a styled citation shows the bibliography entry of each source.",
+	SETTING_TOOLTIP_DELAY_NAME: "Tooltip delay",
+	SETTING_TOOLTIP_DELAY_DESC: "How long the cursor has to rest on a citation before the bibliography entry appears.",
 	SETTING_BRACKETS_NAME: "Put citations in square brackets",
 	SETTING_BRACKETS_DESC: "Citations are inserted as [@doe2020, p. 33] for a correct export with pandoc.",
 

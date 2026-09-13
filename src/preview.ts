@@ -302,7 +302,11 @@ export function renderStylePreview(
 			return;
 		}
 		void plugin.renderer.sample(styleId, source.item).then((rendered) => {
-			draw(rendered ? citationEl(rendered, written) : unstyled());
+			draw(
+				rendered
+					? citationEl(rendered, written, plugin.citationTooltip())
+					: unstyled()
+			);
 		});
 	};
 

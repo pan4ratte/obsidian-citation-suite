@@ -3,7 +3,7 @@
 	"name": "Citation Suite",
 	"version": "1.0.0",
 	"minAppVersion": "1.13.0",
-	"description": "Cite your Zotero library from a note: a hotkey opens Zotero's citation window, and the pick is inserted as a pandoc citation.",
+	"description": "Cite literature in Pandoc style from your Zotero library, view literature list in the sidebar, preview citations with citation styles, automate footnotes creation, and more.",
 	"author": "pan4ratte",
 	"authorUrl": "https://github.com/pan4ratte",
 	"isDesktopOnly": true
