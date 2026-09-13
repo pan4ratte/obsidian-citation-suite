@@ -40,9 +40,9 @@ export function renderStylePicker(
 	chosen: string,
 	onChoose: (id: string) => void
 ): () => void {
-	const picker = parent.createDiv({ cls: "zoterik-style-picker" });
+	const picker = parent.createDiv({ cls: "citation-suite-style-picker" });
 	const list = picker.createDiv({
-		cls: "zoterik-style-picker-list",
+		cls: "citation-suite-style-picker-list",
 		attr: {
 			role: "listbox",
 			tabindex: "0",
@@ -99,7 +99,7 @@ export function renderStylePicker(
 
 	for (const choice of choices) {
 		const row = list.createDiv({
-			cls: "zoterik-style-picker-item",
+			cls: "citation-suite-style-picker-item",
 			text: choice.title,
 			attr: { role: "option", "aria-selected": "false" },
 		});
@@ -139,7 +139,7 @@ export function renderStylePicker(
 	// one.
 	if (choices.length <= 1) {
 		picker.createDiv({
-			cls: "zoterik-style-picker-empty",
+			cls: "citation-suite-style-picker-empty",
 			text: t.STYLE_PICKER_EMPTY,
 		});
 	}

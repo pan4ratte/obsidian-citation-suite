@@ -59,7 +59,7 @@ export default defineConfig([
 				"warn",
 				{
 					brands: [
-						"Zoterik",
+						"Citation Suite",
 						"Obsidian",
 						"Zotero",
 						"Better BibTeX",

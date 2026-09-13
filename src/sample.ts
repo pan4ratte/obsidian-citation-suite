@@ -21,7 +21,7 @@ export interface SampleSource {
 	item: { id: string; [field: string]: unknown };
 }
 
-const SAMPLE_ID = "zoterik sample";
+const SAMPLE_ID = "citation suite sample";
 
 const SAMPLES: Record<string, SampleSource> = {
 	en: {

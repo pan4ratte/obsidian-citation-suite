@@ -32,7 +32,7 @@ const ENDPOINT = "/better-bibtex/cayw";
  * every request the plugin made would be dropped and a running Zotero would
  * look unreachable. Naming the plugin instead is what gets an answer.
  */
-const USER_AGENT = "Zoterik";
+const USER_AGENT = "Citation Suite";
 
 /** Sent with every request the plugin makes to Zotero. See `USER_AGENT`. */
 export const REQUEST_HEADERS: Record<string, string> = {

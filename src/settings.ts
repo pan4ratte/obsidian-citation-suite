@@ -8,7 +8,7 @@ import {
 	setIcon,
 } from "obsidian";
 import { getChangelogContent, t } from "lang/helpers";
-import ZoterikPlugin from "src/main";
+import CitationSuitePlugin from "src/main";
 import { ChangelogModal } from "src/changelogModal";
 import {
 	FootnoteNumbering,
@@ -62,12 +62,12 @@ const PREVIEW_KEYS = new Set([
  * not a setting, and for the citation style, which is chosen from a list no
  * control type draws.
  */
-export class ZoterikSettingTab extends PluginSettingTab {
-	plugin: ZoterikPlugin;
+export class CitationSuiteSettingTab extends PluginSettingTab {
+	plugin: CitationSuitePlugin;
 	/** The preview under the style list, while the tab is drawn. */
 	private preview: StylePreview | null = null;
 
-	constructor(app: App, plugin: ZoterikPlugin) {
+	constructor(app: App, plugin: CitationSuitePlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
@@ -162,10 +162,10 @@ export class ZoterikSettingTab extends PluginSettingTab {
 			name: t.SETTING_STYLE_NAME,
 			desc: t.SETTING_STYLE_DESC,
 			render: (setting: Setting) => {
-				setting.settingEl.addClass("zoterik-style-setting");
+				setting.settingEl.addClass("citation-suite-style-setting");
 				setting.settingEl
 					.querySelectorAll(
-						":scope > .zoterik-style-picker, :scope > .zoterik-style-preview"
+						":scope > .citation-suite-style-picker, :scope > .citation-suite-style-preview"
 					)
 					.forEach((el) => el.remove());
 				const closePicker = renderStylePicker(
@@ -209,11 +209,11 @@ export class ZoterikSettingTab extends PluginSettingTab {
 				// The anchor idiom the sibling plugins use: the row is a host
 				// for the plugin's own DOM rather than a setting, and
 				// styles.css blanks the chrome 1.13 gives it.
-				setting.settingEl.addClass("zoterik-settings-anchor");
+				setting.settingEl.addClass("citation-suite-settings-anchor");
 				const root =
 					setting.settingEl.querySelector<HTMLElement>(
-						":scope > .zoterik-settings-root"
-					) ?? setting.settingEl.createDiv("zoterik-settings-root");
+						":scope > .citation-suite-settings-root"
+					) ?? setting.settingEl.createDiv("citation-suite-settings-root");
 				root.empty();
 				this.renderHeader(root);
 			},
@@ -227,13 +227,13 @@ export class ZoterikSettingTab extends PluginSettingTab {
 	 * full width of the tab to stand across.
 	 */
 	private renderHeader(root: HTMLElement): void {
-		const header = root.createDiv({ cls: "zoterik-settings-header" });
+		const header = root.createDiv({ cls: "citation-suite-settings-header" });
 		header.createDiv({
-			cls: "zoterik-settings-title",
+			cls: "citation-suite-settings-title",
 			text: t.PLUGIN_NAME,
 		});
 		header.createDiv({
-			cls: "zoterik-settings-description",
+			cls: "citation-suite-settings-description",
 			text: t.PLUGIN_DESCRIPTION,
 		});
 		this.renderChangelogBanner(root);
@@ -245,21 +245,21 @@ export class ZoterikSettingTab extends PluginSettingTab {
 			return;
 		}
 
-		const banner = root.createDiv({ cls: "zoterik-changelog-banner" });
-		const text = banner.createSpan({ cls: "zoterik-changelog-banner-text" });
+		const banner = root.createDiv({ cls: "citation-suite-changelog-banner" });
+		const text = banner.createSpan({ cls: "citation-suite-changelog-banner-text" });
 		text.appendText(t.CHANGELOG_BANNER_PREFIX);
 		// A button rather than a link: it opens a modal, it does not go
 		// anywhere.
 		const versionButton = text.createEl("button", {
 			text: currentVersion,
-			cls: "zoterik-changelog-version",
+			cls: "citation-suite-changelog-version",
 		});
 		versionButton.addEventListener("click", () => {
 			new ChangelogModal(this.app, getChangelogContent()).open();
 		});
 
 		const closeButton = banner.createEl("button", {
-			cls: "clickable-icon zoterik-changelog-close",
+			cls: "clickable-icon citation-suite-changelog-close",
 			attr: { "aria-label": t.CHANGELOG_BANNER_DISMISS },
 		});
 		setIcon(closeButton, "x");
@@ -278,16 +278,16 @@ export class ZoterikSettingTab extends PluginSettingTab {
 			// that section.
 			{
 				type: "group",
-				cls: "zoterik-settings-group",
+				cls: "citation-suite-settings-group",
 				items: [this.changelogBanner()],
 			},
 			// Every setting below is a control 1.13 draws itself, so these
-			// groups keep the card Obsidian gives them. `zoterik-settings-rows`
+			// groups keep the card Obsidian gives them. `citation-suite-settings-rows`
 			// is what styles.css corrects the row layout through — see the
 			// note on it there.
 			{
 				type: "group",
-				cls: "zoterik-settings-rows",
+				cls: "citation-suite-settings-rows",
 				heading: t.SECTION_CITATION,
 				items: [
 					this.styleSetting(),
@@ -300,7 +300,7 @@ export class ZoterikSettingTab extends PluginSettingTab {
 			},
 			{
 				type: "group",
-				cls: "zoterik-settings-rows",
+				cls: "citation-suite-settings-rows",
 				heading: t.SECTION_FOOTNOTES,
 				items: [
 					{
@@ -345,7 +345,7 @@ export class ZoterikSettingTab extends PluginSettingTab {
 			},
 			{
 				type: "group",
-				cls: "zoterik-settings-rows",
+				cls: "citation-suite-settings-rows",
 				heading: t.SECTION_CONNECTION,
 				items: [
 					{

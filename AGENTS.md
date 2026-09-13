@@ -1,4 +1,4 @@
-# AGENTS.md — zoterik
+# AGENTS.md — citation-suite
 
 ## Commands
 
@@ -327,7 +327,7 @@ and reveals it, and `onunload` does not detach it.
   Obsidian 1.13 has no motion setting of its own to follow. Checked in
   headless Chrome by scrubbing `document.getAnimations()` to fixed times,
   since transitions do not advance there under a virtual time budget.
-- **Hiding is a class, `zoterik-bibliography-hidden`, never `hidden`.** The
+- **Hiding is a class, `citation-suite-bibliography-hidden`, never `hidden`.** The
   attribute loses to the `display` given to `.csl-entry` (`flow-root`) and to
   Obsidian's `.clickable-icon`. The rule is the last in styles.css because it
   ties with those. The divider is drawn on
@@ -411,7 +411,7 @@ and reveals it, and `onunload` does not detach it.
   port.
 - **The layout follows citeproc's bibliography params.** `hangingindent` and
   `maxoffset` are handed to styles.css as custom properties
-  (`--zoterik-bibliography-indent`, `--zoterik-bibliography-number-width`, in
+  (`--citation-suite-bibliography-indent`, `--citation-suite-bibliography-number-width`, in
   `ch`) on a modifier class. `second-field-align: margin` is set as `flush`:
   a sidebar has no margin to hang a number in. `line-spacing` and
   `entry-spacing` are ignored in the pane — APA's double spacing is for paper —
@@ -471,10 +471,10 @@ of touching the body classes.
 The **citation look** — colour, underline, bold and italic — is not drawn onto
 citations. It
 is a class on the `<body>` of every window (`src/look.ts`), which styles.css
-turns into CSS variables that `.zoterik-citation` reads, so reading view, live
+turns into CSS variables that `.citation-suite-citation` reads, so reading view, live
 preview and the settings preview all follow it and nothing is rendered again
 when it changes. A custom colour is the one value that cannot be a class, so it
-rides along as `--zoterik-citation-custom-color`. The underline takes the
+rides along as `--citation-suite-citation-custom-color`. The underline takes the
 citation's colour at full strength for the accent and a custom colour, and is
 faded to `--text-faint` only in the colour of body text. The accent is the
 default. Pop-out windows get the
@@ -491,7 +491,7 @@ groups: the group is a card, and every row in it is restyled by
 
 - **A group holding hand-drawn DOM opts out of the card.** Blank
   `> .setting-items`, put the plugin's DOM in a row marked as an *anchor*
-  (`zoterik-settings-anchor`, named through three classes to outrank the rule
+  (`citation-suite-settings-anchor`, named through three classes to outrank the rule
   above), blank that row, kill its `::before` — the group draws its dividers as
   a pseudo-element inset to a padding that lines up with nothing once the card
   is gone — and hide its stock `.setting-item-info` / `.setting-item-control`.
@@ -499,7 +499,7 @@ groups: the group is a card, and every row in it is restyled by
   `ex-`, `pdf-annotations-`, `wcp-`).
 - **A group whose rows Obsidian draws keeps the card and corrects the row.**
   Two corrections, both of them in the siblings and both in
-  `zoterik-settings-rows`:
+  `citation-suite-settings-rows`:
   - `align-items: center`. 1.13 lays a row out `flex-start`, which lifts the
     control to the top, so a toggle sits level with the first line of the name
     while the description runs on below it.
@@ -562,7 +562,12 @@ Adding it back is the one change that silently undoes the whole block.
 holds over it, so a file written by an earlier version — or missing a field —
 still yields a complete settings object. There are **no migrations**: this
 plugin has never shipped a settings shape other than the current one, and
-nothing here was forked from another plugin's id.
+nothing here was forked from another plugin's id. It was developed as
+**Zoterik** (id `zoterik`, view type `zoterik-bibliography`, class prefix
+`zoterik-`) and renamed to Citation Suite before its first release, so no
+installed copy carries the old id and nothing reads it. The GitHub repository
+is still `pan4ratte/obsidian-zoterik`, which is why the URLs in `package.json`
+and the READMEs say so; change them when the repository is renamed.
 
 ## Source layout (flat, not a monorepo)
 
@@ -601,7 +606,7 @@ versions.json       — plugin version → the minAppVersion it shipped with
 ```
 
 `src/main.ts` is the esbuild entry point and the default export is
-`ZoterikPlugin`. Files import each other by package-root path (`src/…`,
+`CitationSuitePlugin`. Files import each other by package-root path (`src/…`,
 `lang/…`), resolved through tsconfig's `paths` — not `baseUrl`, which is
 deprecated in TypeScript 6 — and by esbuild and Vitest through the aliases in
 their own configs. Three places, and they have to agree.
@@ -649,7 +654,7 @@ Three things about this config are load-bearing:
   `vitest.config.mts` with a message about `await-thenable`. `*.mts` is in
   tsconfig's `include` for the same reason.
 - **`brands` and `ignoreWords` replace the rule's default lists**, they do not
-  add to them. That is why `Obsidian` is named alongside `Zoterik`, `Zotero` and
+  add to them. That is why `Obsidian` is named alongside `Citation Suite`, `Zotero` and
   `Better BibTeX`: dropping it would lowercase it.
 - **`pandoc` is an ignored word, not a brand.** It is lowercase in its own
   documentation and in the syntax it names; as a brand the rule would capitalise

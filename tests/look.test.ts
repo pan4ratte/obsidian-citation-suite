@@ -13,7 +13,7 @@ describe("lookClasses", () => {
 				citationUnderline: "dotted",
 				...plain,
 			})
-		).toEqual(["zoterik-citation-underline-dotted"]);
+		).toEqual(["citation-suite-citation-underline-dotted"]);
 	});
 
 	it("names the accent and a custom colour apart", () => {
@@ -24,8 +24,8 @@ describe("lookClasses", () => {
 				...plain,
 			})
 		).toEqual([
-			"zoterik-citation-color-accent",
-			"zoterik-citation-underline-wavy",
+			"citation-suite-citation-color-accent",
+			"citation-suite-citation-underline-wavy",
 		]);
 		expect(
 			lookClasses({
@@ -34,8 +34,8 @@ describe("lookClasses", () => {
 				...plain,
 			})
 		).toEqual([
-			"zoterik-citation-color-custom",
-			"zoterik-citation-underline-none",
+			"citation-suite-citation-color-custom",
+			"citation-suite-citation-underline-none",
 		]);
 	});
 
@@ -48,9 +48,9 @@ describe("lookClasses", () => {
 				citationItalic: true,
 			})
 		).toEqual([
-			"zoterik-citation-underline-solid",
-			"zoterik-citation-bold",
-			"zoterik-citation-italic",
+			"citation-suite-citation-underline-solid",
+			"citation-suite-citation-bold",
+			"citation-suite-citation-italic",
 		]);
 	});
 

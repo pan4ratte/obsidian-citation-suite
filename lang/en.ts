@@ -4,7 +4,7 @@ export default {
 	// ─── Plugin ──────────────────────────────────────────────────────────────
 	// Also in manifest.json, which the plugin browser reads and no translation
 	// can reach. Change both together.
-	PLUGIN_NAME: "Zoterik settings",
+	PLUGIN_NAME: "Citation Suite settings",
 	PLUGIN_DESCRIPTION:
 		"Cite your Zotero library from a note: a hotkey opens Zotero's citation window, and the pick is inserted as a pandoc citation.",
 
@@ -128,7 +128,7 @@ export default {
 	BIBLIOGRAPHY_NO_NOTE:
 		"Open a note, and the sources it cites will appear here.",
 	BIBLIOGRAPHY_NO_STYLE:
-		"Choose a style in the Zoterik settings, and the note's bibliography will appear here, written in that style.",
+		"Choose a style in the Citation Suite settings, and the note's bibliography will appear here, written in that style.",
 	BIBLIOGRAPHY_NO_CITATIONS: "This note cites no sources.",
 	BIBLIOGRAPHY_STYLE_FAILED: "The chosen style could not be loaded.",
 	BIBLIOGRAPHY_NONE_IN_STYLE: "The chosen style writes no bibliography.",

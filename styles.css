@@ -29,7 +29,7 @@
 /* The header's group. It holds one row, and that row is a host for the
    plugin's own DOM rather than a setting, so the card 1.13 draws around it is
    blanked and the header brings its own look. */
-.zoterik-settings-group > .setting-items {
+.citation-suite-settings-group > .setting-items {
 	background-color: transparent;
 	border: none;
 	border-radius: 0;
@@ -37,7 +37,7 @@
 
 /* The host row itself. Three classes to outrank
    `.setting-group .setting-item:not(.setting-item-heading)`. */
-.setting-group .setting-item.zoterik-settings-anchor {
+.setting-group .setting-item.citation-suite-settings-anchor {
 	display: block;
 	padding: 0;
 	margin-bottom: 0;
@@ -49,14 +49,14 @@
 /* The group draws the divider between one row and the next as a pseudo-element
    inset to the group's padding, which lines up with nothing once the card is
    gone. */
-.setting-group .setting-item.zoterik-settings-anchor::before {
+.setting-group .setting-item.citation-suite-settings-anchor::before {
 	content: none;
 }
 
 /* The row's stock name and description are not drawn: the header renders both
    itself, one as a title and one as the paragraph under it. */
-.zoterik-settings-anchor > .setting-item-info,
-.zoterik-settings-anchor > .setting-item-control {
+.citation-suite-settings-anchor > .setting-item-info,
+.citation-suite-settings-anchor > .setting-item-control {
 	display: none;
 }
 
@@ -69,7 +69,7 @@
    the name while the description runs on below it. Every row in this tab
    carries a description, so the control is centred against the whole info
    block instead. */
-.setting-group.zoterik-settings-rows .setting-item:not(.setting-item-heading) {
+.setting-group.citation-suite-settings-rows .setting-item:not(.setting-item-heading) {
 	align-items: center;
 }
 
@@ -86,7 +86,7 @@
    nested layout and squeezes the name and description to nothing.
    `mod-toggle` is Obsidian's own marker for a row whose control is a toggle,
    and the number row is left alone — its input has a width worth keeping. */
-.setting-group.zoterik-settings-rows
+.setting-group.citation-suite-settings-rows
 	.setting-item.mod-toggle
 	> .setting-item-control {
 	flex: 0 1 max-content;
@@ -96,11 +96,11 @@
    Settings tab — header
    ────────────────────────────────────────────────────────────────────────── */
 
-.zoterik-settings-header {
+.citation-suite-settings-header {
 	margin-bottom: var(--size-4-2);
 }
 
-.zoterik-settings-title {
+.citation-suite-settings-title {
 	font-size: var(--font-ui-medium);
 	font-weight: var(--font-semibold);
 	color: var(--text-normal);
@@ -109,7 +109,7 @@
 /* The description is set smaller and muted, as the sibling Publish to Telegram
    plugin sets the same paragraph: it is read once, and the settings under it
    are what the eye should land on. */
-.zoterik-settings-description {
+.citation-suite-settings-description {
 	margin-top: 4px;
 	font-size: var(--font-ui-smaller);
 	line-height: var(--line-height-normal);
@@ -124,7 +124,7 @@
    are so that it reads as part of the tab rather than as a notice pasted over
    it. It is gone the moment it is dismissed, so nothing below it moves while it
    is being read. */
-.zoterik-changelog-banner {
+.citation-suite-changelog-banner {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -138,7 +138,7 @@
 	color: var(--text-normal);
 }
 
-.zoterik-changelog-banner-text {
+.citation-suite-changelog-banner-text {
 	flex: 1;
 }
 
@@ -146,7 +146,7 @@
    styles a bare `button` as a raised control. Everything that makes it one is
    taken back off, leaving the accent-coloured link it looks like. `body` wins
    the specificity of the app's own `button` rule. */
-body .zoterik-changelog-version {
+body .citation-suite-changelog-version {
 	height: auto;
 	padding: 0;
 	margin: 0;
@@ -161,13 +161,13 @@ body .zoterik-changelog-version {
 	cursor: pointer;
 }
 
-body .zoterik-changelog-version:hover {
+body .citation-suite-changelog-version:hover {
 	background: none;
 	box-shadow: none;
 	color: var(--text-accent-hover);
 }
 
-body .zoterik-changelog-close {
+body .citation-suite-changelog-close {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -183,7 +183,7 @@ body .zoterik-changelog-close {
 	cursor: pointer;
 }
 
-body .zoterik-changelog-close:hover {
+body .citation-suite-changelog-close:hover {
 	background-color: var(--background-modifier-hover);
 	color: var(--text-normal);
 }
@@ -197,17 +197,17 @@ body .zoterik-changelog-close:hover {
    whole width of the card. The row has no control, so the empty control block
    is not drawn: it would otherwise hold a gap beside the description. Four
    classes, to outrank the group's own row rule. */
-.setting-group.zoterik-settings-rows .setting-item.zoterik-style-setting {
+.setting-group.citation-suite-settings-rows .setting-item.citation-suite-style-setting {
 	flex-wrap: wrap;
 }
 
-.zoterik-style-setting > .setting-item-control {
+.citation-suite-style-setting > .setting-item-control {
 	display: none;
 }
 
 /* Laid out after the style list in Zotero's "Document preferences" window: one
    bordered box of every style, with the chosen one marked. */
-.zoterik-style-picker {
+.citation-suite-style-picker {
 	flex: 1 0 100%;
 	margin-top: var(--size-4-3);
 }
@@ -215,7 +215,7 @@ body .zoterik-changelog-close:hover {
 /* Tall enough to show about ten titles at once, and scrolled past that.
    `position: relative` makes the box the rows' offset parent, which is what
    src/stylePicker.ts scrolls it by. */
-.zoterik-style-picker-list {
+.citation-suite-style-picker-list {
 	position: relative;
 	height: min(360px, 50vh);
 	overflow-y: auto;
@@ -225,12 +225,12 @@ body .zoterik-changelog-close:hover {
 	background-color: var(--background-primary);
 }
 
-.zoterik-style-picker-list:focus-visible {
+.citation-suite-style-picker-list:focus-visible {
 	outline: none;
 	box-shadow: 0 0 0 3px var(--background-modifier-border-focus);
 }
 
-.zoterik-style-picker-item {
+.citation-suite-style-picker-item {
 	padding: var(--size-4-2) var(--size-4-3);
 	border-radius: var(--radius-s);
 	font-size: var(--font-ui-small);
@@ -241,20 +241,20 @@ body .zoterik-changelog-close:hover {
 }
 
 @media (hover: hover) {
-	.zoterik-style-picker-item:hover {
+	.citation-suite-style-picker-item:hover {
 		background-color: var(--background-modifier-hover);
 	}
 }
 
 /* The chosen entry, in the accent colour, the way Zotero marks it. It keeps
    that colour under the pointer rather than taking the hover's. */
-.zoterik-style-picker-item.is-selected,
-.zoterik-style-picker-item.is-selected:hover {
+.citation-suite-style-picker-item.is-selected,
+.citation-suite-style-picker-item.is-selected:hover {
 	background-color: var(--interactive-accent);
 	color: var(--text-on-accent);
 }
 
-.zoterik-style-picker-empty {
+.citation-suite-style-picker-empty {
 	margin-top: var(--size-4-2);
 	font-size: var(--font-ui-smaller);
 	line-height: var(--line-height-normal);
@@ -267,7 +267,7 @@ body .zoterik-changelog-close:hover {
 
 /* The sample citation under the style list, in a box drawn like the list: a
    bar with a title and the look's buttons, and a sentence under it. */
-.zoterik-style-preview {
+.citation-suite-style-preview {
 	flex: 1 0 100%;
 	margin-top: var(--size-4-3);
 	border: 1px solid var(--background-modifier-border);
@@ -276,7 +276,7 @@ body .zoterik-changelog-close:hover {
 	overflow: hidden;
 }
 
-.zoterik-style-preview-bar {
+.citation-suite-style-preview-bar {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
@@ -289,14 +289,14 @@ body .zoterik-changelog-close:hover {
 
 /* The title and, beside it, the buttons that switch the view the sample is
    shown in. */
-.zoterik-style-preview-heading {
+.citation-suite-style-preview-heading {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
 	gap: var(--size-4-2);
 }
 
-.zoterik-style-preview-title {
+.citation-suite-style-preview-title {
 	font-size: var(--font-ui-smaller);
 	font-weight: var(--font-medium);
 	color: var(--text-muted);
@@ -304,7 +304,7 @@ body .zoterik-changelog-close:hover {
 
 /* Every option is a button, in three groups with a rule between them. The bar
    wraps them under its title when the settings pane is too narrow for all. */
-.zoterik-style-preview-actions {
+.citation-suite-style-preview-actions {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
@@ -313,14 +313,14 @@ body .zoterik-changelog-close:hover {
 
 /* `position: relative` for the colour input, which is laid under the colour
    buttons so that the native picker opens beside them. */
-.zoterik-style-preview-group {
+.citation-suite-style-preview-group {
 	position: relative;
 	display: flex;
 	align-items: center;
 	gap: var(--size-2-1);
 }
 
-.zoterik-style-preview-separator {
+.citation-suite-style-preview-separator {
 	align-self: stretch;
 	width: 1px;
 	margin: var(--size-2-2) var(--size-2-1);
@@ -329,17 +329,17 @@ body .zoterik-changelog-close:hover {
 
 /* The options in effect. Obsidian's own pressed look for an icon button is too
    faint to read a whole bar of them by, so the icon takes the accent too. */
-.zoterik-style-preview-group .clickable-icon.is-active {
+.citation-suite-style-preview-group .clickable-icon.is-active {
 	color: var(--interactive-accent);
 	background-color: var(--background-modifier-hover);
 }
 
 /* The custom colour's button carries a dot of that colour while it is in use. */
-.zoterik-style-preview-custom {
+.citation-suite-style-preview-custom {
 	position: relative;
 }
 
-.zoterik-style-preview-swatch {
+.citation-suite-style-preview-swatch {
 	display: none;
 	position: absolute;
 	right: 3px;
@@ -348,16 +348,16 @@ body .zoterik-changelog-close:hover {
 	height: 7px;
 	border: 1px solid var(--background-secondary);
 	border-radius: 50%;
-	background-color: var(--zoterik-citation-custom-color);
+	background-color: var(--citation-suite-citation-custom-color);
 	pointer-events: none;
 }
 
-body.zoterik-citation-color-custom .zoterik-style-preview-swatch {
+body.citation-suite-citation-color-custom .citation-suite-style-preview-swatch {
 	display: block;
 }
 
 /* The native colour input is only ever opened, never seen. */
-.zoterik-style-preview-color-input {
+.citation-suite-style-preview-color-input {
 	position: absolute;
 	left: 0;
 	bottom: 0;
@@ -370,7 +370,7 @@ body.zoterik-citation-color-custom .zoterik-style-preview-swatch {
 }
 
 /* What the theme's accent colour is read from, as a computed colour. */
-.zoterik-accent-probe {
+.citation-suite-accent-probe {
 	position: absolute;
 	visibility: hidden;
 	color: var(--text-accent);
@@ -378,11 +378,11 @@ body.zoterik-citation-color-custom .zoterik-style-preview-swatch {
 
 /* The sentence is set the way a note sets text, since that is where citations
    will be read. */
-.zoterik-style-preview-body {
+.citation-suite-style-preview-body {
 	padding: var(--size-4-3) var(--size-4-4);
 }
 
-.zoterik-style-preview-text {
+.citation-suite-style-preview-text {
 	margin: 0;
 	font-family: var(--font-text);
 	font-size: var(--font-ui-medium);
@@ -393,7 +393,7 @@ body.zoterik-citation-color-custom .zoterik-style-preview-swatch {
 
 /* The footnote's anchor in reading view, in the sentence and before the
    footnote's text, set in the colour reading view gives a footnote's link. */
-.zoterik-style-preview-anchor {
+.citation-suite-style-preview-anchor {
 	color: var(--link-color);
 	font-family: var(--font-interface);
 	font-size: 0.7em;
@@ -402,7 +402,7 @@ body.zoterik-citation-color-custom .zoterik-style-preview-swatch {
 
 /* The footnote under the sentence: smaller, and under a short rule, the way a
    page sets its footnotes apart from the text. */
-.zoterik-style-preview-footnote {
+.citation-suite-style-preview-footnote {
 	position: relative;
 	margin: var(--size-4-3) 0 0;
 	padding-top: var(--size-4-2);
@@ -413,7 +413,7 @@ body.zoterik-citation-color-custom .zoterik-style-preview-swatch {
 	user-select: text;
 }
 
-.zoterik-style-preview-footnote::before {
+.citation-suite-style-preview-footnote::before {
 	content: "";
 	position: absolute;
 	top: 0;
@@ -425,7 +425,7 @@ body.zoterik-citation-color-custom .zoterik-style-preview-swatch {
 /* A footnote's `[^1]` in the sentence, as source mode and live preview set it:
    small and raised, in the muted colour, with its brackets fainter still.
    Values from Obsidian's own `span.cm-footref`. */
-.zoterik-style-preview-footref {
+.citation-suite-style-preview-footref {
 	position: relative;
 	top: -0.2em;
 	vertical-align: text-top;
@@ -433,14 +433,14 @@ body.zoterik-citation-color-custom .zoterik-style-preview-swatch {
 	color: var(--text-muted);
 }
 
-.zoterik-style-preview-formatting {
+.citation-suite-style-preview-formatting {
 	color: var(--text-faint);
 }
 
 /* The footnote's own line in source mode and live preview: the text in the
    footnote size, and `[^1]:` before it set as Obsidian sets it on a
    `HyperMD-footnote` line. No rule above it, since the editor draws none. */
-.zoterik-style-preview-footnote-line {
+.citation-suite-style-preview-footnote-line {
 	margin: var(--size-4-3) 0 0;
 	font-family: var(--font-text);
 	font-size: var(--footnote-size);
@@ -449,7 +449,7 @@ body.zoterik-citation-color-custom .zoterik-style-preview-swatch {
 	user-select: text;
 }
 
-.zoterik-style-preview-footnote-label {
+.citation-suite-style-preview-footnote-label {
 	display: inline-block;
 	position: relative;
 	top: -0.3em;
@@ -458,7 +458,7 @@ body.zoterik-citation-color-custom .zoterik-style-preview-swatch {
 }
 
 /* A citation with no style to be drawn in, shown as the note holds it. */
-.zoterik-style-preview-source {
+.citation-suite-style-preview-source {
 	font-family: var(--font-monospace);
 	font-size: 0.9em;
 	color: var(--text-muted);
@@ -474,37 +474,37 @@ body.zoterik-citation-color-custom .zoterik-style-preview-swatch {
    carries no `markdown-rendered` class — that one sizes rendered markdown for
    reading a note, which is far larger than the settings this window is opened
    from, and it would override every size below. */
-.zoterik-changelog-modal {
+.citation-suite-changelog-modal {
 	max-width: 680px;
 }
 
-.zoterik-changelog-modal h2 {
+.citation-suite-changelog-modal h2 {
 	margin-top: 0;
 	margin-bottom: 12px;
 	font-size: var(--font-ui-large);
 }
 
-.zoterik-changelog-modal h3 {
+.citation-suite-changelog-modal h3 {
 	margin-top: 20px;
 	margin-bottom: 8px;
 	font-size: var(--font-ui-medium);
 	color: var(--text-normal);
 }
 
-.zoterik-changelog-modal p,
-.zoterik-changelog-modal li {
+.citation-suite-changelog-modal p,
+.citation-suite-changelog-modal li {
 	font-size: var(--font-ui-small);
 	color: var(--text-muted);
 	line-height: var(--line-height-normal);
 }
 
-.zoterik-changelog-modal ul,
-.zoterik-changelog-modal ol {
+.citation-suite-changelog-modal ul,
+.citation-suite-changelog-modal ol {
 	padding-left: 20px;
 	margin-bottom: 12px;
 }
 
-.zoterik-changelog-modal hr {
+.citation-suite-changelog-modal hr {
 	margin: 20px 0;
 	border-color: var(--background-modifier-border);
 }
@@ -524,44 +524,44 @@ body.zoterik-citation-color-custom .zoterik-style-preview-swatch {
  * reader's own colour, at full strength. Only in the colour of body text is it
  * faded, where a line as dark as the text would read as a link.
  */
-body.zoterik-citation-color-accent {
-	--zoterik-citation-color: var(--text-accent);
-	--zoterik-citation-underline-color: var(--text-accent);
+body.citation-suite-citation-color-accent {
+	--citation-suite-citation-color: var(--text-accent);
+	--citation-suite-citation-underline-color: var(--text-accent);
 }
 
-body.zoterik-citation-color-custom {
-	--zoterik-citation-color: var(--zoterik-citation-custom-color);
-	--zoterik-citation-underline-color: var(--zoterik-citation-custom-color);
+body.citation-suite-citation-color-custom {
+	--citation-suite-citation-color: var(--citation-suite-citation-custom-color);
+	--citation-suite-citation-underline-color: var(--citation-suite-citation-custom-color);
 }
 
-body.zoterik-citation-underline-solid {
-	--zoterik-citation-underline-style: solid;
+body.citation-suite-citation-underline-solid {
+	--citation-suite-citation-underline-style: solid;
 }
 
-body.zoterik-citation-underline-wavy {
-	--zoterik-citation-underline-style: wavy;
+body.citation-suite-citation-underline-wavy {
+	--citation-suite-citation-underline-style: wavy;
 }
 
-body.zoterik-citation-underline-none {
-	--zoterik-citation-underline: none;
+body.citation-suite-citation-underline-none {
+	--citation-suite-citation-underline: none;
 }
 
-body.zoterik-citation-bold {
-	--zoterik-citation-weight: var(--bold-weight);
+body.citation-suite-citation-bold {
+	--citation-suite-citation-weight: var(--bold-weight);
 }
 
-body.zoterik-citation-italic {
-	--zoterik-citation-style: italic;
+body.citation-suite-citation-italic {
+	--citation-suite-citation-style: italic;
 }
 
-.zoterik-citation {
-	color: var(--zoterik-citation-color, var(--text-normal));
-	font-weight: var(--zoterik-citation-weight, inherit);
-	font-style: var(--zoterik-citation-style, inherit);
-	text-decoration-line: var(--zoterik-citation-underline, underline);
-	text-decoration-style: var(--zoterik-citation-underline-style, dotted);
+.citation-suite-citation {
+	color: var(--citation-suite-citation-color, var(--text-normal));
+	font-weight: var(--citation-suite-citation-weight, inherit);
+	font-style: var(--citation-suite-citation-style, inherit);
+	text-decoration-line: var(--citation-suite-citation-underline, underline);
+	text-decoration-style: var(--citation-suite-citation-underline-style, dotted);
 	text-decoration-color: var(
-		--zoterik-citation-underline-color,
+		--citation-suite-citation-underline-color,
 		var(--text-faint)
 	);
 	text-decoration-thickness: 1px;
@@ -571,20 +571,20 @@ body.zoterik-citation-italic {
 }
 
 /* citeproc marks emphasis and small caps in the citation it writes. */
-.zoterik-citation i,
-.zoterik-citation em {
+.citation-suite-citation i,
+.citation-suite-citation em {
 	font-style: italic;
 }
 
-.zoterik-citation span[style*="small-caps"] {
+.citation-suite-citation span[style*="small-caps"] {
 	font-variant: small-caps;
 }
 
 /* A title citeproc sets in italics inside a citation that is itself in
    italics is set upright instead, the way italics are set off inside italic
    text. */
-body.zoterik-citation-italic .zoterik-citation i,
-body.zoterik-citation-italic .zoterik-citation em {
+body.citation-suite-citation-italic .citation-suite-citation i,
+body.citation-suite-citation-italic .citation-suite-citation em {
 	font-style: normal;
 }
 
@@ -599,7 +599,7 @@ body.zoterik-citation-italic .zoterik-citation em {
  * The entry's own non-breaking spaces (`src/typography.ts`) already see to the
  * breaks that matter most; this is the browser doing the rest where it can.
  */
-.tooltip.zoterik-citation-tooltip {
+.tooltip.citation-suite-citation-tooltip {
 	max-width: min(500px, calc(100vw - 32px));
 	text-align: left;
 	text-wrap: pretty;
@@ -614,13 +614,13 @@ body.zoterik-citation-italic .zoterik-citation em {
    of rows. Keyed on the view type, the way Obsidian's own panes adjust the
    same padding (`[data-type='outline'] .view-content`), which also outranks
    the rule it adjusts; the top and bottom are left as Obsidian has them. */
-.workspace-leaf-content[data-type="zoterik-bibliography"] .view-content {
+.workspace-leaf-content[data-type="citation-suite-bibliography"] .view-content {
 	padding-inline: var(--size-4-4);
 }
 
 /* The bar over the list: its heading and how many entries it holds, and the
    buttons that copy it and ask Zotero again. */
-.zoterik-bibliography-header {
+.citation-suite-bibliography-header {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -628,14 +628,14 @@ body.zoterik-citation-italic .zoterik-citation em {
 	margin-bottom: var(--size-4-3);
 }
 
-.zoterik-bibliography-title {
+.citation-suite-bibliography-title {
 	display: flex;
 	align-items: center;
 	gap: var(--size-4-2);
 	min-width: 0;
 }
 
-.zoterik-bibliography-heading {
+.citation-suite-bibliography-heading {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -645,7 +645,7 @@ body.zoterik-citation-italic .zoterik-citation em {
 }
 
 /* The count, set as Obsidian sets the number beside a search's results. */
-.zoterik-bibliography-count {
+.citation-suite-bibliography-count {
 	flex-shrink: 0;
 	padding: 0 var(--size-4-1);
 	border-radius: var(--radius-s);
@@ -655,7 +655,7 @@ body.zoterik-citation-italic .zoterik-citation em {
 	color: var(--text-muted);
 }
 
-.zoterik-bibliography-actions {
+.citation-suite-bibliography-actions {
 	display: flex;
 	flex-shrink: 0;
 	align-items: center;
@@ -663,7 +663,7 @@ body.zoterik-citation-italic .zoterik-citation em {
 }
 
 /* The search button while its field is open. */
-.zoterik-bibliography-actions .clickable-icon.is-active {
+.citation-suite-bibliography-actions .clickable-icon.is-active {
 	color: var(--interactive-accent);
 	background-color: var(--background-modifier-hover);
 }
@@ -681,7 +681,7 @@ body.zoterik-citation-italic .zoterik-citation em {
    screen readers. It turns on at once when the row opens, so the field can
    take the focus straight away, and turns off only once the row has shut,
    so the field does not vanish before its closing is seen. */
-.zoterik-bibliography-search {
+.citation-suite-bibliography-search {
 	display: grid;
 	grid-template-rows: 0fr;
 	margin-bottom: 0;
@@ -692,7 +692,7 @@ body.zoterik-citation-italic .zoterik-citation em {
 		visibility 0s linear var(--anim-duration-moderate);
 }
 
-.zoterik-bibliography-search.is-open {
+.citation-suite-bibliography-search.is-open {
 	grid-template-rows: 1fr;
 	margin-bottom: var(--size-4-3);
 	visibility: visible;
@@ -705,7 +705,7 @@ body.zoterik-citation-italic .zoterik-citation em {
 /* What the row's collapse clips. The padding is room for the input's focus
    ring, which the clipping would otherwise cut off, and the negative margin
    gives that room back to the layout. */
-.zoterik-bibliography-search-field {
+.citation-suite-bibliography-search-field {
 	min-height: 0;
 	overflow: hidden;
 	padding: var(--size-2-2);
@@ -717,27 +717,27 @@ body.zoterik-citation-italic .zoterik-citation em {
 		transform var(--anim-duration-moderate) var(--anim-motion-swing);
 }
 
-.zoterik-bibliography-search.is-open .zoterik-bibliography-search-field {
+.citation-suite-bibliography-search.is-open .citation-suite-bibliography-search-field {
 	opacity: 1;
 	transform: none;
 }
 
-.zoterik-bibliography-search .search-input-container {
+.citation-suite-bibliography-search .search-input-container {
 	width: 100%;
 	margin: 0;
 }
 
 /* A reader who asked the system for less motion gets the field at once. */
 @media (prefers-reduced-motion: reduce) {
-	.zoterik-bibliography-search,
-	.zoterik-bibliography-search.is-open,
-	.zoterik-bibliography-search-field {
+	.citation-suite-bibliography-search,
+	.citation-suite-bibliography-search.is-open,
+	.citation-suite-bibliography-search-field {
 		transition: none;
 	}
 }
 
-.zoterik-bibliography-message,
-.zoterik-bibliography-missing-desc {
+.citation-suite-bibliography-message,
+.citation-suite-bibliography-missing-desc {
 	font-size: var(--font-ui-smaller);
 	line-height: var(--line-height-normal);
 	color: var(--text-muted);
@@ -745,7 +745,7 @@ body.zoterik-citation-italic .zoterik-citation em {
 
 /* The entries are set the way a note sets text, a size down to fit the
    sidebar, and can be selected and copied out. */
-.zoterik-bibliography-list {
+.citation-suite-bibliography-list {
 	font-family: var(--font-text);
 	font-size: var(--font-ui-small);
 	line-height: var(--line-height-normal);
@@ -754,7 +754,7 @@ body.zoterik-citation-italic .zoterik-citation em {
 }
 
 /* `flow-root` holds a number floated into its own column inside the entry. */
-.zoterik-bibliography-list .csl-entry {
+.citation-suite-bibliography-list .csl-entry {
 	display: flow-root;
 	overflow-wrap: anywhere;
 }
@@ -763,41 +763,41 @@ body.zoterik-citation-italic .zoterik-citation em {
    onto several lines ends is never in doubt. Drawn on every shown entry with
    a shown entry somewhere before it, so that filtering never leaves a rule
    over the first entry left. */
-.zoterik-bibliography-list
-	.csl-entry:not(.zoterik-bibliography-hidden)
-	~ .csl-entry:not(.zoterik-bibliography-hidden) {
+.citation-suite-bibliography-list
+	.csl-entry:not(.citation-suite-bibliography-hidden)
+	~ .csl-entry:not(.citation-suite-bibliography-hidden) {
 	margin-top: var(--size-4-2);
 	padding-top: var(--size-4-2);
 	border-top: 1px solid var(--background-modifier-border);
 }
 
-.zoterik-bibliography-hanging .csl-entry {
-	padding-left: var(--zoterik-bibliography-indent);
-	text-indent: calc(-1 * var(--zoterik-bibliography-indent));
+.citation-suite-bibliography-hanging .csl-entry {
+	padding-left: var(--citation-suite-bibliography-indent);
+	text-indent: calc(-1 * var(--citation-suite-bibliography-indent));
 }
 
 /* A numbered style's number in a column as wide as the widest number, and
    the entry beside it. The sidebar has no margin to hang the number in, so a
    style that asks for `margin` is set as one asking for `flush`. */
-.zoterik-bibliography-numbered .csl-left-margin {
+.citation-suite-bibliography-numbered .csl-left-margin {
 	float: left;
-	min-width: var(--zoterik-bibliography-number-width);
+	min-width: var(--citation-suite-bibliography-number-width);
 	padding-right: 0.5em;
 }
 
-.zoterik-bibliography-numbered .csl-right-inline {
-	margin-left: calc(var(--zoterik-bibliography-number-width) + 0.5em);
+.citation-suite-bibliography-numbered .csl-right-inline {
+	margin-left: calc(var(--citation-suite-bibliography-number-width) + 0.5em);
 }
 
-.zoterik-bibliography-list .csl-block {
+.citation-suite-bibliography-list .csl-block {
 	display: block;
 }
 
-.zoterik-bibliography-list .csl-indent {
+.citation-suite-bibliography-list .csl-indent {
 	margin-left: 2em;
 }
 
-.zoterik-bibliography-list span[style*="small-caps"] {
+.citation-suite-bibliography-list span[style*="small-caps"] {
 	font-variant: small-caps;
 }
 
@@ -813,18 +813,18 @@ body.zoterik-citation-italic .zoterik-citation em {
 
    The colour fades in and out. An entry drawn anew by a pass is drawn already
    coloured, and nothing moves. */
-.zoterik-bibliography-list .csl-entry {
+.citation-suite-bibliography-list .csl-entry {
 	transition: border-top-color var(--anim-duration-fast) ease-in-out;
 }
 
-.zoterik-bibliography-list
-	.csl-entry:not(.zoterik-bibliography-hidden)
-	~ .csl-entry.is-finding:not(.zoterik-bibliography-hidden),
-.zoterik-bibliography-list
-	.csl-entry.is-finding:not(.zoterik-bibliography-hidden)
-	~ .csl-entry:not(.zoterik-bibliography-hidden):not(
-		.csl-entry.is-finding:not(.zoterik-bibliography-hidden)
-			~ .csl-entry:not(.zoterik-bibliography-hidden)
+.citation-suite-bibliography-list
+	.csl-entry:not(.citation-suite-bibliography-hidden)
+	~ .csl-entry.is-finding:not(.citation-suite-bibliography-hidden),
+.citation-suite-bibliography-list
+	.csl-entry.is-finding:not(.citation-suite-bibliography-hidden)
+	~ .csl-entry:not(.citation-suite-bibliography-hidden):not(
+		.csl-entry.is-finding:not(.citation-suite-bibliography-hidden)
+			~ .csl-entry:not(.citation-suite-bibliography-hidden)
 			~ .csl-entry
 	) {
 	border-top-color: var(--interactive-accent);
@@ -839,7 +839,7 @@ body.zoterik-citation-italic .zoterik-citation em {
    place — pushing the rule below down as it opens. The bar is put in and
    taken out rather than kept, so these are animations that
    `src/bibliography.ts` plays by class, not transitions. */
-.zoterik-bibliography-mentions {
+.citation-suite-bibliography-mentions {
 	display: grid;
 	grid-template-rows: 1fr;
 	padding-top: var(--size-2-2);
@@ -852,7 +852,7 @@ body.zoterik-citation-italic .zoterik-citation em {
 /* What the track clips. The padding is room for a button's focus ring, which
    the clipping would otherwise cut off, and the negative margin gives that
    room back to the layout. */
-.zoterik-bibliography-mentions-content {
+.citation-suite-bibliography-mentions-content {
 	display: flex;
 	align-items: center;
 	gap: var(--size-2-1);
@@ -862,132 +862,132 @@ body.zoterik-citation-italic .zoterik-citation em {
 	margin: calc(-1 * var(--size-2-2));
 }
 
-.zoterik-bibliography-mentions-label {
+.citation-suite-bibliography-mentions-label {
 	margin-right: auto;
 }
 
 /* The number rolls in from where the step went: from below for the next
    mention, which is further down the note, and from above for the previous. */
-.zoterik-bibliography-mentions-count {
+.citation-suite-bibliography-mentions-count {
 	display: inline-block;
 	font-variant-numeric: tabular-nums;
 }
 
-@keyframes zoterik-mentions-open {
+@keyframes citation-suite-mentions-open {
 	from {
 		grid-template-rows: 0fr;
 		padding-top: 0;
 	}
 }
 
-@keyframes zoterik-mentions-close {
+@keyframes citation-suite-mentions-close {
 	to {
 		grid-template-rows: 0fr;
 		padding-top: 0;
 	}
 }
 
-@keyframes zoterik-mentions-fade-in {
+@keyframes citation-suite-mentions-fade-in {
 	from {
 		opacity: 0;
 	}
 }
 
-@keyframes zoterik-mentions-fade-out {
+@keyframes citation-suite-mentions-fade-out {
 	to {
 		opacity: 0;
 	}
 }
 
-@keyframes zoterik-mentions-drop-in {
+@keyframes citation-suite-mentions-drop-in {
 	from {
 		transform: translateY(calc(-1 * var(--size-4-2)));
 	}
 }
 
-@keyframes zoterik-mentions-lift-out {
+@keyframes citation-suite-mentions-lift-out {
 	to {
 		transform: translateY(calc(-1 * var(--size-4-2)));
 	}
 }
 
-@keyframes zoterik-mentions-roll-up {
+@keyframes citation-suite-mentions-roll-up {
 	from {
 		opacity: 0;
 		transform: translateY(0.6em);
 	}
 }
 
-@keyframes zoterik-mentions-roll-down {
+@keyframes citation-suite-mentions-roll-down {
 	from {
 		opacity: 0;
 		transform: translateY(-0.6em);
 	}
 }
 
-@keyframes zoterik-mentions-pop-in {
+@keyframes citation-suite-mentions-pop-in {
 	from {
 		opacity: 0;
 		transform: scale(0.6);
 	}
 }
 
-@keyframes zoterik-mentions-pop-out {
+@keyframes citation-suite-mentions-pop-out {
 	to {
 		opacity: 0;
 		transform: scale(0.6);
 	}
 }
 
-.zoterik-bibliography-mentions.is-opening {
-	animation: zoterik-mentions-open var(--anim-duration-moderate)
+.citation-suite-bibliography-mentions.is-opening {
+	animation: citation-suite-mentions-open var(--anim-duration-moderate)
 		var(--anim-motion-swing);
 }
 
-.zoterik-bibliography-mentions.is-opening
-	> .zoterik-bibliography-mentions-content {
+.citation-suite-bibliography-mentions.is-opening
+	> .citation-suite-bibliography-mentions-content {
 	animation:
-		zoterik-mentions-fade-in var(--anim-duration-fast) ease-in-out,
-		zoterik-mentions-drop-in var(--anim-duration-moderate)
+		citation-suite-mentions-fade-in var(--anim-duration-fast) ease-in-out,
+		citation-suite-mentions-drop-in var(--anim-duration-moderate)
 			var(--anim-motion-swing);
 }
 
 /* After the opening, so that closing a bar still opening takes over. */
-.zoterik-bibliography-mentions.is-closing {
-	animation: zoterik-mentions-close var(--anim-duration-moderate)
+.citation-suite-bibliography-mentions.is-closing {
+	animation: citation-suite-mentions-close var(--anim-duration-moderate)
 		var(--anim-motion-swing) forwards;
 }
 
-.zoterik-bibliography-mentions.is-closing
-	> .zoterik-bibliography-mentions-content {
+.citation-suite-bibliography-mentions.is-closing
+	> .citation-suite-bibliography-mentions-content {
 	animation:
-		zoterik-mentions-fade-out var(--anim-duration-fast) ease-in-out forwards,
-		zoterik-mentions-lift-out var(--anim-duration-moderate)
+		citation-suite-mentions-fade-out var(--anim-duration-fast) ease-in-out forwards,
+		citation-suite-mentions-lift-out var(--anim-duration-moderate)
 			var(--anim-motion-swing) forwards;
 }
 
-.zoterik-bibliography-mentions-count.is-stepping-next {
-	animation: zoterik-mentions-roll-up var(--anim-duration-moderate)
+.citation-suite-bibliography-mentions-count.is-stepping-next {
+	animation: citation-suite-mentions-roll-up var(--anim-duration-moderate)
 		var(--anim-motion-swing);
 }
 
-.zoterik-bibliography-mentions-count.is-stepping-previous {
-	animation: zoterik-mentions-roll-down var(--anim-duration-moderate)
+.citation-suite-bibliography-mentions-count.is-stepping-previous {
+	animation: citation-suite-mentions-roll-down var(--anim-duration-moderate)
 		var(--anim-motion-swing);
 }
 
-.zoterik-bibliography-mentions-count.is-changing {
-	animation: zoterik-mentions-fade-in var(--anim-duration-moderate) ease-in-out;
+.citation-suite-bibliography-mentions-count.is-changing {
+	animation: citation-suite-mentions-fade-in var(--anim-duration-moderate) ease-in-out;
 }
 
 /* The previous and next buttons, when a second mention comes or goes. */
-.zoterik-bibliography-mentions .clickable-icon.is-appearing {
-	animation: zoterik-mentions-pop-in var(--anim-duration-fast)
+.citation-suite-bibliography-mentions .clickable-icon.is-appearing {
+	animation: citation-suite-mentions-pop-in var(--anim-duration-fast)
 		var(--anim-motion-swing);
 }
 
-.zoterik-bibliography-mentions .clickable-icon.is-disappearing {
-	animation: zoterik-mentions-pop-out var(--anim-duration-fast) ease-in
+.citation-suite-bibliography-mentions .clickable-icon.is-disappearing {
+	animation: citation-suite-mentions-pop-out var(--anim-duration-fast) ease-in
 		forwards;
 }
 
@@ -995,50 +995,50 @@ body.zoterik-citation-italic .zoterik-citation em {
    The selectors are the ones above, repeated so as to tie with them and win
    by coming later. */
 @media (prefers-reduced-motion: reduce) {
-	.zoterik-bibliography-list .csl-entry {
+	.citation-suite-bibliography-list .csl-entry {
 		transition: none;
 	}
 
-	.zoterik-bibliography-mentions.is-opening,
-	.zoterik-bibliography-mentions.is-opening
-		> .zoterik-bibliography-mentions-content,
-	.zoterik-bibliography-mentions.is-closing,
-	.zoterik-bibliography-mentions.is-closing
-		> .zoterik-bibliography-mentions-content,
-	.zoterik-bibliography-mentions-count.is-stepping-next,
-	.zoterik-bibliography-mentions-count.is-stepping-previous,
-	.zoterik-bibliography-mentions-count.is-changing,
-	.zoterik-bibliography-mentions .clickable-icon.is-appearing,
-	.zoterik-bibliography-mentions .clickable-icon.is-disappearing {
+	.citation-suite-bibliography-mentions.is-opening,
+	.citation-suite-bibliography-mentions.is-opening
+		> .citation-suite-bibliography-mentions-content,
+	.citation-suite-bibliography-mentions.is-closing,
+	.citation-suite-bibliography-mentions.is-closing
+		> .citation-suite-bibliography-mentions-content,
+	.citation-suite-bibliography-mentions-count.is-stepping-next,
+	.citation-suite-bibliography-mentions-count.is-stepping-previous,
+	.citation-suite-bibliography-mentions-count.is-changing,
+	.citation-suite-bibliography-mentions .clickable-icon.is-appearing,
+	.citation-suite-bibliography-mentions .clickable-icon.is-disappearing {
 		animation: none;
 	}
 }
 
 /* The keys the note cites that Zotero had nothing for, under a rule. */
-.zoterik-bibliography-missing {
+.citation-suite-bibliography-missing {
 	margin-top: var(--size-4-4);
 	padding-top: var(--size-4-3);
 	border-top: 1px solid var(--background-modifier-border);
 }
 
 /* Nothing above it to be set apart from: every key was missed. */
-.zoterik-bibliography-body > .zoterik-bibliography-missing:first-child {
+.citation-suite-bibliography-body > .citation-suite-bibliography-missing:first-child {
 	margin-top: 0;
 	padding-top: 0;
 	border-top: none;
 }
 
-.zoterik-bibliography-missing-title {
+.citation-suite-bibliography-missing-title {
 	font-size: var(--font-ui-small);
 	font-weight: var(--font-semibold);
 	color: var(--text-normal);
 }
 
-.zoterik-bibliography-missing-desc {
+.citation-suite-bibliography-missing-desc {
 	margin-top: var(--size-2-2);
 }
 
-.zoterik-bibliography-missing-keys {
+.citation-suite-bibliography-missing-keys {
 	display: flex;
 	flex-wrap: wrap;
 	gap: var(--size-2-2);
@@ -1046,7 +1046,7 @@ body.zoterik-citation-italic .zoterik-citation em {
 	user-select: text;
 }
 
-.zoterik-bibliography-missing-keys code {
+.citation-suite-bibliography-missing-keys code {
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
 }
@@ -1054,6 +1054,6 @@ body.zoterik-citation-italic .zoterik-citation em {
 /* Whatever the pane hides — a button with nothing to act on, or what the
    search does not match. Last in the file, since it ties with the rules above
    that give those elements a display. */
-.zoterik-bibliography .zoterik-bibliography-hidden {
+.citation-suite-bibliography .citation-suite-bibliography-hidden {
 	display: none;
 }

@@ -20,16 +20,16 @@ import { applyLook, clearLook } from "src/look";
 import { formatCitations } from "src/pandoc";
 import { renderCitations } from "src/reading";
 import { CitationRenderer } from "src/render";
-import { ZoterikSettingTab } from "src/settings";
+import { CitationSuiteSettingTab } from "src/settings";
 import { installedStyles, readStyleFile, zoteroCitePrefs } from "src/styles";
 import {
 	CitationStyle,
 	DEFAULT_SETTINGS,
-	ZoterikSettings,
+	CitationSuiteSettings,
 } from "src/types";
 
-export default class ZoterikPlugin extends Plugin {
-	settings: ZoterikSettings = { ...DEFAULT_SETTINGS };
+export default class CitationSuitePlugin extends Plugin {
+	settings: CitationSuiteSettings = { ...DEFAULT_SETTINGS };
 	/**
 	 * The styles Zotero has, for the settings dropdown to offer. Read once, off
 	 * disk, because nothing about them changes while Obsidian is open unless
@@ -64,7 +64,7 @@ export default class ZoterikPlugin extends Plugin {
 			await zoteroCitePrefs()
 		);
 		await this.renderer.prepare(this.settings.citationStyle);
-		this.addSettingTab(new ZoterikSettingTab(this.app, this));
+		this.addSettingTab(new CitationSuiteSettingTab(this.app, this));
 
 		// Reading view and live preview are two different machines drawing the
 		// same thing, and Obsidian has no one place to say it once.

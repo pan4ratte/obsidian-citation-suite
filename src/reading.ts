@@ -20,14 +20,14 @@ import {
  */
 
 /** The class every rendered citation carries, for styles.css to reach. */
-export const RENDERED_CLASS = "zoterik-citation";
+export const RENDERED_CLASS = "citation-suite-citation";
 
 /**
  * The class its tooltip carries. The tooltip is one element Obsidian shares
  * between everything that has one, so this is the only handle styles.css has
  * on it.
  */
-const TOOLTIP_CLASS = "zoterik-citation-tooltip";
+const TOOLTIP_CLASS = "citation-suite-citation-tooltip";
 
 const SKIP = new Set(["CODE", "PRE", "A", "MJX-CONTAINER"]);
 

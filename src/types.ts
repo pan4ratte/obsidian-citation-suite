@@ -53,7 +53,7 @@ export type PreviewMode = "reading" | "source" | "live";
 /** How a rendered citation is underlined in a note. */
 export type CitationUnderline = "dotted" | "solid" | "wavy" | "none";
 
-export interface ZoterikSettings {
+export interface CitationSuiteSettings {
 	/**
 	 * The port Zotero's local HTTP server listens on. 23119 for Zotero, 24119
 	 * for the beta, which runs its server one port up so that both can be open
@@ -107,7 +107,7 @@ export interface ZoterikSettings {
 	bibliographyPaneOpened: boolean;
 }
 
-export const DEFAULT_SETTINGS: ZoterikSettings = {
+export const DEFAULT_SETTINGS: CitationSuiteSettings = {
 	port: 23119,
 	brackets: true,
 	citationStyle: "",
@@ -135,7 +135,7 @@ export const DEFAULT_SETTINGS: ZoterikSettings = {
  * place that view of the object is taken.
  */
 export function asIndexable(
-	settings: ZoterikSettings
+	settings: CitationSuiteSettings
 ): Record<string, unknown> {
 	return settings as unknown as Record<string, unknown>;
 }

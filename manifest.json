@@ -1,6 +1,6 @@
 {
-	"id": "zoterik",
-	"name": "Zoterik",
+	"id": "citation-suite",
+	"name": "Citation Suite",
 	"version": "1.0.0",
 	"minAppVersion": "1.13.0",
 	"description": "Cite your Zotero library from a note: a hotkey opens Zotero's citation window, and the pick is inserted as a pandoc citation.",

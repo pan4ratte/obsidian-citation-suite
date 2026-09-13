@@ -7,7 +7,7 @@ import {
 	isCustomColor,
 	UNDERLINES,
 } from "src/look";
-import type ZoterikPlugin from "src/main";
+import type CitationSuitePlugin from "src/main";
 import { citationEl } from "src/reading";
 import { sampleSource } from "src/sample";
 import { CitationUnderline, PreviewMode } from "src/types";
@@ -69,20 +69,20 @@ export interface StylePreview {
  */
 export function renderStylePreview(
 	parent: HTMLElement,
-	plugin: ZoterikPlugin
+	plugin: CitationSuitePlugin
 ): StylePreview {
 	const settings = plugin.settings;
-	const preview = parent.createDiv({ cls: "zoterik-style-preview" });
+	const preview = parent.createDiv({ cls: "citation-suite-style-preview" });
 
-	const bar = preview.createDiv({ cls: "zoterik-style-preview-bar" });
-	const heading = bar.createDiv({ cls: "zoterik-style-preview-heading" });
+	const bar = preview.createDiv({ cls: "citation-suite-style-preview-bar" });
+	const heading = bar.createDiv({ cls: "citation-suite-style-preview-heading" });
 	heading.createDiv({
-		cls: "zoterik-style-preview-title",
+		cls: "citation-suite-style-preview-title",
 		text: t.PREVIEW_TITLE,
 	});
-	const actions = bar.createDiv({ cls: "zoterik-style-preview-actions" });
+	const actions = bar.createDiv({ cls: "citation-suite-style-preview-actions" });
 
-	const body = preview.createDiv({ cls: "zoterik-style-preview-body" });
+	const body = preview.createDiv({ cls: "citation-suite-style-preview-body" });
 
 	const save = debounce(
 		() => void plugin.saveSettings(),
@@ -117,7 +117,7 @@ export function renderStylePreview(
 
 	const group = (label: string): HTMLElement =>
 		actions.createDiv({
-			cls: "zoterik-style-preview-group",
+			cls: "citation-suite-style-preview-group",
 			attr: { role: "group", "aria-label": label },
 		});
 
@@ -141,7 +141,7 @@ export function renderStylePreview(
 	// Not part of the look: it changes nothing outside this box, so it redraws
 	// the sample rather than restyling every window.
 	const modes = heading.createDiv({
-		cls: "zoterik-style-preview-group",
+		cls: "citation-suite-style-preview-group",
 		attr: { role: "group", "aria-label": t.PREVIEW_MODE },
 	});
 	for (const [mode, { icon, tooltip }] of Object.entries(MODE_BUTTONS) as [
@@ -186,7 +186,7 @@ export function renderStylePreview(
 	// The native colour picker. It is never seen itself: it sits under the
 	// colour buttons, so that the picker opens next to them.
 	const colorInput = colors.createEl("input", {
-		cls: "zoterik-style-preview-color-input",
+		cls: "citation-suite-style-preview-color-input",
 		attr: { type: "color", tabindex: "-1", "aria-hidden": "true" },
 	});
 	const setCustom = (settle: boolean): void =>
@@ -215,11 +215,11 @@ export function renderStylePreview(
 			}
 		}
 	);
-	customButton.addClass("zoterik-style-preview-custom");
+	customButton.addClass("citation-suite-style-preview-custom");
 	// The custom colour itself, as a dot on its button while it is in use.
-	customButton.createSpan({ cls: "zoterik-style-preview-swatch" });
+	customButton.createSpan({ cls: "citation-suite-style-preview-swatch" });
 
-	actions.createDiv({ cls: "zoterik-style-preview-separator" });
+	actions.createDiv({ cls: "citation-suite-style-preview-separator" });
 
 	// ─── Underline ────────────────────────────────────────────────────────────
 
@@ -234,7 +234,7 @@ export function renderStylePreview(
 		);
 	}
 
-	actions.createDiv({ cls: "zoterik-style-preview-separator" });
+	actions.createDiv({ cls: "citation-suite-style-preview-separator" });
 
 	// ─── Emphasis ─────────────────────────────────────────────────────────────
 
@@ -295,7 +295,7 @@ export function renderStylePreview(
 		// Not rendered at all, or not renderable: the citation as a note holds
 		// it, which is also what a note would show.
 		const unstyled = (): HTMLElement =>
-			createSpan({ cls: "zoterik-style-preview-source", text: written });
+			createSpan({ cls: "citation-suite-style-preview-source", text: written });
 
 		if (!styleId) {
 			draw(unstyled());
@@ -308,7 +308,7 @@ export function renderStylePreview(
 
 	/** The sentence with the citation in it, as every view draws it alike. */
 	const drawInline = (citation: Node): void => {
-		const text = body.createEl("p", { cls: "zoterik-style-preview-text" });
+		const text = body.createEl("p", { cls: "citation-suite-style-preview-text" });
 		text.appendText(`${t.PREVIEW_SENTENCE} `);
 		text.appendChild(citation);
 		// A note style writes the whole footnote, full stop included, and a
@@ -337,22 +337,22 @@ export function renderStylePreview(
 
 		const marker = (parent: HTMLElement, cls: string, close: string): void => {
 			const el = parent.createSpan({ cls });
-			el.createSpan({ cls: "zoterik-style-preview-formatting", text: "[^" });
+			el.createSpan({ cls: "citation-suite-style-preview-formatting", text: "[^" });
 			el.appendText(label);
-			el.createSpan({ cls: "zoterik-style-preview-formatting", text: close });
+			el.createSpan({ cls: "citation-suite-style-preview-formatting", text: close });
 		};
 		const anchor = (parent: HTMLElement): void => {
 			if (reading) {
 				parent.createEl("sup", {
-					cls: "zoterik-style-preview-anchor",
+					cls: "citation-suite-style-preview-anchor",
 					text: label,
 				});
 			} else {
-				marker(parent, "zoterik-style-preview-footref", "]");
+				marker(parent, "citation-suite-style-preview-footref", "]");
 			}
 		};
 
-		const text = body.createEl("p", { cls: "zoterik-style-preview-text" });
+		const text = body.createEl("p", { cls: "citation-suite-style-preview-text" });
 		text.appendText(t.PREVIEW_SENTENCE);
 		if (lang === "ru") {
 			anchor(text);
@@ -364,13 +364,13 @@ export function renderStylePreview(
 
 		const footnote = body.createEl("p", {
 			cls: reading
-				? "zoterik-style-preview-footnote"
-				: "zoterik-style-preview-footnote-line",
+				? "citation-suite-style-preview-footnote"
+				: "citation-suite-style-preview-footnote-line",
 		});
 		if (reading) {
 			anchor(footnote);
 		} else {
-			marker(footnote, "zoterik-style-preview-footnote-label", "]:");
+			marker(footnote, "citation-suite-style-preview-footnote-label", "]:");
 		}
 		footnote.appendText(" ");
 		footnote.appendChild(citation);
@@ -393,7 +393,7 @@ export function renderStylePreview(
  * computed colour of an element set in it is always `rgb()`, and that is read.
  */
 function accentHex(parent: HTMLElement): string {
-	const probe = parent.createSpan({ cls: "zoterik-accent-probe" });
+	const probe = parent.createSpan({ cls: "citation-suite-accent-probe" });
 	const color = probe.win.getComputedStyle(probe).color;
 	probe.remove();
 	const match = /rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/.exec(color);

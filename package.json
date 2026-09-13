@@ -1,5 +1,5 @@
 {
-	"name": "zoterik",
+	"name": "citation-suite",
 	"version": "1.0.0",
 	"description": "Cite your Zotero library from a note: a hotkey opens Zotero's citation window, and the pick is inserted as a pandoc citation.",
 	"main": "main.js",

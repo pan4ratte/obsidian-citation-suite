@@ -135,12 +135,12 @@ describe("what the requests carry", () => {
 
 	it("names the plugin to Zotero, and no browser", async () => {
 		await probeZotero(23119);
-		expect(userAgentOf()).toBe("Zoterik");
+		expect(userAgentOf()).toBe("Citation Suite");
 	});
 
 	it("names it on the pick as well as on the probe", async () => {
 		requestUrl.mockResolvedValue({ status: 200, text: "[]" });
 		await pickCitations({ port: 23119 });
-		expect(userAgentOf()).toBe("Zoterik");
+		expect(userAgentOf()).toBe("Citation Suite");
 	});
 });

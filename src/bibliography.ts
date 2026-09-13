@@ -31,7 +31,7 @@ import { formattedBibliography } from "src/zoteroCite";
  */
 
 /** The view type the pane is registered and looked up by. */
-export const BIBLIOGRAPHY_VIEW = "zoterik-bibliography";
+export const BIBLIOGRAPHY_VIEW = "citation-suite-bibliography";
 
 /**
  * How long typing is waited out before the list is drawn again. Nothing is
@@ -46,7 +46,7 @@ const TYPING_DELAY = 500;
  * the `hidden` attribute, which loses to the `display` the entries and
  * Obsidian's icon buttons are given.
  */
-const HIDDEN_CLASS = "zoterik-bibliography-hidden";
+const HIDDEN_CLASS = "citation-suite-bibliography-hidden";
 
 /**
  * Puts the bibliography on the clipboard as Zotero's "Copy bibliography" does:
@@ -195,7 +195,7 @@ export class BibliographyView extends ItemView {
 
 	protected onOpen(): Promise<void> {
 		this.contentEl.empty();
-		this.contentEl.addClass("zoterik-bibliography");
+		this.contentEl.addClass("citation-suite-bibliography");
 		this.drawFrame();
 		const { workspace, vault } = this.app;
 
@@ -347,17 +347,17 @@ export class BibliographyView extends ItemView {
 	 */
 	private drawFrame(): void {
 		const header = this.contentEl.createDiv({
-			cls: "zoterik-bibliography-header",
+			cls: "citation-suite-bibliography-header",
 		});
-		const title = header.createDiv({ cls: "zoterik-bibliography-title" });
+		const title = header.createDiv({ cls: "citation-suite-bibliography-title" });
 		title.createSpan({
-			cls: "zoterik-bibliography-heading",
+			cls: "citation-suite-bibliography-heading",
 			text: t.BIBLIOGRAPHY_HEADING,
 		});
-		this.countEl = title.createSpan({ cls: "zoterik-bibliography-count" });
+		this.countEl = title.createSpan({ cls: "citation-suite-bibliography-count" });
 
 		const actions = header.createDiv({
-			cls: "zoterik-bibliography-actions",
+			cls: "citation-suite-bibliography-actions",
 		});
 		this.searchButton = this.iconButton(
 			actions,
@@ -387,10 +387,10 @@ export class BibliographyView extends ItemView {
 		// so that opening and closing it can be animated; the field sits in
 		// an inner element that the row's collapse clips.
 		this.searchRow = this.contentEl.createDiv({
-			cls: "zoterik-bibliography-search",
+			cls: "citation-suite-bibliography-search",
 		});
 		const searchField = this.searchRow.createDiv({
-			cls: "zoterik-bibliography-search-field",
+			cls: "citation-suite-bibliography-search-field",
 		});
 		this.search = new SearchComponent(searchField)
 			.setPlaceholder(t.BIBLIOGRAPHY_SEARCH_PLACEHOLDER)
@@ -403,7 +403,7 @@ export class BibliographyView extends ItemView {
 		});
 
 		this.bodyEl = this.contentEl.createDiv({
-			cls: "zoterik-bibliography-body",
+			cls: "citation-suite-bibliography-body",
 		});
 	}
 
@@ -491,7 +491,7 @@ export class BibliographyView extends ItemView {
 	}
 
 	private drawMessage(text: string): void {
-		this.bodyEl.createDiv({ cls: "zoterik-bibliography-message", text });
+		this.bodyEl.createDiv({ cls: "citation-suite-bibliography-message", text });
 	}
 
 	/**
@@ -499,17 +499,17 @@ export class BibliographyView extends ItemView {
 	 * set apart in a column as wide as the widest of them.
 	 */
 	private drawEntries(bibliography: RenderedBibliography): void {
-		const list = this.bodyEl.createDiv({ cls: "zoterik-bibliography-list" });
+		const list = this.bodyEl.createDiv({ cls: "citation-suite-bibliography-list" });
 		if (bibliography.hangingIndent > 0) {
-			list.addClass("zoterik-bibliography-hanging");
+			list.addClass("citation-suite-bibliography-hanging");
 			list.setCssProps({
-				"--zoterik-bibliography-indent": `${bibliography.hangingIndent}em`,
+				"--citation-suite-bibliography-indent": `${bibliography.hangingIndent}em`,
 			});
 		}
 		if (bibliography.numberWidth > 0) {
-			list.addClass("zoterik-bibliography-numbered");
+			list.addClass("citation-suite-bibliography-numbered");
 			list.setCssProps({
-				"--zoterik-bibliography-number-width": `${bibliography.numberWidth}ch`,
+				"--citation-suite-bibliography-number-width": `${bibliography.numberWidth}ch`,
 			});
 		}
 		// The keys each entry was written for, in the entries' order, so an
@@ -541,18 +541,18 @@ export class BibliographyView extends ItemView {
 	/** The keys the note cites that Zotero had no item for. */
 	private drawMissing(keys: string[]): void {
 		const section = this.bodyEl.createDiv({
-			cls: "zoterik-bibliography-missing",
+			cls: "citation-suite-bibliography-missing",
 		});
 		section.createDiv({
-			cls: "zoterik-bibliography-missing-title",
+			cls: "citation-suite-bibliography-missing-title",
 			text: t.BIBLIOGRAPHY_MISSING,
 		});
 		section.createDiv({
-			cls: "zoterik-bibliography-missing-desc",
+			cls: "citation-suite-bibliography-missing-desc",
 			text: t.BIBLIOGRAPHY_MISSING_DESC,
 		});
 		const list = section.createDiv({
-			cls: "zoterik-bibliography-missing-keys",
+			cls: "citation-suite-bibliography-missing-keys",
 		});
 		for (const key of keys) {
 			const el = list.createEl("code", { text: `@${key}` });
@@ -592,17 +592,17 @@ export class BibliographyView extends ItemView {
 
 		// A missing-keys section with every key hidden is hidden with them.
 		const missing = this.bodyEl.querySelector<HTMLElement>(
-			".zoterik-bibliography-missing"
+			".citation-suite-bibliography-missing"
 		);
 		if (missing) {
 			const anyKey = missing.querySelector(`code:not(.${HIDDEN_CLASS})`);
 			missing.toggleClass(HIDDEN_CLASS, anyKey === null);
 		}
 
-		this.bodyEl.querySelector(".zoterik-bibliography-no-matches")?.remove();
+		this.bodyEl.querySelector(".citation-suite-bibliography-no-matches")?.remove();
 		if (terms.length > 0 && this.searchable.length > 0 && shown === 0) {
 			this.bodyEl.createDiv({
-				cls: "zoterik-bibliography-message zoterik-bibliography-no-matches",
+				cls: "citation-suite-bibliography-message citation-suite-bibliography-no-matches",
 				text: t.BIBLIOGRAPHY_NO_MATCHES,
 			});
 		}
@@ -866,20 +866,20 @@ export class BibliographyView extends ItemView {
 	private createMentionBar(entryEl: HTMLElement): MentionBar {
 		// The bar is a one-track grid, which opens and shuts by its track as
 		// the search row does; its content sits in an element the track clips.
-		const el = createDiv({ cls: "zoterik-bibliography-mentions" });
+		const el = createDiv({ cls: "citation-suite-bibliography-mentions" });
 		entryEl.after(el);
 		entryEl.addClass("is-finding");
 		const content = el.createDiv({
-			cls: "zoterik-bibliography-mentions-content",
+			cls: "citation-suite-bibliography-mentions-content",
 		});
 		const label = content.createSpan({
-			cls: "zoterik-bibliography-mentions-label",
+			cls: "citation-suite-bibliography-mentions-label",
 			// Read out as the reader steps, since the note is where they look.
 			attr: { "aria-live": "polite" },
 		});
 		label.appendText(`${t.BIBLIOGRAPHY_MENTION} `);
 		const count = label.createSpan({
-			cls: "zoterik-bibliography-mentions-count",
+			cls: "citation-suite-bibliography-mentions-count",
 		});
 		const previous = this.iconButton(
 			content,

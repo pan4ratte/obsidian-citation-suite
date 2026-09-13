@@ -26,7 +26,7 @@ export class ChangelogModal extends Modal {
 		// styles.css sizes this window against plain rendered markdown, the
 		// way the sibling Classy PDF Extractor and Publish to Telegram plugins
 		// do. Adding the class back silently overrides every size there.
-		contentEl.addClass("zoterik-changelog-modal");
+		contentEl.addClass("citation-suite-changelog-modal");
 		this.renderComponent.load();
 		// No source path: nothing in the changelog resolves against a note of
 		// the vault, and an empty one is what Obsidian's own docs modals pass.

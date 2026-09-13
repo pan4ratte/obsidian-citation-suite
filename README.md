@@ -1,4 +1,4 @@
-# Zoterik
+# Citation Suite
 
 <div align="center">
 
@@ -15,7 +15,7 @@ English | <a href="https://github.com/pan4ratte/obsidian-zoterik/blob/main/READM
 ## How it works
 
 Zotero runs a small HTTP server on your own machine, and [Better BibTeX][bbt] adds a
-"cite as you write" endpoint to it. Zoterik asks that endpoint for a citation: Zotero
+"cite as you write" endpoint to it. Citation Suite asks that endpoint for a citation: Zotero
 draws its picker, the request stays open for as long as you are choosing, and the answer
 is the citation you built. Nothing leaves your computer, and no library is duplicated
 into the vault.
@@ -28,9 +28,9 @@ into the vault.
 - Zotero's local server enabled — *Settings → Advanced → Allow other applications on this
   computer to communicate with Zotero*. It is on by default.
 - A citation key for anything you cite. Better BibTeX gives every item one; an item
-  without a key is left out of the citation, and Zoterik says so.
+  without a key is left out of the citation, and Citation Suite says so.
 
-Zoterik is desktop-only: it talks to a Zotero running beside it.
+Citation Suite is desktop-only: it talks to a Zotero running beside it.
 
 ## Commands
 
@@ -154,7 +154,7 @@ closed when they were looked up, start it and press the refresh button above the
 
 From a release, until it is in the community plugin browser: download `main.js`,
 `manifest.json` and `styles.css` from the [latest release][releases] into
-`<your vault>/.obsidian/plugins/zoterik/`, then enable *Zoterik* in
+`<your vault>/.obsidian/plugins/citation-suite/`, then enable *Citation Suite* in
 *Settings → Community plugins*. [BRAT][brat] installs the same files and keeps them
 updated.
 
@@ -163,7 +163,7 @@ updated.
 
 ## The citation window
 
-The window is Zotero's own, not Zoterik's, so where it opens is Zotero's to decide.
+The window is Zotero's own, not Citation Suite's, so where it opens is Zotero's to decide.
 
 - **It opens behind Obsidian.** Open *Settings → Advanced → Config Editor* and set
   `extensions.zotero.integration.keepAddCitationDialogRaised` to `true`: Zotero will then
