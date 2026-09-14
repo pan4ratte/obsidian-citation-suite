@@ -13,7 +13,7 @@ import {
 /** The line with the pick written in, and `|` where the cursor lands. */
 function pick(typed: string, citekey: string, brackets = true): string {
 	const cursor = typed.indexOf("|");
-	const line = typed.replace("|", "");
+	const line = typed.slice(0, cursor) + typed.slice(cursor + 1);
 	const trigger = keyTrigger(line.slice(0, cursor));
 	if (!trigger) {
 		throw new Error(`no trigger in ${typed}`);
