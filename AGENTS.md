@@ -303,9 +303,11 @@ footnote's text (`inFootnoteText`).
   `onLinkHover` passes neither. The parent handed over wraps the view's
   `hoverPopover`, only so the popover can be caught arriving and given
   Obsidian's hand-back of the focus when it closes. None of this is public
-  API: any step failing leaves the cursor as with the setting off — after the
-  anchor for a citation, at the text in the note for an empty footnote, unless
-  the note was typed in meanwhile. Check it again when
+  API: any step failing leaves the cursor as with the setting off — at the end
+  of the footnote's text in the note, pushed down by any Zotero notes picked
+  with the citation; for a citation only while `footnoteCursorToText` is on
+  (its row is shown only with the popover off), otherwise after the anchor —
+  unless the note was typed in meanwhile. Check it again when
   Obsidian is updated.
 - **The prefix and suffix are refused by `validate` when they hold whitespace or
   `[ ] ^ \ |`**, and cleaned of the same when a label is built, because

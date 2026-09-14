@@ -142,7 +142,9 @@ The plugin lets you not only cite, but also create footnotes at the same time, f
 
 * **Do not edit named footnotes when renumbering.** Turn it on, and the "Renumber footnotes in order" command will not edit labels with names, such as `[^kuhn]`. A number is arabic numerals, or roman ones if footnotes are numbered in roman numerals of the same case, with the text before and after the number set above. So `[^x]` in a note numbered in arabic stays a name, and so does a footnote written with an earlier prefix.
 
-* **Open the new footnote's text in a popup.** The text of a footnote — one made when you cite, or with the "Insert footnote without a citation" command — opens in a popup over its anchor, the same one footnotes created by Obsidian itself have: you can write on after the citation at once, or fill in an empty footnote. Turn it off, and the cursor stays after the footnote anchor, and for an empty footnote moves to its text in the note.
+* **Open the new footnote's text in a popup.** The text of a footnote — one made when you cite, or with the "Insert footnote without a citation" command — opens in a popup over its anchor, the same one footnotes created by Obsidian itself have: you can write on after the citation at once, or fill in an empty footnote. Turn it off, and the cursor moves to the end of an empty footnote's text in the note.
+
+* **Move the cursor to the footnote text after citing.** Shown when the popup is off. After citing, the cursor moves to the end of the footnote's text in the note, so you can write on after the citation at once. Turn it off, and the cursor stays after the footnote anchor.
 
 ## 7. Troubleshooting
 

@@ -299,9 +299,16 @@ export default class CitationSuitePlugin extends Plugin {
 			}
 		}
 		if (pick.notes) {
+			const length = editor.getValue().length;
 			this.insertNotes(editor, pick.notes);
+			// The notes go in at the anchor, before the footnote's text, and
+			// push it down by what they added.
+			if (footnote) {
+				const added = editor.getValue().length - length;
+				footnote = { ...footnote, textEnd: footnote.textEnd + added };
+			}
 		}
-		// Last, once the notes are in: the popover takes the focus.
+		// Last, once the notes are in: the footnote's text takes the cursor.
 		if (footnote) {
 			await this.openFootnoteText(editor, ctx, footnote, false);
 		}
@@ -373,13 +380,14 @@ export default class CitationSuitePlugin extends Plugin {
 	 * so, with the cursor in the note left after the anchor, as Obsidian's own
 	 * command leaves it.
 	 *
-	 * Without the popover, an empty footnote has the cursor put at its text in
-	 * the note, since there is nothing else to do with it; a citation leaves the
-	 * cursor after the anchor, to write on in the sentence. When the popover
-	 * was asked for and could not be opened, the same goes — unless the note was
-	 * typed in while it was waited for, when moving the cursor would pull it out
-	 * from under the reader. A citation written into a footnote's text made no
-	 * footnote, and has nothing to open.
+	 * Without the popover, the cursor goes to the end of the footnote's text in
+	 * the note: always into an empty one, which is there to be written, and
+	 * past a citation when the settings say so — otherwise it stays after the
+	 * anchor, to write on in the sentence. When the popover was asked for and
+	 * could not be opened, the same goes, unless the note was typed in while it
+	 * was waited for, when moving the cursor would pull it out from under the
+	 * reader. A citation written into a footnote's text made no footnote, and
+	 * has nothing to open.
 	 */
 	private async openFootnoteText(
 		editor: Editor,
@@ -390,8 +398,9 @@ export default class CitationSuitePlugin extends Plugin {
 		if (edit.label === null) {
 			return;
 		}
+		const toText = blank || this.settings.footnoteCursorToText;
 		if (!this.settings.footnotePopover || !(ctx instanceof MarkdownView)) {
-			if (blank) {
+			if (toText) {
 				this.goToFootnoteText(editor, edit);
 			}
 			return;
@@ -399,7 +408,7 @@ export default class CitationSuitePlugin extends Plugin {
 		const written = editor.getValue();
 		const anchorFrom = edit.cursor - `[^${edit.label}]`.length;
 		const opened = await openFootnotePopover(ctx, editor, anchorFrom, edit.label);
-		if (!opened && blank && editor.getValue() === written) {
+		if (!opened && toText && editor.getValue() === written) {
 			this.goToFootnoteText(editor, edit);
 		}
 	}

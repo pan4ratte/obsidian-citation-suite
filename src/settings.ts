@@ -133,8 +133,9 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 		if (TOOLTIP_KEYS.has(key)) {
 			this.plugin.redrawCitations();
 		}
-		if (key === "citationTooltips") {
-			// The delay row is shown only while there is a tooltip to delay.
+		if (key === "citationTooltips" || key === "footnotePopover") {
+			// The delay row is shown only while there is a tooltip to delay,
+			// and the cursor row only while there is no popover to write in.
 			this.update();
 		}
 		if (PREVIEW_KEYS.has(key)) {
@@ -494,6 +495,12 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 						name: t.SETTING_FOOTNOTE_POPOVER_NAME,
 						desc: t.SETTING_FOOTNOTE_POPOVER_DESC,
 						control: { type: "toggle", key: "footnotePopover" },
+					},
+					{
+						name: t.SETTING_FOOTNOTE_CURSOR_NAME,
+						desc: t.SETTING_FOOTNOTE_CURSOR_DESC,
+						visible: () => !this.plugin.settings.footnotePopover,
+						control: { type: "toggle", key: "footnoteCursorToText" },
 					},
 				],
 			},
