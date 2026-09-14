@@ -12,9 +12,15 @@ declare module "citeproc" {
 	}
 
 	export interface CslCitation {
+		/** The id the engine keeps the citation by in its document. */
+		citationID?: string;
 		citationItems: CslCitationItem[];
+		/** The note it stands in, or 0 for a citation in the text. */
 		properties: { noteIndex: number };
 	}
+
+	/** A citation elsewhere in the document: its id, and the note it stands in. */
+	export type CslCitationPosition = [string, number];
 
 	/** What the engine asks its host for: the style's locale, and the items. */
 	export interface CslSys {
@@ -31,19 +37,34 @@ declare module "citeproc" {
 			locale?: string,
 			forceLocale?: boolean
 		);
-		/** The engine's options; Zotero switches some of them after construction. */
-		opt: { development_extensions: Record<string, boolean> };
+		/**
+		 * The engine's options; Zotero switches some of them after construction.
+		 * `xclass` is the style's class: "note" for a style that cites in notes.
+		 */
+		opt: { development_extensions: Record<string, boolean>; xclass: string };
 		updateItems(ids: string[]): void;
 		/**
-		 * The cluster as the style writes it, with nothing before or after it
-		 * in the document — which is what a citation in a note is.
+		 * The cluster as the style writes it between the citations named before
+		 * and after it, leaving the document the engine holds as it was.
 		 */
 		previewCitationCluster(
 			citation: CslCitation,
-			citationsPre: [string, number][],
-			citationsPost: [string, number][],
+			citationsPre: CslCitationPosition[],
+			citationsPost: CslCitationPosition[],
 			format: string
 		): string;
+		/**
+		 * Puts the citation into the document the engine holds, between the
+		 * citations named before and after it — and any citation it holds that
+		 * is named in neither is taken out. Answers with every citation whose
+		 * text changed, by its place among the three: before, this, after.
+		 */
+		processCitationCluster(
+			citation: CslCitation,
+			citationsPre: CslCitationPosition[],
+			citationsPost: CslCitationPosition[],
+			flag?: number
+		): [unknown, [number, string, string?][]];
 		/** What everything after this is written as: "html", "text", "rtf". */
 		setOutputFormat(format: string): void;
 		/**

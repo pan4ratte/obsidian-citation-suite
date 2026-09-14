@@ -522,6 +522,43 @@ function definitionBlocks(
 	return blocks;
 }
 
+/**
+ * Where a note's footnotes are: every anchor, in the order they come, and
+ * every footnote's text, as offsets into the note. An anchor is a `[^label]`
+ * that does not open a footnote's text; a text runs as `definitionBlocks` reads
+ * it, from the start of its first line to the end of its last.
+ */
+export interface FootnoteLayout {
+	anchors: { label: string; from: number; to: number }[];
+	definitions: { label: string; from: number; to: number }[];
+}
+
+/** The note's footnotes, read the way the renumbering reads them. */
+export function footnoteLayout(
+	text: string,
+	prose: string = proseOf(text)
+): FootnoteLayout {
+	const lines = text.split("\n");
+	const lineStarts: number[] = [];
+	let offset = 0;
+	for (const line of lines) {
+		lineStarts.push(offset);
+		offset += line.length + 1;
+	}
+	const anchors = labelMarks(prose)
+		.filter((mark) => !mark.definition)
+		// The whole `[^label]`, brackets and caret included.
+		.map((mark) => ({ label: mark.label, from: mark.from - 2, to: mark.to + 1 }));
+	const definitions = definitionBlocks(lines, prose.split("\n")).map(
+		(block) => ({
+			label: block.label,
+			from: lineStarts[block.start],
+			to: lineStarts[block.end] + lines[block.end].length,
+		})
+	);
+	return { anchors, definitions };
+}
+
 export interface FootnoteRenumbering {
 	/** The edits, in offsets into the text as it was before any of them. */
 	changes: TextChange[];

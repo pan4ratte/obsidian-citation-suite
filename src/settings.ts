@@ -74,8 +74,12 @@ const PREVIEW_KEYS = new Set([
 	"citationTooltipDelay",
 ]);
 
-/** The settings that change the tooltip on the citations already drawn. */
-const TOOLTIP_KEYS = new Set(["citationTooltips", "citationTooltipDelay"]);
+/** The settings that change how the citations already drawn look. */
+const REDRAW_KEYS = new Set([
+	"citationTooltips",
+	"citationTooltipDelay",
+	"markMissingKeys",
+]);
 
 /**
  * The settings tab, declared through Obsidian 1.13's `getSettingDefinitions()`.
@@ -132,7 +136,7 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 			// like, and neither redraws them on its own.
 			await this.plugin.restyle();
 		}
-		if (TOOLTIP_KEYS.has(key)) {
+		if (REDRAW_KEYS.has(key)) {
 			this.plugin.redrawCitations();
 		}
 		if (key === "citationTooltips" || key === "footnotePopover") {
@@ -487,9 +491,19 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 						},
 					},
 					{
+						name: t.SETTING_MARK_MISSING_NAME,
+						desc: t.SETTING_MARK_MISSING_DESC,
+						control: { type: "toggle", key: "markMissingKeys" },
+					},
+					{
 						name: t.SETTING_BRACKETS_NAME,
 						desc: t.SETTING_BRACKETS_DESC,
 						control: { type: "toggle", key: "brackets" },
+					},
+					{
+						name: t.SETTING_SUGGEST_NAME,
+						desc: t.SETTING_SUGGEST_DESC,
+						control: { type: "toggle", key: "citationSuggestions" },
 					},
 				],
 			},

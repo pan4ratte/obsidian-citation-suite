@@ -13,6 +13,8 @@ import {
 } from "obsidian";
 import { t } from "lang/helpers";
 import { citedKeys, mentionsOf } from "src/citation";
+import { noteCitations } from "src/noteCitations";
+import { NoteRenderer } from "src/noteRendering";
 import { CitationRenderer, RenderedBibliography } from "src/render";
 import { matchesTerms, queryTerms } from "src/search";
 import { spinner, Spinner } from "src/spinner";
@@ -139,13 +141,28 @@ async function play(el: HTMLElement, cls: string): Promise<void> {
 }
 
 /**
- * What the plugin hands the pane: the renderer, the style to render in, and a
- * way to draw the notes' citations again when a retry brings sources in.
+ * What the plugin hands the pane: the renderer, the notes' citations as they
+ * are written together, the style to render in, a way to draw the notes'
+ * citations again when a retry brings sources in, and the key being typed
+ * while the list of suggested sources is open for it.
  */
 export interface BibliographyContext {
 	renderer: CitationRenderer;
+	notes: NoteRenderer;
 	styleId(): string;
 	redrawCitations(): void;
+	/** Where in `text` a key is being typed, while sources are suggested for it. */
+	typedKey(file: TFile, text: string): { from: number; to: number } | null;
+	/** Calls back when a key starts or stops being typed; answers the unsubscribe. */
+	onTypingChange(listener: () => void): () => void;
+}
+
+/**
+ * The note with a range written over in spaces, its line breaks and every
+ * offset kept — which is what `proseOf` does to code, for the same reason.
+ */
+function blankRange(text: string, { from, to }: { from: number; to: number }): string {
+	return text.slice(0, from) + text.slice(from, to).replace(/[^\n]/g, " ") + text.slice(to);
 }
 
 export class BibliographyView extends ItemView {
@@ -257,6 +274,10 @@ export class BibliographyView extends ItemView {
 			})
 		);
 
+		// A key being typed is not cited yet, and is left out while sources
+		// are suggested for it; once the list closes it counts, found or not.
+		this.register(this.context.onTypingChange(() => this.refreshSoon()));
+
 		this.file = this.noteFile();
 		void this.refresh();
 		return Promise.resolve();
@@ -353,12 +374,17 @@ export class BibliographyView extends ItemView {
 			return;
 		}
 
-		const text = await this.noteText(file);
+		const read = await this.noteText(file);
+		// The key being typed, while sources are suggested for it, is not yet
+		// a citation: listing each half-typed key as not found in Zotero, and
+		// asking Zotero about it, would be wrong on every keystroke.
+		const typed = this.context.typedKey(file, read);
+		const text = typed ? blankRange(read, typed) : read;
 		const keys = citedKeys(text);
 		if (pass !== this.pass) {
 			return;
 		}
-		this.readText = text;
+		this.readText = read;
 		if (keys.length === 0) {
 			this.showMessage(file, t.BIBLIOGRAPHY_NO_CITATIONS);
 			return;
@@ -383,10 +409,19 @@ export class BibliographyView extends ItemView {
 		// it, and is not listed as though it were.
 		const unreached = missing.some((key) => renderer.unreachable(key));
 		const notFound = missing.filter((key) => !renderer.unreachable(key));
+		// Written with the note's citations, so that its numbers and its
+		// 2020a and 2020b are the ones the citations show.
 		const bibliography =
 			missing.length < keys.length
-				? renderer.bibliographyOf(engines, keys)
+				? await this.context.notes.bibliography(
+						styleId,
+						file.path,
+						noteCitations(text)
+					)
 				: null;
+		if (pass !== this.pass) {
+			return;
+		}
 
 		this.startBody(file, bibliography, notFound.length > 0);
 		if (bibliography) {

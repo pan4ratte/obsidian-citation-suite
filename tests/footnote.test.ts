@@ -3,6 +3,7 @@ import {
 	FootnoteEdit,
 	footnoteEdit,
 	footnoteLabel,
+	footnoteLayout,
 	FootnoteOptions,
 	fromRoman,
 	inFootnoteText,
@@ -407,5 +408,36 @@ describe("renumberFootnotes", () => {
 			changes: [],
 			count: 0,
 		});
+	});
+});
+
+describe("footnoteLayout", () => {
+	it("finds every anchor, and every footnote's text as far as it runs", () => {
+		const text = [
+			"One.[^1] Two.[^kuhn] One again.[^1]",
+			"",
+			"[^1]: First line",
+			"lazy line",
+			"",
+			"    Indented paragraph.",
+			"[^kuhn]: Second.",
+			"",
+			"# Heading",
+		].join("\n");
+		const { anchors, definitions } = footnoteLayout(text);
+		expect(anchors.map(({ label, from, to }) => [label, text.slice(from, to)])).toEqual([
+			["1", "[^1]"],
+			["kuhn", "[^kuhn]"],
+			["1", "[^1]"],
+		]);
+		expect(definitions.map(({ label, from, to }) => [label, text.slice(from, to)])).toEqual([
+			["1", "[^1]: First line\nlazy line\n\n    Indented paragraph."],
+			["kuhn", "[^kuhn]: Second."],
+		]);
+	});
+
+	it("reads no footnote out of code", () => {
+		const text = "```\n[^1]: not a footnote [^2]\n```\nText.";
+		expect(footnoteLayout(text)).toEqual({ anchors: [], definitions: [] });
 	});
 });

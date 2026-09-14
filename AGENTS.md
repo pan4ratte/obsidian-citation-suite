@@ -5,7 +5,7 @@
 | Command | What it does |
 |---------|-------------|
 | `npm run dev` | esbuild watch mode (no typecheck) |
-| `npm test` | Vitest — 181 tests, all passing |
+| `npm test` | Vitest — 224 tests, all passing |
 | `npm run lint` / `npm run lint:fix` | ESLint (`lint:ts`) and Stylelint (`lint:css`) with the official Obsidian rulesets |
 | `npm run build` | `tsc -noEmit -skipLibCheck && node esbuild.config.mjs production` |
 
@@ -132,7 +132,19 @@ once:
   otherwise.
 - **`item.search(terms, library)`** is the one method that tells an item's URI
   (`http://zotero.org/users|groups/…/items/KEY`), which the pane's "Reveal in
-  Zotero" needs; see the bibliography pane below.
+  Zotero" needs; see the bibliography pane below. It is also what the key
+  suggestions search with; see "Citation key suggestions" below.
+- **`item.search` with a string searches fewer fields than Zotero's quick
+  search** — title, publication, short title, court, year and citation key,
+  but no creators — so a surname finds nothing unless it is in the key. Given
+  an array, every entry is passed to `Zotero.Search.addCondition` as it is,
+  and `["quicksearch-titleCreatorYear", "contains", q]` is Zotero's own quick
+  search: every word of `q` in the title, a creator or the year, and in Zotero
+  7 the citation key too. `["ignore_feeds"]` is BBT's one shorthand. Its answer
+  is `itemToCSLJSON` per item plus `library` (the name) and `citekey`, **in
+  every library** when none is named, and it costs about 5 ms per item found
+  on a 1,000-item library: one letter found 967 items in 4.6 s, three letters
+  23–139 items in 0.2–0.7 s.
 - **`user.groups`** answers with every library as `{ id: libraryID, name }`.
   The renderer keeps that list until `reset()` or `forgetUnknown()`.
 
@@ -193,7 +205,151 @@ esbuild (Vitest cannot load the `.xml` imports), alias `obsidian` to a
 `requestUrl` over Node's `fetch`, and compare `bibliographyOf(...).text` with
 `item.bibliography([keys], { id, locale, contentType: "text" }, libraryID)`.
 A style whose id is a bare UUID cannot be compared that way: BBT prefixes it
-with `http://www.zotero.org/styles/` and then cannot find it.
+with `http://www.zotero.org/styles/` and then cannot find it. `bibliographyOf`
+reads the note the session holds (below), so bring the session to the note's
+citations first.
+
+## A note's citations, written together
+
+A citation is written by what came before it in the document: a source cited
+again is shortened or "Ibid.", a numbered style numbers sources by first
+citation, and 2020a/2020b are handed out across the whole document. So every
+view writes a citation as part of its whole note, never on its own — the one
+exception is the settings preview, and text that belongs to no note. Four
+modules, each with one job:
+
+- **`src/noteCitations.ts` (pure) reads a note's citations in the order pandoc
+  reads them.** Pandoc reads a footnote's text at its anchor, not where the
+  text stands, so `noteCitations` walks the body and puts each footnote's
+  citations at the footnote's first anchor; an inline note `^[…]` is read where
+  it stands; a footnote nothing anchors (pandoc drops it) comes after
+  everything else, as the renumbering puts it. Anchors and inline notes inside
+  a footnote's text are not notes of their own — pandoc has no nested notes.
+  Each citation carries `noteNumber`: its footnote's number, or for a body
+  citation the note a note style makes of it, counted among the footnotes.
+  The footnotes are read by `footnoteLayout` in `src/footnote.ts`, the same
+  reading the renumbering uses. `matchCitations` finds a piece's groups among
+  the note's by `citationSignature`, the k-th repeat of an identical citation
+  matched to the k-th candidate. Span lookups are binary searches: a 686 KB
+  note with 4,000 citations parses in 15 ms, 68 KB in 2 ms; what is left is
+  `parseGroups` itself.
+- **`src/citationSession.ts` keeps one citeproc engine in step with a note.**
+  `processCitationCluster(citation, pre, post)` is citeproc's word-processor
+  API: it takes one citation, drops any citation not named in `pre`/`post`,
+  and answers with every citation whose text changed. `update()` diffs the
+  new list against what the engine holds — common prefix and suffix by
+  signature, positional ids for the changed middle so a change is an update —
+  and hands over only the middle, or one citation when only removals or note
+  numbers changed. A change of a citation costs 1–2 ms; writing a chapter from
+  scratch costs 0.1–0.7 s (200 citations, Chicago notes 0.4 s). Two things were
+  found by checking random edits against a fresh engine, and both are load-
+  bearing:
+  - **The year-suffix letter does not follow a reordering.** Where the style
+    does not sort, 2020a goes to the source registered first, and an
+    incremental update keeps the old order. So `update()` rebuilds whenever
+    the order sources are first cited in changes — other than removed sources,
+    and new ones after all the rest (`sameFirstCitations`).
+  - **A used engine is not a fresh one.** citeproc keeps disambiguation state
+    for a registered item, so even `rebuildProcessorState` on a used engine can
+    differ from a fresh engine (it did for a GOST footnote style). A rebuild
+    calls `updateItems([])` before registering the note's items.
+  A rebuild is `rebuildProcessorState` taken apart into steps (`updateItems`,
+  then one `processCitationCluster` per citation with
+  `ASSUME_ALL_ITEMS_REGISTERED`), so the caller can spread it over frames; a
+  job abandoned for a newer one leaves `entries` describing exactly what the
+  engine holds. `tests/citationSession.test.ts` pins all of this against
+  `rebuildProcessorState` on a fresh engine, for small note, numbered and
+  author-date styles written into the test; a throwaway run over the real
+  Zotero styles (APA, Chicago author-date and notes, IEEE, GOST footnotes, MLA;
+  900 random changes with same-author-year clones) found no difference in any
+  citation or bibliography. `previewCitationCluster` leaves the held note as
+  it was, so the settings preview and `render()` use the same engine.
+- **`src/noteRendering.ts` (`NoteRenderer`) is the one queue in front of the
+  engine.** It keeps each note's written citations (`states`, 24 notes) under a
+  key of what is cited and in which note — typing prose changes no key and asks
+  the engine nothing. A citation whose source is not in hand is left out of
+  what the engine is given (it would be an untitled document and take a
+  number); when the source arrives the key changes and it goes in. Work runs
+  from a queue: `current()` (the editor) runs up to 12 ms in the frame and
+  returns what is written, or — while a bigger job continues in 8 ms slices —
+  the last rendering matched by signature, so nothing flickers back to source;
+  `onRendered` tells the editors when a note is done. `render()` and
+  `bibliography()` (reading view, pane) await the job. A note the editor waits
+  on goes first unless the first task is half written. **The reference list is
+  read inside `finish`**, straight after the last step, since the engine may
+  hold another note a microtask later; asked for later, it is read at once only
+  if `held` says the engine still holds that note, and otherwise the note is
+  written again. If the engine throws, the note falls back to each citation
+  written on its own. `restyle()` and `onunload` call `clear()`.
+- **The views.** `src/live.ts` keeps a lazily parsed `ParsedText` in a
+  `StateField`; the editor of a note's own tab (`editorInfoField` is a
+  `MarkdownView`) holds the whole note and asks `current()`. Any other editor
+  with a file — the footnote popover, a note embedded in a canvas — holds a piece, and
+  matches its citations against `latest()`, writing unmatched ones on their
+  own. Every key of the note is looked up, not only the visible ones, except
+  the citation under the cursor, which would be looked up a keystroke at a
+  time; `ready` is false while any other key is pending. `src/reading.ts` gets
+  the whole text from `getSectionInfo(el).text` (or `noteText`, the open view
+  or `cachedRead`, when there is no section info — embeds, print), matches the
+  block's citations among those in the section's lines, and matches the
+  footnote list — which Obsidian 1.13.7 renders as a trailing
+  `section.footnotes` positioned after the last line, in anchor order — among
+  the note's citations in footnotes. `CitationRenderer.load` shares one lookup
+  per key between everything asking (`lookups`), so the editor asking on every
+  redraw sends nothing twice.
+
+Checked in a separate Obsidian 1.13.7 instance (its own `--user-data-dir` with
+the 1.13.7 asar copied in, `--remote-debugging-port` and
+`--remote-allow-origins=*`, driven over CDP) against a running Zotero: short
+forms after the first citation in body and footnotes, a citation inserted at
+the top turning a later one short and undo restoring it, APA 2005a/2005b and
+IEEE numbers matching the pane, reading view's footnote list, and a 200-citation
+note drawn in 0.9 s with typing at one frame. Reading view renders nothing in a
+hidden window: `showInactive()` the window before checking it.
+
+### Keys Zotero has no source for
+
+`markMissingKeys` (on by default) marks the `@key` of a citation whose key
+`CitationRenderer.missing` — Zotero answered and had nothing, not merely did
+not answer — with `citation-suite-citation-missing`, a wavy `--text-error`
+underline, in reading view, live preview **and source mode**, style or no
+style: it is about what is written, like a spelling mark. The tooltip is a
+mark decoration's `aria-label` plus `data-tooltip-delay`, which Obsidian's
+body-level `pointerover` handler reads for any element (read out of 1.13.7's
+`app.js`). `keyMentions` in `src/citation.ts` gives each key's range, and
+`mentionsOf` is built on it. A key missed once is not asked about again until
+the pane's refresh button (`forgetUnknown`) — the README's troubleshooting
+says so.
+
+## Citation key suggestions
+
+`src/citationSuggest.ts` is an `EditorSuggest`; `src/suggestion.ts` holds
+what needs neither editor nor Zotero, and is tested. `citationSuggestions` is
+on by default.
+
+- **Trigger**: `@` or `-@` at the start of a line or after whitespace, `[`,
+  `;` or `(`, followed by key characters of any alphabet — not after a letter
+  (an address) or `[[`. Then `proseOf` over the text up to the cursor must
+  leave the `@` standing, so code, comments and front matter do not trigger.
+- **No library copy.** Below 3 characters only `renderer.knownItems()` — every
+  source looked up since Obsidian started — is offered, the note's own
+  (`citedKeys`, read once per opening) first; with nothing typed, only the
+  note's own. From 3 characters Zotero is asked (`searchLibrary`, the quick
+  search conditions above) after 150 ms of no typing, and a query extending
+  the last answered one is filtered locally (`sourceMatches`, `ё` as `е`)
+  instead of asked again; both are dropped when the list reopens.
+- **Obsidian applies an async answer whenever it resolves**, with no check
+  that it is still the latest (read out of 1.13.7's `EditorSuggest.trigger`):
+  so `getSuggestions` always answers for `this.context.query` as it stands when
+  it resolves, never for the query it was called with. Do not name a field
+  `context` on the subclass: that is the base class's.
+- **Ranking**: cited in the note, key starts with the query, first creator
+  starts with it, the rest; ties by key. The list shows `@key` and
+  "creators · year · title" in Obsidian's `mod-complex` suggestion layout.
+- **Insertion** (`keyInsertion`) replaces what was typed and any key
+  characters after the cursor: inside an unclosed `[` it is the key alone,
+  keeping `-`; outside it is `[@key]` when `brackets` is on, else `@key`. A key
+  pandoc would cut short is braced through `citationKeyToken`.
 
 ## The pandoc formatter
 
@@ -402,18 +558,30 @@ object by `loadSettings` and read by nothing.
   compares the text with `readText`, what the latest pass read, and redraws
   when they differ (`refreshIfRead`). Checked by restarting Obsidian with tabs
   restored and switching to each: without it the pane stayed on "no sources".
-- **Keys come from `citedKeys`** in `src/citation.ts`: bracketed groups only,
+- **A key being typed is not cited yet.** While the key suggestions list is
+  open, `CitationSuggest.typedKey` gives the range of the `@key` being typed
+  (only when the suggesting editor holds the pane's exact text, so a footnote
+  popover's offsets are never used), and the pass reads the note with that
+  range written over in spaces — offsets kept, as `proseOf` keeps them — so a
+  half-typed key is neither looked up nor listed as not found. The list's
+  `open()`/`close()` overrides call `onTypingChange`, which redraws the pane:
+  once the list closes (Escape, a pick, the cursor leaving, nothing matching),
+  the key counts, found or not. Checked live: `@bart` stayed out of the missing
+  list for 3 s with the list open and appeared once it closed.
+- **Keys come from `citedKeys`** in `src/citation.ts` for the missing list and
+  the searches: bracketed groups only,
   as everywhere else, once each, in order of first citation, with the front
   matter, fenced and inline code, and `%%`/`<!-- -->` comments emptied out
   first. `proseOf` overwrites them with spaces, newlines kept, rather than
   removing them: no bracket meets another across a gap, and an offset into the
   prose is an offset into the note, which `mentionsOf` depends on.
-- **The list is written by the citation engine, not the tooltips' number-less
-  one**, through `CitationRenderer.bibliographyOf`: in a reference list the
-  numbers belong. The keys are handed to `updateItems` in first-citation order,
-  which is what an unsorted numbered style numbers by. Unknown keys are dropped
-  before that — citeproc would write them as untitled documents — and are listed
-  separately under the entries.
+- **The list is written with the note's citations**, through
+  `NoteRenderer.bibliography`: the engine is brought to the note (above) and the
+  list read off it, so an unsorted numbered style numbers its entries as the
+  citations are numbered, and 2020a/2020b agree with them. It is the citation
+  engine, not the tooltips' number-less one: in a reference list the numbers
+  belong. Unknown keys are not given to the engine — citeproc would write them
+  as untitled documents — and are listed separately under the entries.
 - **Each pass is numbered**, and a pass overtaken while it waited on Zotero draws
   nothing. `restyle()` refreshes every open pane.
 - **The bar reads "References", with the entry count beside it**, and three
@@ -620,8 +788,8 @@ of touching the body classes.
   Obsidian's `span.cm-footref` and `HyperMD-footnote` line rules in its
   `app.css`.
 - **Source mode** is live preview with the citation as written: the style is
-  never asked for. That matches the editor, since `src/live.ts` draws nothing
-  unless `editorLivePreviewField` is on.
+  never asked for. That matches the editor, since `src/live.ts` draws no styled
+  citation unless `editorLivePreviewField` is on (it does mark missing keys).
 - The anchor goes **before the full stop in Russian and after it otherwise**, in
   every mode, and both it and the footnote are labelled through
   `plugin.footnoteOptions()` — the same options the insertion uses.
@@ -782,7 +950,14 @@ src/
   noteFootnoteModal.ts — the modal those settings are set in
   confirmModal.ts   — a question asked before something that cannot be undone
   citation.ts       — pandoc citations read back out of a note, and its cited keys (pure)
-  render.ts         — citeproc: a citation, its tooltip, and a note's bibliography
+  noteCitations.ts  — a note's citations in pandoc's reading order, with their notes (pure)
+  citationSession.ts — one citeproc engine kept in step with a note, citation by citation
+  noteRendering.ts  — the queue and cache every view writes a note's citations through
+  render.ts         — citeproc: items, engines, tooltips, the bibliography, library search
+  live.ts           — live preview: styled citations and missing-key marks
+  reading.ts        — reading view: the same, block by block
+  suggestion.ts     — key suggestions: trigger, insertion, ranking (pure)
+  citationSuggest.ts — the EditorSuggest that offers sources after `@`
   bibliography.ts   — the right-sidebar pane listing the note's bibliography
   zoteroCite.ts     — what Zotero does around citeproc, ported (pure)
   search.ts         — the pane's filter: words, normalisation, matching (pure)
@@ -806,6 +981,9 @@ tests/
   cayw.test.ts      — parsing what the endpoint answers, incl. a real answer
   footnote.test.ts  — labels, roman numerals, and where a footnote's text goes
   noteFootnotes.test.ts — a note's footnote settings over the tab's, and following renames
+  noteCitations.test.ts — reading order, note numbers, matching a piece to its note
+  citationSession.test.ts — incremental updates against a fresh citeproc engine
+  suggestion.test.ts — trigger, insertion, sources shown and ranked
   mocks/obsidian.ts — stands in for the module at import time
 styles.css          — the status card, the settings rows, the document window
 CHANGELOG_RU.md     — release notes; the original
@@ -826,8 +1004,11 @@ layer to configure, and nothing here needs one. `tests/` is **in** the tsconfig
 program, so `npm run build` type-checks the tests too and the type-aware lint
 rules can read them.
 
-Only the pure halves are tested — the formatter, the footnote edits, and the
-parsing of what CAYW answers with. The modules they live in still import from `obsidian`, which is
+Only the pure halves are tested — the formatter, the footnote edits, the
+parsing of what CAYW answers with and of a note's citations, and the citation
+session, which runs the real `citeproc` package against small CSL styles
+written into the test and the bundled `en-US` locale read off disk (the `.xml`
+import is esbuild's, not Vitest's). The modules they live in still import from `obsidian`, which is
 aliased to `tests/mocks/obsidian.ts`; that mock stubs only what importing the
 code under test evaluates. Extend it when a test needs more, rather than faking
 Obsidian's behaviour.

@@ -20,11 +20,11 @@ English | <a href="https://github.com/pan4ratte/obsidian-citation-suite/blob/mai
 
 ### 1. Citing sources through Zotero
 
-The window opens with a hotkey or from the command palette and lets you set the page, the prefix, the suffix or suppress the author. Once a source is picked, it is inserted into the note in Pandoc format (`[@doe2020, p. 33]`), and several sources into a group separated by `;`. Zotero notes can be picked in the same window too — their text is inserted into the note as Markdown.
+The window opens with a hotkey or from the command palette and lets you set the page, the prefix, the suffix or suppress the author. Once a source is picked, it is inserted into the note in Pandoc format (`[@doe2020, p. 33]`), and several sources into a group separated by `;`. Zotero notes can be picked in the same window too — their text is inserted into the note as Markdown. A source's key can also be inserted right in the text: typing `@` brings up suggestions from your Zotero library.
 
 ### 2. Formatted citation preview
 
-In the plugin settings you can choose a citation style from your Zotero library to format the preview of citations in your notes. The citation itself stays in Pandoc format — this is only how it looks, and it has no effect on how the note is exported. Hovering over a citation shows the bibliography entry of each source — these tooltips can be turned off, or their delay changed. Under the list of styles is a preview of how citations look, which you can adjust to your taste: the citation color, the underline style, bold and italic.
+In the plugin settings you can choose a citation style from your Zotero library to format the preview of citations in your notes. The citation itself stays in Pandoc format — this is only how it looks, and it has no effect on how the note is exported. Hovering over a citation shows the bibliography entry of each source — these tooltips can be turned off, or their delay changed. Under the list of styles is a preview of how citations look, which you can adjust to your taste: the citation color, the underline style, bold and italic. The preview takes the whole note into account: repeated citations are written in their short form, the numbering matches the bibliography, and keys Zotero does not have are underlined with a wavy line.
 
 ### 3. Automatic footnotes
 
@@ -105,6 +105,8 @@ Citations are inserted in [Pandoc](https://pandoc.org/MANUAL.html#citation-synta
 
 The preview also reads citations typed by hand or inserted by other tools: a braced locator after the comma, the way Better BibTeX writes it (`[@doe2020, {pp. 33–35}]`), and locator labels in the plural, spelled out and in any case (`pp.`, `pages`, `vols.`). Only citations in square brackets are formatted.
 
+A citation key can be inserted without Zotero's window too: type `@` and the start of a key, a title, an author's surname or a year, and a list of matching sources appears, with the current note's sources first. Your Zotero library is searched from the third character on. Outside square brackets the key is inserted as a citation of its own — in brackets, if **Put citations in square brackets** is on — and inside brackets as the key alone, so a citation of several sources can be typed in full. The suggestions are turned off with **Suggest sources while a citation key is typed**.
+
 ## 4. Bibliography
 
 The first time the plugin runs, it opens a "Bibliography" tab in the right sidebar with every source cited in the open note — formatted in the chosen preview style the way it formats a reference list, with its sorting, numbering and indentation. A closed tab does not come back on its own on later launches — the **Show bibliography** command opens it.
@@ -132,6 +134,10 @@ Keys Zotero has no item for are listed under the bibliography, in the "Sources n
 In the plugin settings you can choose a style for the citation preview. In the note itself citations always stay Pandoc citations, so this is a purely visual change that does not affect the export. Styles are loaded from your Zotero library, and the chosen style formats the preview of both the citations and the bibliography in the sidebar.
 
 The "Citation preview" option under the list of styles shows how citations will look and lets you set their appearance. The buttons beside the title switch the preview mode, and the buttons above the sample set the look of citations in every note: their color, underline and emphasis.
+
+Every citation is styled with the whole note taken into account, as the export will style it: a source cited again is written in its short form or as "Ibid." when the style asks for it, numbered styles number sources in order of first citation — just as the "Bibliography" tab does — and works by one author in one year are told apart by letters: 2020a, 2020b. A citation in a footnote's text counts where the footnote is anchored, and in note styles every citation in the body text counts as a footnote of its own.
+
+A citation key Zotero has no source for — one typed with a typo, say — is underlined with a wavy line in reading view, live preview and source mode, even with no preview style chosen. The marking is turned off with **Mark citation keys Zotero does not have**.
 
 ## 6. Automating footnotes
 
@@ -166,6 +172,10 @@ Either Zotero is closed, its local server is off, or Better BibTeX is not instal
 ### Cited a source, but the citation preview does not work?
 
 Make sure a citation display style is chosen in the settings, and that the citation is in square brackets. Citations are formatted with Zotero's help: while Zotero is closed, the citation is not formatted. The same happens when Better BibTeX does not know the citation key — a key typed by hand, say, or an item deleted from the library. If Zotero was closed, start it and press "Refresh bibliography" in the sidebar.
+
+### A key is underlined with a wavy line, but the source is in Zotero?
+
+The plugin does not ask Zotero again about a key it did not find there. If you added the source or changed its key after opening the note, press "Refresh bibliography" in the sidebar.
 
 
 # About the Author

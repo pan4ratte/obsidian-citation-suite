@@ -819,6 +819,28 @@ body.citation-suite-citation-italic .citation-suite-citation em {
 	text-wrap: pretty;
 }
 
+/*
+ * A citation key Zotero has no source for, marked the way a misspelt word is:
+ * a wavy line in the error colour under the `@key` alone, in reading view, live
+ * preview and source mode. The rest of the citation is left as it is written.
+ *
+ * The shorthand is built of variables, as the citation's own is, which is what
+ * the review scanner lets through; the line hangs just below the descenders
+ * for the same reason the citation's does.
+ */
+.citation-suite-citation-missing {
+	--citation-suite-missing-line: underline;
+	--citation-suite-missing-style: wavy;
+
+	text-decoration:
+		var(--citation-suite-missing-line)
+		var(--citation-suite-missing-style)
+		var(--text-error)
+		1px;
+	text-underline-position: under;
+	text-underline-offset: 0.05em;
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    Bibliography pane
    ────────────────────────────────────────────────────────────────────────── */

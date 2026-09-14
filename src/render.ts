@@ -1,7 +1,8 @@
-import { BibliographyParams, CslSys, Engine } from "citeproc";
+import { BibliographyParams, CslCitationItem, CslSys, Engine } from "citeproc";
 import { requestUrl } from "obsidian";
 import { REQUEST_HEADERS } from "src/cayw";
-import { CitationGroup } from "src/citation";
+import { CitationGroup, ParsedCitation } from "src/citation";
+import { CitationSession } from "src/citationSession";
 import { withoutCitationNumbers, ZoteroCitePrefs } from "src/styles";
 import { tooltipEntry } from "src/typography";
 import { CitationStyle } from "src/types";
@@ -76,11 +77,21 @@ const FALLBACK_LOCALE = "en-US";
  * handful this citation happens to name. citeproc has no switch to leave the
  * number out, so the second engine runs the style with the number taken out of
  * it — and, not being used for anything else, writes plain text for good.
+ *
+ * The citation engine holds a note — every citation in it, in order — through
+ * its session (`src/citationSession.ts`), since that is what a citation is
+ * written against, and the reference list is read off the same note.
  */
 export interface StyleEngines {
 	citation: Engine;
+	/** The note the citation engine holds, kept in step citation by citation. */
+	session: CitationSession;
+	/** Whether the style cites in notes rather than in the text. */
+	notes: boolean;
 	/** `null` if the style would not run with its numbers taken out. */
 	bibliography: Engine | null;
+	/** The tooltip text of the sources a citation names, by their keys. */
+	tooltips: Map<string, string>;
 }
 
 /** A group as the style writes it: the citation, and the sources it cites. */
@@ -119,6 +130,18 @@ export interface RenderedBibliography {
 export interface CslItem {
 	id: string;
 	[field: string]: unknown;
+}
+
+/**
+ * A source Zotero found for what was typed after `@`: its key, and the CSL
+ * it answered with — Zotero's own, with its URI as `id` — which is what the
+ * suggestion shows.
+ */
+export interface LibraryItem {
+	citekey: string;
+	item: Record<string, unknown>;
+	/** The name of the library it is in. */
+	library: string;
 }
 
 /** An item, and the library it was taken from. */
@@ -342,6 +365,34 @@ function bibliography(engine: Engine, ids: string[]): string {
 	}
 }
 
+/** A citation the note holds, in CSL's spelling, with nothing left empty. */
+export function citationItem(citation: ParsedCitation): CslCitationItem {
+	return {
+		id: citation.id,
+		locator: citation.locator || undefined,
+		label: citation.label || undefined,
+		prefix: citation.prefix || undefined,
+		suffix: citation.suffix || undefined,
+		"suppress-author": citation.suppressAuthor || undefined,
+	};
+}
+
+/**
+ * The conditions `item.search` is asked for what was typed: Zotero's own
+ * quick search in its "Title, Creator, Year" mode — each word somewhere in the
+ * title, the creators or the year, which in Zotero 7 takes the citation key in
+ * too — over sources only, and not over feeds.
+ */
+function searchConditions(query: string): unknown[] {
+	return [
+		["quicksearch-titleCreatorYear", "contains", query],
+		["ignore_feeds"],
+		["itemType", "isNot", "attachment", true],
+		["itemType", "isNot", "note", true],
+		["itemType", "isNot", "annotation", true],
+	];
+}
+
 /**
  * A style that only names another one has no rules of its own to render with,
  * and the parent's are the ones Zotero would use. The href is the parent's id,
@@ -403,6 +454,8 @@ export class CitationRenderer {
 	private unknown = new Set<string>();
 	/** The keys in `unknown` that were missed because Zotero did not answer. */
 	private unreached = new Set<string>();
+	/** The lookups under way, by each key they were started for. */
+	private lookups = new Map<string, Promise<void>>();
 	/** Zotero's libraries, in the order a key is looked for in them. */
 	private libraries: number[] | null = null;
 	private engine: StyleEngines | null = null;
@@ -424,6 +477,7 @@ export class CitationRenderer {
 		this.itemLibraries.clear();
 		this.unknown.clear();
 		this.unreached.clear();
+		this.lookups.clear();
 		this.libraries = null;
 		this.engine = null;
 		this.engineStyle = "";
@@ -440,20 +494,41 @@ export class CitationRenderer {
 	 * closed.
 	 */
 	async load(citekeys: string[], retryUnreached = false): Promise<void> {
-		const wanted = [
-			...new Set(
-				citekeys.filter(
-					(key) =>
-						!this.items.has(key) &&
-						(!this.unknown.has(key) ||
-							(retryUnreached && this.unreached.has(key)))
-				)
-			),
-		];
-		if (wanted.length === 0) {
-			return;
+		// A key already being looked up is waited for rather than asked about
+		// twice: the editor asks on every redraw, and a note asks for all of
+		// its keys at once.
+		const underway = new Set<Promise<void>>();
+		const wanted: string[] = [];
+		for (const key of new Set(citekeys)) {
+			const lookup = this.lookups.get(key);
+			if (lookup) {
+				underway.add(lookup);
+			} else if (
+				!this.items.has(key) &&
+				(!this.unknown.has(key) ||
+					(retryUnreached && this.unreached.has(key)))
+			) {
+				wanted.push(key);
+			}
 		}
+		if (wanted.length > 0) {
+			const lookup = this.lookUp(wanted).finally(() => {
+				for (const key of wanted) {
+					if (this.lookups.get(key) === lookup) {
+						this.lookups.delete(key);
+					}
+				}
+			});
+			for (const key of wanted) {
+				this.lookups.set(key, lookup);
+			}
+			underway.add(lookup);
+		}
+		await Promise.all(underway);
+	}
 
+	/** Asks Zotero for the keys and keeps what it says about each. */
+	private async lookUp(wanted: string[]): Promise<void> {
 		// Asked once and kept: a library is added in Zotero far less often
 		// than a note is read, and the refresh button asks again.
 		this.libraries ??= await fetchLibraries(this.port);
@@ -497,6 +572,48 @@ export class CitationRenderer {
 	/** Whether the key was missed because Zotero did not answer when asked. */
 	unreachable(citekey: string): boolean {
 		return this.unreached.has(citekey);
+	}
+
+	/**
+	 * Whether Zotero answered and has no item for the key — a typo, or a
+	 * source since deleted. A key not asked about yet is not missing, and
+	 * neither is one Zotero was not there to answer for.
+	 */
+	missing(citekey: string): boolean {
+		return this.unknown.has(citekey) && !this.unreached.has(citekey);
+	}
+
+	/** Every source asked about and found so far, by citation key. */
+	knownItems(): ReadonlyMap<string, CslItem> {
+		return this.items;
+	}
+
+	/**
+	 * The sources Zotero finds for what was typed, in every library it has, or
+	 * `null` when it does not answer. A source in several libraries under one
+	 * key is listed once, from the first library Zotero names.
+	 */
+	async searchLibrary(query: string): Promise<LibraryItem[] | null> {
+		const found = await rpc<Record<string, unknown>[]>(
+			this.port,
+			"item.search",
+			[searchConditions(query)]
+		);
+		if (!Array.isArray(found)) {
+			return null;
+		}
+		const items = new Map<string, LibraryItem>();
+		for (const item of found) {
+			const citekey = item.citekey;
+			if (typeof citekey === "string" && citekey && !items.has(citekey)) {
+				items.set(citekey, {
+					citekey,
+					item,
+					library: typeof item.library === "string" ? item.library : "",
+				});
+			}
+		}
+		return [...items.values()];
 	}
 
 	/**
@@ -655,7 +772,18 @@ export class CitationRenderer {
 			// note's text.
 			bibliography = null;
 		}
-		return { citation, bibliography };
+		return {
+			citation,
+			session: new CitationSession(citation),
+			notes: citation.opt.xclass === "note",
+			bibliography,
+			tooltips: new Map(),
+		};
+	}
+
+	/** The engines of the prepared style, synchronously, or `null` when it is not prepared. */
+	preparedEngines(styleId: string): StyleEngines | null {
+		return this.engine && this.engineStyle === styleId ? this.engine : null;
 	}
 
 	/** The engine for a style, built once and kept until the style changes. */
@@ -690,8 +818,7 @@ export class CitationRenderer {
 	 * caller asks again once the loading it started has finished.
 	 */
 	renderWith(styleId: string, group: CitationGroup): RenderedCitation | null {
-		const engine =
-			this.engine && this.engineStyle === styleId ? this.engine : null;
+		const engine = this.preparedEngines(styleId);
 		return engine ? this.render(engine, group) : null;
 	}
 
@@ -733,23 +860,21 @@ export class CitationRenderer {
 	}
 
 	/**
-	 * The reference list of the keys, as the style writes it — or `null` for a
-	 * style without a bibliography, or one citeproc fails to write. Keys with
-	 * no item in hand are left out, since citeproc would write them as
-	 * untitled documents.
+	 * The reference list of the note the citation engine holds, as the style
+	 * writes it — or `null` for a style without a bibliography, or one citeproc
+	 * fails to write.
 	 *
-	 * The keys are handed over in the order the note first cites them, which
-	 * is what a numbered style that does not sort numbers its entries by. The
-	 * citation engine writes the list rather than the tooltips' number-less one:
-	 * here the numbers belong, and so does the markup.
+	 * It is read off the note the session last brought the engine to, so it
+	 * has to be asked for straight after that, with nothing run in between:
+	 * the sources are the ones that note cites, in the order it first cites
+	 * them, which is what a numbered style that does not sort numbers its
+	 * entries by, and they are numbered and told apart (2020a, 2020b) as its
+	 * citations are. The citation engine writes the list rather than the
+	 * tooltips' number-less one: here the numbers belong, and so does the
+	 * markup.
 	 */
-	bibliographyOf(
-		engines: StyleEngines,
-		citekeys: string[]
-	): RenderedBibliography | null {
-		const ids = citekeys.filter((key) => this.has(key));
+	bibliographyOf(engines: StyleEngines): RenderedBibliography | null {
 		try {
-			engines.citation.updateItems(ids);
 			const written = engines.citation.makeBibliography();
 			if (!written) {
 				return null;
@@ -757,8 +882,7 @@ export class CitationRenderer {
 			const [params, entries] = written;
 			// The same list again as text, which is what Zotero's own "Copy
 			// bibliography" writes as plain text. The engine goes back to HTML
-			// at once: every citation it renders asks for HTML by name, but
-			// nothing should depend on that.
+			// at once: the note's citations are written in HTML.
 			let text: string[] = [];
 			try {
 				engines.citation.setOutputFormat("text");
@@ -784,10 +908,42 @@ export class CitationRenderer {
 	}
 
 	/**
-	 * The group as the style writes it, or `null` when it cannot be written —
-	 * an unknown key, a style that will not load. Nothing rendered leaves the
-	 * pandoc citation standing, which is the honest thing to show when the
-	 * rendering is not to be had.
+	 * A citation as the style wrote it, with the tooltip of the sources it
+	 * names — or `null` when the style wrote nothing. The tooltips are kept
+	 * with the engines, since a note names the same sources over and over and
+	 * each one is written by an engine of its own.
+	 */
+	renderedCitation(
+		engines: StyleEngines,
+		ids: string[],
+		html: string
+	): RenderedCitation | null {
+		const trimmed = html.trim();
+		if (!trimmed) {
+			return null;
+		}
+		if (!engines.bibliography) {
+			return { html: trimmed, bibliography: "" };
+		}
+		const key = ids.join("\n");
+		let tooltip = engines.tooltips.get(key);
+		if (tooltip === undefined) {
+			tooltip = bibliography(engines.bibliography, ids);
+			engines.tooltips.set(key, tooltip);
+		}
+		return { html: trimmed, bibliography: tooltip };
+	}
+
+	/**
+	 * The group as the style writes it on its own, with nothing before or
+	 * after it — or `null` when it cannot be written: an unknown key, a style
+	 * that will not load. Nothing rendered leaves the pandoc citation standing,
+	 * which is the honest thing to show when the rendering is not to be had.
+	 *
+	 * This is how a citation reads with no note around it: the settings
+	 * preview, and a piece of text that belongs to no note. A note's own
+	 * citations are written together, in `src/noteRendering.ts`. The preview
+	 * leaves the note the engine holds as it was.
 	 */
 	render(
 		engines: StyleEngines,
@@ -796,36 +952,21 @@ export class CitationRenderer {
 		if (!this.known(group)) {
 			return null;
 		}
-		const ids = group.citations.map((citation) => citation.id);
 		try {
-			engines.citation.updateItems(ids);
-			const html = engines.citation
-				.previewCitationCluster(
-					{
-						citationItems: group.citations.map((citation) => ({
-							id: citation.id,
-							locator: citation.locator || undefined,
-							label: citation.label || undefined,
-							prefix: citation.prefix || undefined,
-							suffix: citation.suffix || undefined,
-							"suppress-author":
-								citation.suppressAuthor || undefined,
-						})),
-						properties: { noteIndex: 0 },
-					},
-					[],
-					[],
-					"html"
-				)
-				.trim();
-			return html
-				? {
-						html,
-						bibliography: engines.bibliography
-							? bibliography(engines.bibliography, ids)
-							: "",
-					}
-				: null;
+			const html = engines.citation.previewCitationCluster(
+				{
+					citationItems: group.citations.map(citationItem),
+					properties: { noteIndex: 0 },
+				},
+				[],
+				[],
+				"html"
+			);
+			return this.renderedCitation(
+				engines,
+				group.citations.map((citation) => citation.id),
+				html
+			);
 		} catch {
 			return null;
 		}

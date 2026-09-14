@@ -17,6 +17,7 @@ import {
 	probeZotero,
 } from "src/cayw";
 import { BIBLIOGRAPHY_VIEW, BibliographyView } from "src/bibliography";
+import { CitationSuggest } from "src/citationSuggest";
 import {
 	footnoteEdit,
 	FootnoteEdit,
@@ -29,6 +30,7 @@ import { citationExtension } from "src/live";
 import { applyLook, clearLook } from "src/look";
 import { MarkdownModal } from "src/markdownModal";
 import { NoteFootnoteModal } from "src/noteFootnoteModal";
+import { NoteRenderer } from "src/noteRendering";
 import {
 	forgetNoteFootnotes,
 	moveNoteFootnotes,
@@ -82,6 +84,8 @@ export default class CitationSuitePlugin extends Plugin {
 		readStyleFile,
 		{ locale: "", citePaperArticleURLs: false }
 	);
+	/** Writes a note's citations together, for every view that shows them. */
+	notes = new NoteRenderer(this.renderer);
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -105,30 +109,39 @@ export default class CitationSuitePlugin extends Plugin {
 		this.addSettingTab(new CitationSuiteSettingTab(this.app, this));
 
 		// Reading view and live preview are two different machines drawing the
-		// same thing, and Obsidian has no one place to say it once.
-		this.registerMarkdownPostProcessor((el) => {
-			return renderCitations(
-				el,
-				this.renderer,
-				this.settings.citationStyle,
-				this.citationTooltip()
-			);
+		// same thing, and Obsidian has no one place to say it once. What they
+		// draw with is.
+		const citations = {
+			renderer: this.renderer,
+			notes: this.notes,
+			styleId: () => this.settings.citationStyle,
+			tooltip: () => this.citationTooltip(),
+			markMissing: () => this.settings.markMissingKeys,
+		};
+		this.registerMarkdownPostProcessor((el, ctx) => {
+			return renderCitations(el, ctx, {
+				...citations,
+				noteText: (path) => this.noteText(path),
+			});
 		});
-		this.registerEditorExtension(
-			citationExtension({
-				renderer: this.renderer,
-				styleId: () => this.settings.citationStyle,
-				tooltip: () => this.citationTooltip(),
-			})
-		);
+		this.registerEditorExtension(citationExtension(citations));
+		const suggest = new CitationSuggest(this.app, {
+			renderer: this.renderer,
+			enabled: () => this.settings.citationSuggestions,
+			brackets: () => this.settings.brackets,
+		});
+		this.registerEditorSuggest(suggest);
 
 		this.registerView(
 			BIBLIOGRAPHY_VIEW,
 			(leaf) =>
 				new BibliographyView(leaf, {
 					renderer: this.renderer,
+					notes: this.notes,
 					styleId: () => this.settings.citationStyle,
 					redrawCitations: () => this.redrawCitations(),
+					typedKey: (file, text) => suggest.typedKey(file, text),
+					onTypingChange: (listener) => suggest.onTypingChange(listener),
 				})
 		);
 		this.app.workspace.onLayoutReady(() => {
@@ -250,6 +263,7 @@ export default class CitationSuitePlugin extends Plugin {
 	}
 
 	onunload(): void {
+		this.notes.clear();
 		for (const doc of this.windowDocuments()) {
 			clearLook(doc.body);
 		}
@@ -287,6 +301,24 @@ export default class CitationSuitePlugin extends Plugin {
 			reveal: false,
 		});
 		this.app.saveLocalStorage(BIBLIOGRAPHY_PLACED_KEY, true);
+	}
+
+	/**
+	 * The whole text of the note at the path, as it stands — from its editor
+	 * when it is open in one, since that holds what has not been saved yet — or
+	 * `null` for anything that is not a note.
+	 */
+	private async noteText(path: string): Promise<string | null> {
+		const file = this.app.vault.getFileByPath(path);
+		if (!isNote(file)) {
+			return null;
+		}
+		for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
+			if (leaf.view instanceof MarkdownView && leaf.view.file === file) {
+				return leaf.view.getViewData();
+			}
+		}
+		return this.app.vault.cachedRead(file);
 	}
 
 	/** The tooltip a rendered citation carries, as the settings have it. */
@@ -563,6 +595,7 @@ export default class CitationSuitePlugin extends Plugin {
 	 * to render in, or the port the library is behind.
 	 */
 	async restyle(): Promise<void> {
+		this.notes.clear();
 		this.renderer.reset(
 			this.settings.port,
 			this.styles,

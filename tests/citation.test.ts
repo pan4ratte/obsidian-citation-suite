@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	citedKeys,
+	keyMentions,
 	mentionsOf,
 	parseCitation,
 	parseGroups,
@@ -254,6 +255,19 @@ describe("proseOf", () => {
 		expect(prose).toHaveLength(text.length);
 		expect(prose.indexOf("[@doe2020]")).toBe(text.indexOf("[@doe2020]"));
 		expect(prose.split("\n")).toHaveLength(text.split("\n").length);
+	});
+});
+
+describe("keyMentions", () => {
+	it("finds each key of the group where it stands, in the order cited", () => {
+		const text = "As [see -@doe2020, p. 3; @{roe 2021}] said.";
+		const [group] = parseGroups(text);
+		expect(
+			keyMentions(text, group).map(({ id, from, to }) => [id, text.slice(from, to)])
+		).toEqual([
+			["doe2020", "-@doe2020"],
+			["roe 2021", "@{roe 2021}"],
+		]);
 	});
 });
 

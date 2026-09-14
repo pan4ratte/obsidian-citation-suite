@@ -1,10 +1,17 @@
-import { sanitizeHTMLToDom, setTooltip } from "obsidian";
-import { parseGroups } from "src/citation";
 import {
-	CitationRenderer,
-	RenderedCitation,
-	StyleEngines,
-} from "src/render";
+	MarkdownPostProcessorContext,
+	sanitizeHTMLToDom,
+	setTooltip,
+} from "obsidian";
+import { t } from "lang/helpers";
+import { CitationGroup, keyMentions, parseGroups } from "src/citation";
+import {
+	matchCitations,
+	NoteCitation,
+	noteCitations,
+} from "src/noteCitations";
+import { NoteRenderer } from "src/noteRendering";
+import { CitationRenderer, RenderedCitation } from "src/render";
 
 /**
  * Showing citations in their style in reading view.
@@ -15,12 +22,24 @@ import {
  * of every source it cites — `(Doe, 2020, p. 33)` names a source, and the entry
  * is what says which one.
  *
+ * Obsidian hands over the note a block at a time, and a citation is written by
+ * the whole note (`src/noteCitations.ts`), so each block's citations are found
+ * among the note's: among those of the lines the block was drawn from, or —
+ * for the list of footnotes Obsidian draws at the end of the note — among the
+ * citations in footnotes, in the order the list has them.
+ *
+ * A key Zotero has no source for is marked where it stands, whether or not a
+ * style is chosen, so that a typo does not wait for the export to show.
+ *
  * What is not touched: code, maths, and anything already inside a link. A
  * citation key in a code block is being talked about rather than used.
  */
 
 /** The class every rendered citation carries, for styles.css to reach. */
 export const RENDERED_CLASS = "citation-suite-citation";
+
+/** The class a key Zotero has no source for is marked with. */
+export const MISSING_CLASS = "citation-suite-citation-missing";
 
 /**
  * The class its tooltip carries. The tooltip is one element Obsidian shares
@@ -95,39 +114,79 @@ export function citationEl(
 }
 
 /**
- * Replaces the citations in one text node. The node is rebuilt as a run of
- * text and spans, because a text node cannot hold elements.
+ * A key Zotero has no source for, as an element to stand where the key does,
+ * saying so on hover. Live preview marks keys with the same class and tooltip.
+ */
+function missingKeyEl(text: string, tooltip: CitationTooltip): HTMLElement {
+	const span = createSpan({ cls: MISSING_CLASS, text });
+	setTooltip(span, t.CITATION_KEY_MISSING, { delay: tooltip.delay });
+	return span;
+}
+
+/** What the plugin hands reading view: the renderer, the notes, and the settings read. */
+export interface ReadingContext {
+	renderer: CitationRenderer;
+	notes: NoteRenderer;
+	/** The style to render in, or empty for none. */
+	styleId(): string;
+	tooltip(): CitationTooltip;
+	/** Whether keys Zotero has no source for are marked. */
+	markMissing(): boolean;
+	/** The whole text of the note at the path, or `null` if it is not a note. */
+	noteText(path: string): Promise<string | null>;
+}
+
+/** A text node that holds citations, and whether it is in the list of footnotes. */
+interface CitingNode {
+	node: Text;
+	groups: CitationGroup[];
+	inFootnotes: boolean;
+}
+
+/**
+ * Replaces the citations in one text node, and marks the keys Zotero has no
+ * source for in the ones left as they are written. The node is rebuilt as a
+ * run of text and spans, because a text node cannot hold elements.
  */
 function decorateNode(
-	node: Text,
-	engines: StyleEngines,
-	renderer: CitationRenderer,
-	tooltip: CitationTooltip
+	{ node, groups }: CitingNode,
+	rendered: Map<CitationGroup, RenderedCitation | null>,
+	context: ReadingContext
 ): void {
 	const text = node.nodeValue ?? "";
-	const groups = parseGroups(text);
-	if (groups.length === 0) {
-		return;
-	}
-
+	const tooltip = context.tooltip();
 	const doc = node.ownerDocument;
 	const fragment = createFragment();
 	let at = 0;
 	let replaced = false;
+	const upTo = (to: number): void => {
+		fragment.appendChild(doc.createTextNode(text.slice(at, to)));
+	};
 
 	for (const group of groups) {
-		const rendered = renderer.render(engines, group);
-		if (!rendered) {
-			// An unknown key or a style that would not load: leave this one as
-			// the note wrote it.
+		const citation = rendered.get(group);
+		if (citation) {
+			upTo(group.from);
+			fragment.appendChild(
+				citationEl(citation, text.slice(group.from, group.to), tooltip)
+			);
+			at = group.to;
+			replaced = true;
 			continue;
 		}
-		fragment.appendChild(doc.createTextNode(text.slice(at, group.from)));
-		fragment.appendChild(
-			citationEl(rendered, text.slice(group.from, group.to), tooltip)
-		);
-		at = group.to;
-		replaced = true;
+		if (!context.markMissing()) {
+			continue;
+		}
+		for (const mention of keyMentions(text, group)) {
+			if (context.renderer.missing(mention.id)) {
+				upTo(mention.from);
+				fragment.appendChild(
+					missingKeyEl(text.slice(mention.from, mention.to), tooltip)
+				);
+				at = mention.to;
+				replaced = true;
+			}
+		}
 	}
 
 	if (!replaced) {
@@ -137,44 +196,123 @@ function decorateNode(
 	node.parentNode?.replaceChild(fragment, node);
 }
 
+/** The note last read, since every block of it asks for the same one. */
+let lastNote: { text: string; citations: NoteCitation[] } | null = null;
+
+function citationsOf(text: string): NoteCitation[] {
+	if (lastNote?.text !== text) {
+		lastNote = { text, citations: noteCitations(text) };
+	}
+	return lastNote.citations;
+}
+
+/** The offset the line starts at in the text, or the text's end past its last line. */
+function lineOffset(text: string, line: number): number {
+	let offset = 0;
+	for (let i = 0; i < line; i++) {
+		const end = text.indexOf("\n", offset);
+		if (end === -1) {
+			return text.length;
+		}
+		offset = end + 1;
+	}
+	return offset;
+}
+
 /**
- * The post processor Obsidian runs over every rendered block. It is given the
- * style to render in, the renderer holding the library and the tooltip each
- * citation carries; all three come from the plugin, which redraws the views
- * when a setting changes them.
+ * The post processor Obsidian runs over every rendered block. Everything it
+ * needs comes from the plugin through the context, read afresh on every run,
+ * since the plugin redraws the views when a setting changes.
  */
 export async function renderCitations(
 	el: HTMLElement,
-	renderer: CitationRenderer,
-	styleId: string,
-	tooltip: CitationTooltip
+	ctx: MarkdownPostProcessorContext,
+	context: ReadingContext
 ): Promise<void> {
-	if (!styleId) {
+	const styleId = context.styleId();
+	if (!styleId && !context.markMissing()) {
 		return;
 	}
-	const nodes = citableTextNodes(el);
-	if (nodes.length === 0) {
-		return;
-	}
-
-	const groups = nodes.flatMap((node) => parseGroups(node.nodeValue ?? ""));
+	const nodes: CitingNode[] = citableTextNodes(el).map((node) => ({
+		node,
+		groups: parseGroups(node.nodeValue ?? ""),
+		inFootnotes: node.parentElement?.closest(".footnotes") != null,
+	}));
+	const groups = nodes.flatMap((entry) => entry.groups);
 	if (groups.length === 0) {
 		return;
 	}
 
 	// One request for everything this block cites, before anything is drawn:
 	// citeproc is handed its items synchronously or not at all.
-	await renderer.load(
-		groups.flatMap((group) =>
-			group.citations.map((citation) => citation.id)
-		)
+	await context.renderer.load(
+		groups.flatMap((group) => group.citations.map((citation) => citation.id))
 	);
-	const engines = await renderer.engineFor(styleId);
-	if (!engines) {
+
+	const rendered = new Map<CitationGroup, RenderedCitation | null>();
+	if (styleId) {
+		await renderInNote(el, ctx, context, styleId, nodes, rendered);
+	}
+	for (const entry of nodes) {
+		decorateNode(entry, rendered, context);
+	}
+}
+
+/**
+ * Writes the block's citations as the note's, into `rendered`. A block that
+ * belongs to no note, or to one that cannot be read, has its citations written
+ * each on its own, as they would read with nothing around them.
+ */
+async function renderInNote(
+	el: HTMLElement,
+	ctx: MarkdownPostProcessorContext,
+	context: ReadingContext,
+	styleId: string,
+	nodes: CitingNode[],
+	rendered: Map<CitationGroup, RenderedCitation | null>
+): Promise<void> {
+	const section = ctx.getSectionInfo(el);
+	const text = section?.text ?? (await context.noteText(ctx.sourcePath));
+	const note =
+		text !== null
+			? await context.notes.render(styleId, ctx.sourcePath, citationsOf(text))
+			: null;
+	if (text === null || !note) {
+		const engines = await context.renderer.engineFor(styleId);
+		for (const group of nodes.flatMap((entry) => entry.groups)) {
+			rendered.set(group, engines ? context.renderer.render(engines, group) : null);
+		}
 		return;
 	}
 
-	for (const node of nodes) {
-		decorateNode(node, engines, renderer, tooltip);
+	const written = new Map(
+		note.citations.map((citation, index) => [citation, note.rendered[index]])
+	);
+	const byPosition = [...note.citations].sort((a, b) => a.from - b.from);
+	let body: NoteCitation[];
+	if (section) {
+		const from = lineOffset(text, section.lineStart);
+		const to = lineOffset(text, section.lineEnd + 1);
+		body = byPosition.filter(
+			(citation) => citation.from >= from && citation.to <= to
+		);
+	} else {
+		// The whole note in one block — an embed, a print — with its
+		// footnotes drawn apart from its body.
+		body = byPosition.filter((citation) => !citation.inNote);
+	}
+	// Obsidian lists the footnotes in the order they are anchored, which is
+	// the order their citations are read in.
+	const footnotes = note.citations.filter((citation) => citation.inNote);
+
+	for (const inFootnotes of [false, true]) {
+		const groups = nodes
+			.filter((entry) => entry.inFootnotes === inFootnotes)
+			.flatMap((entry) => entry.groups);
+		const matches = matchCitations(groups, inFootnotes ? footnotes : body);
+		groups.forEach((group, index) => {
+			const match = matches[index];
+			rendered.set(group, match ? (written.get(match) ?? null) : null);
+		});
 	}
 }

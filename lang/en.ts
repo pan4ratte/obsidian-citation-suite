@@ -39,8 +39,12 @@ export default {
 	SETTING_TOOLTIPS_DESC: "Hovering over a styled citation shows the bibliography entry of each source.",
 	SETTING_TOOLTIP_DELAY_NAME: "Tooltip delay",
 	SETTING_TOOLTIP_DELAY_DESC: "How long the cursor has to rest on a citation before the bibliography entry appears.",
+	SETTING_MARK_MISSING_NAME: "Mark citation keys Zotero does not have",
+	SETTING_MARK_MISSING_DESC: "The key of a source that is not in your Zotero library — one with a typo, say — is underlined with a wavy line. This works in every view mode, even with no preview style chosen.",
 	SETTING_BRACKETS_NAME: "Put citations in square brackets",
 	SETTING_BRACKETS_DESC: "Citations are inserted as [@doe2020, p. 33] for a correct export with Pandoc.",
+	SETTING_SUGGEST_NAME: "Suggest sources while a citation key is typed",
+	SETTING_SUGGEST_DESC: "Typing the at sign opens a list of sources whose key, title, authors or year hold the text typed after it, and the key picked is inserted in Pandoc format. Zotero is searched from the third character on, and the sources of the current note are offered at once.",
 
 	SECTION_FOOTNOTES: "Footnotes",
 	SETTING_FOOTNOTES_NAME: "Automatically put citations in footnotes",
@@ -78,6 +82,13 @@ export default {
 	SETTING_PORT_RESET: "Restore default",
 	SETTING_MINIMIZE_NAME: "Minimize Zotero after picking a source",
 	SETTING_MINIMIZE_DESC: "Zotero's window is minimized once a source is picked, and focus returns to Obsidian.",
+
+	// ─── Citations in a note ─────────────────────────────────────────────────
+	CITATION_KEY_MISSING: "Zotero has no source with this citation key",
+	// The hints under the list of sources offered while a key is typed.
+	SUGGEST_NAVIGATE: "Move through the list",
+	SUGGEST_INSERT: "Insert the key",
+	SUGGEST_DISMISS: "Close",
 
 	// ─── Note footnote settings ──────────────────────────────────────────────
 	NOTE_FOOTNOTES_TITLE: "Footnote settings for this note",

@@ -349,6 +349,31 @@ export interface Mention {
 	to: number;
 }
 
+/** A key a group cites, and where its `@key` stands in the text. */
+export interface KeyMention extends Mention {
+	id: string;
+}
+
+/**
+ * Every key the group cites, with where it stands in the text the group was
+ * read from — cut between the brackets as `parseGroups` cuts it, so each is the
+ * key of the citation at the same place in `group.citations`.
+ */
+export function keyMentions(text: string, group: CitationGroup): KeyMention[] {
+	const mentions: KeyMention[] = [];
+	let start = group.from + 1;
+	for (const part of text.slice(start, group.to - 1).split(";")) {
+		const match = CITATION.exec(part);
+		const id = match ? (match[2] ?? match[3]) : undefined;
+		if (match && id) {
+			const from = start + match.index;
+			mentions.push({ id, from, to: from + match[0].length });
+		}
+		start += part.length + 1;
+	}
+	return mentions;
+}
+
 /**
  * Every place the text cites any of the keys, in the order they come — read
  * exactly as `citedKeys` reads them, so a source is found wherever the list
@@ -357,20 +382,8 @@ export interface Mention {
 export function mentionsOf(text: string, citekeys: string[]): Mention[] {
 	const wanted = new Set(citekeys);
 	const prose = proseOf(text);
-	const mentions: Mention[] = [];
-	for (const group of parseGroups(prose)) {
-		// Cut between the brackets as `parseGroups` cuts it, keeping count of
-		// where each piece starts.
-		let start = group.from + 1;
-		for (const part of prose.slice(start, group.to - 1).split(";")) {
-			const match = CITATION.exec(part);
-			const id = match ? (match[2] ?? match[3]) : undefined;
-			if (match && id && wanted.has(id)) {
-				const from = start + match.index;
-				mentions.push({ from, to: from + match[0].length });
-			}
-			start += part.length + 1;
-		}
-	}
-	return mentions;
+	return parseGroups(prose)
+		.flatMap((group) => keyMentions(prose, group))
+		.filter((mention) => wanted.has(mention.id))
+		.map(({ from, to }) => ({ from, to }));
 }

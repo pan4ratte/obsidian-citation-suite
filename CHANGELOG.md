@@ -1,6 +1,15 @@
 # Changelog
 
 
+## Unreleased
+
+### New features
+
+* **Preview that takes the whole note into account.** Citations are now styled the way exporting the whole note styles them: a source cited again is written in its short form or as "Ibid." when the style asks for it, numbered styles number sources in order of first citation just as the bibliography does, and works by one author in one year are told apart by letters (2020a, 2020b). Citations in footnotes count where the footnote is anchored.
+* **Unknown citation keys marked.** A key Zotero has no source for — one with a typo, say — is underlined with a wavy line in every view mode, even with no preview style chosen. The marking can be turned off in the settings.
+* **Suggestions while typing a citation key.** Typing `@` opens a list of sources from Zotero whose key, title, authors or year hold the text typed, with the current note's sources first. The key picked is inserted in Pandoc format, and the suggestions can be turned off in the settings.
+
+
 ## 1.1.0
 
 ### New features

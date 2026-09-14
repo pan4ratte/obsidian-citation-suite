@@ -88,6 +88,13 @@ export interface CitationSuiteSettings {
 	citationTooltips: boolean;
 	/** How long, in milliseconds, a citation is hovered before its tooltip shows. */
 	citationTooltipDelay: number;
+	/**
+	 * Mark a citation key Zotero has no source for, in every view of a note,
+	 * whether or not a style is chosen.
+	 */
+	markMissingKeys: boolean;
+	/** Offer sources while a citation key is typed after `@`. */
+	citationSuggestions: boolean;
 	/** The view the settings preview shows the sample in. */
 	previewMode: PreviewMode;
 	/**
@@ -138,6 +145,8 @@ export const DEFAULT_SETTINGS: CitationSuiteSettings = {
 	citationItalic: false,
 	citationTooltips: true,
 	citationTooltipDelay: DEFAULT_TOOLTIP_DELAY,
+	markMissingKeys: true,
+	citationSuggestions: true,
 	// The view a note is written in, which is where most citations are read.
 	previewMode: "live",
 	footnotes: false,
