@@ -1,13 +1,14 @@
 # Changelog
 
+
 ## Unreleased
 
 ### UI/UX enhancements and bug fixes
 
-* **The bibliography no longer gets stuck on the previous note.** When switching notes, the pane sometimes showed the previous note's bibliography or said the note cites no sources — most often when a tab was first opened after launching Obsidian, or right after an edit. The list now updates as soon as the note has loaded.
-* **Resetting the Zotero port.** The port setting now has a button that restores the default port.
-* **Borders around settings groups.** Every group of settings is now outlined, like the Zotero status block.
-* **Compact Zotero status.** Zotero's state is now shown on one line, and the whole block is a button like the ones beside it: pressing it checks Zotero again, and its icon spins while the check is running. The status block and the changelog and user guide buttons are now the same width.
+* Fixed a bug that left the bibliography empty or not updated after switching from one note to another.
+* The Zotero port option now has a button that resets the port to the default one.
+* The Zotero status card has been reworked, with a better look, a more compact layout and animations.
+
 
 ## 1.0.0
 
