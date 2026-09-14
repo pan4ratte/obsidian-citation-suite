@@ -41,6 +41,13 @@ export const BIBLIOGRAPHY_VIEW = "citation-suite-bibliography";
 const TYPING_DELAY = 500;
 
 /**
+ * How often Zotero is asked again while it has not answered for the note's
+ * sources. A closed Zotero refuses the connection at once, so this costs
+ * nothing, and it is what takes the notice down once Zotero is started.
+ */
+const RETRY_DELAY = 5000;
+
+/**
  * What hides an element of the pane: a button with nothing to act on, or an
  * entry the search does not match. A class rather than
  * the `hidden` attribute, which loses to the `display` the entries and
@@ -130,10 +137,14 @@ async function play(el: HTMLElement, cls: string): Promise<void> {
 	el.removeClass(cls);
 }
 
-/** What the plugin hands the pane: the renderer, and the style to render in. */
+/**
+ * What the plugin hands the pane: the renderer, the style to render in, and a
+ * way to draw the notes' citations again when a retry brings sources in.
+ */
 export interface BibliographyContext {
 	renderer: CitationRenderer;
 	styleId(): string;
+	redrawCitations(): void;
 }
 
 export class BibliographyView extends ItemView {
@@ -150,6 +161,8 @@ export class BibliographyView extends ItemView {
 	 * on Zotero draws nothing: the later one knows better.
 	 */
 	private pass = 0;
+	/** The timer asking Zotero again while it has not answered, if one is set. */
+	private retryTimer: number | null = null;
 	private refreshSoon = debounce(
 		() => void this.refresh(),
 		TYPING_DELAY,
@@ -246,6 +259,7 @@ export class BibliographyView extends ItemView {
 
 	protected onClose(): Promise<void> {
 		this.refreshSoon.cancel();
+		this.cancelRetry();
 		// Whatever pass is still waiting on Zotero has nowhere left to draw.
 		this.pass++;
 		return Promise.resolve();
@@ -320,6 +334,7 @@ export class BibliographyView extends ItemView {
 	 */
 	async refresh(): Promise<void> {
 		const pass = ++this.pass;
+		this.cancelRetry();
 		const file = this.file;
 		const styleId = this.context.styleId();
 		const renderer = this.context.renderer;
@@ -344,8 +359,12 @@ export class BibliographyView extends ItemView {
 			return;
 		}
 
-		await renderer.load(keys);
+		const unanswered = keys.filter((key) => renderer.unreachable(key));
+		await renderer.load(keys, true);
 		const engines = await renderer.engineFor(styleId);
+		if (unanswered.some((key) => renderer.has(key))) {
+			this.context.redrawCitations();
+		}
 		if (pass !== this.pass) {
 			return;
 		}
@@ -372,12 +391,49 @@ export class BibliographyView extends ItemView {
 		}
 		if (unreached) {
 			this.drawUnreachable();
+			this.scheduleRetry(pass, keys);
 		}
 		if (notFound.length > 0) {
 			this.drawMissing(notFound);
 		}
 		this.redrawFinding(file, text);
 		this.applySearch();
+	}
+
+	/**
+	 * Asks Zotero again, after a while, for the keys it did not answer for, and
+	 * draws the list again only once it answers — not on every try, which
+	 * would redraw the pane every few seconds for as long as Zotero is closed.
+	 */
+	private scheduleRetry(pass: number, keys: string[]): void {
+		this.retryTimer = window.setTimeout(() => {
+			this.retryTimer = null;
+			void this.retry(pass, keys);
+		}, RETRY_DELAY);
+	}
+
+	private async retry(pass: number, keys: string[]): Promise<void> {
+		const renderer = this.context.renderer;
+		const unanswered = keys.filter((key) => renderer.unreachable(key));
+		await renderer.load(keys, true);
+		if (pass !== this.pass) {
+			return;
+		}
+		if (keys.some((key) => renderer.unreachable(key))) {
+			this.scheduleRetry(pass, keys);
+			return;
+		}
+		if (unanswered.some((key) => renderer.has(key))) {
+			this.context.redrawCitations();
+		}
+		await this.refresh();
+	}
+
+	private cancelRetry(): void {
+		if (this.retryTimer !== null) {
+			window.clearTimeout(this.retryTimer);
+			this.retryTimer = null;
+		}
 	}
 
 	/**

@@ -119,7 +119,7 @@ export default {
 	BIBLIOGRAPHY_MISSING: "Sources not found in Zotero",
 	BIBLIOGRAPHY_MISSING_DESC: "Better BibTeX has no items for these citation keys. If you have already added the sources to Zotero, refresh the bibliography.",
 	BIBLIOGRAPHY_UNREACHABLE: "Zotero is not responding",
-	BIBLIOGRAPHY_UNREACHABLE_DESC: "Could not get the note's sources. Make sure Zotero is running, Better BibTeX is installed in it and the port in the settings matches its own, then refresh the bibliography.",
+	BIBLIOGRAPHY_UNREACHABLE_DESC: "Could not get the note's sources. Make sure Zotero is running, Better BibTeX is installed in it and the port in the settings matches its own. The bibliography will update as soon as Zotero responds.",
 	// The menu of an entry in the list.
 	BIBLIOGRAPHY_REVEAL: "Reveal in Zotero",
 	BIBLIOGRAPHY_REVEAL_NOT_FOUND: "Zotero no longer has this source.",

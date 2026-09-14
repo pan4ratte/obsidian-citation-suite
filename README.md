@@ -124,7 +124,7 @@ The first time the plugin runs, it opens a "Bibliography" tab in the right sideb
 
 * **The "Find in note" option** selects the note's first citation of the source and scrolls to it, and a "Mention 1 / 5" bar appears under the entry that lets you go to the previous and the next mention of the source.
 
-Keys Zotero has no item for are listed under the bibliography, in the "Sources not found in Zotero" section. If Zotero is not responding, a "Zotero is not responding" message appears instead of that section — start Zotero and press **Refresh bibliography**.
+Keys Zotero has no item for are listed under the bibliography, in the "Sources not found in Zotero" section. If Zotero is not responding, a "Zotero is not responding" message appears instead of that section — start Zotero and the bibliography updates by itself.
 
 ## 5. Citation preview
 

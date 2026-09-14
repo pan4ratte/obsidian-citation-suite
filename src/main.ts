@@ -106,6 +106,7 @@ export default class CitationSuitePlugin extends Plugin {
 				new BibliographyView(leaf, {
 					renderer: this.renderer,
 					styleId: () => this.settings.citationStyle,
+					redrawCitations: () => this.redrawCitations(),
 				})
 		);
 		this.app.workspace.onLayoutReady(() => {

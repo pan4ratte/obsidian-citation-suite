@@ -211,8 +211,14 @@ interface PandocFilterAnswer {
  * citeproc prints as it is given. Only if that export fails is Better BibTeX's
  * copy kept.
  *
- * `answered` is false when a library was asked and nothing came back — Zotero
- * closed while the keys were looked for — so a key not found may yet be there.
+ * `answered` is false when a library was asked and nothing came back because
+ * Zotero was not there — closed while the keys were looked for — so a key not
+ * found may yet be there. Nothing coming back is not proof of that on its own:
+ * Better BibTeX can refuse one library's request while answering the rest. So
+ * Zotero is asked for its libraries, which it answers whenever it is running,
+ * and the request is sent once more if it does; only a Zotero that answers
+ * neither counts as not there. A library refused twice is passed over, and its
+ * keys are not found, as Better BibTeX said.
  */
 async function fetchItems(
 	port: number,
@@ -229,16 +235,29 @@ async function fetchItems(
 		}
 		// An absent parameter takes Better BibTeX's default; a null one fails
 		// its schema, so the style is left off rather than sent empty.
-		const answer = await rpc<PandocFilterAnswer>(
+		const params = style
+			? [remaining, true, library, style]
+			: [remaining, true, library];
+		let answer = await rpc<PandocFilterAnswer>(
 			port,
 			"item.pandoc_filter",
-			style
-				? [remaining, true, library, style]
-				: [remaining, true, library]
+			params
 		);
 		if (answer === null) {
-			answered = false;
-			continue;
+			if ((await fetchLibraries(port)) === null) {
+				answered = false;
+				continue;
+			}
+			// Zotero is there: a hiccup is answered the second time, and a
+			// refusal is refused again.
+			answer = await rpc<PandocFilterAnswer>(
+				port,
+				"item.pandoc_filter",
+				params
+			);
+			if (answer === null) {
+				continue;
+			}
 		}
 		const better = new Map<string, CslItem>();
 		for (const [key, item] of Object.entries(answer.items ?? {})) {
@@ -414,12 +433,20 @@ export class CitationRenderer {
 	 * Make sure every key named is either known or known to be unknown. Only
 	 * this is asynchronous; rendering afterwards is not, because citeproc asks
 	 * for its data with no way to wait for an answer.
+	 *
+	 * With `retryUnreached`, the keys missed because Zotero did not answer are
+	 * asked about again too. The bibliography pane asks that; the editor does
+	 * not, since it would send a request on every keystroke while Zotero is
+	 * closed.
 	 */
-	async load(citekeys: string[]): Promise<void> {
+	async load(citekeys: string[], retryUnreached = false): Promise<void> {
 		const wanted = [
 			...new Set(
 				citekeys.filter(
-					(key) => !this.items.has(key) && !this.unknown.has(key)
+					(key) =>
+						!this.items.has(key) &&
+						(!this.unknown.has(key) ||
+							(retryUnreached && this.unreached.has(key)))
 				)
 			),
 		];
@@ -450,12 +477,17 @@ export class CitationRenderer {
 			this.libraries = null;
 		}
 		for (const key of wanted) {
-			if (!this.items.has(key)) {
+			if (this.items.has(key)) {
+				this.unknown.delete(key);
+				this.unreached.delete(key);
+			} else {
 				// Better BibTeX does not know it: a key typed by hand, or one
 				// whose item has gone — or Zotero did not answer. Asking again
 				// on every keystroke would only be told the same thing.
 				this.unknown.add(key);
-				if (!answered) {
+				if (answered) {
+					this.unreached.delete(key);
+				} else {
 					this.unreached.add(key);
 				}
 			}

@@ -456,16 +456,29 @@ object by `loadSettings` and read by nothing.
     and a finding at once — and the count's transform, with and without
     `--force-prefers-reduced-motion`.
 - **The refresh button calls `forgetUnknown()`** before redrawing. A key missed
-  once is never asked about again, and a Zotero that was closed at that moment
-  misses every key; this is the one way back short of changing the style or
-  port.
+  because Better BibTeX had no item for it is never asked about again; this is
+  the one way back, short of changing the style or port, for a source added to
+  Zotero since.
 - **A key missed because Zotero did not answer is not listed as missing.**
   `load` marks it `unreachable` when `user.groups` or an `item.pandoc_filter`
-  call got no answer, and drops the kept library list so it is read again. The
+  call got no answer, and drops the kept library list so it is read again.
+  `rpc` answers `null` for a refusal as much as for a closed Zotero, so a
+  `pandoc_filter` that comes back empty is followed by `user.groups`: if Zotero
+  answers that, the library's request is sent once more, and a library refused
+  twice is passed over with its keys not found rather than unreachable. Only
+  a Zotero answering neither is not there. The
   pane shows a "Zotero is not responding" notice in place of those keys, drawn
   like the missing section but not searched, since it holds no source; keys
   Zotero did answer about still go under "Sources not found in Zotero".
   `forgetUnknown()` clears both.
+- **The pane asks again for the keys Zotero did not answer for**, and only the
+  pane: every pass calls `load(keys, true)`, and while the notice is up a
+  `RETRY_DELAY` (5 s) timer does the same, redrawing the pane only once Zotero
+  answers, so a closed Zotero does not redraw it every few seconds. The timer
+  is cancelled by every pass and by `onClose`, and a retry overtaken by a pass
+  draws nothing. When a retry brings in sources, `redrawCitations` draws the
+  notes' citations again, since the editors only ask for keys not yet missed.
+  The editor never retries: it would send a request on every keystroke.
 - **The layout follows citeproc's bibliography params.** `hangingindent` and
   `maxoffset` are handed to styles.css as custom properties
   (`--citation-suite-bibliography-indent`, `--citation-suite-bibliography-number-width`, in

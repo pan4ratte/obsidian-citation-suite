@@ -119,7 +119,7 @@ export default {
 	BIBLIOGRAPHY_MISSING: "Источники, не найденные в Zotero",
 	BIBLIOGRAPHY_MISSING_DESC: "Для этих ключей цитирования в Better BibTeX нет элементов. Если вы уже добавили источники в Zotero, обновите библиографию.",
 	BIBLIOGRAPHY_UNREACHABLE: "Zotero не отвечает",
-	BIBLIOGRAPHY_UNREACHABLE_DESC: "Не удалось получить источники заметки. Убедитесь, что Zotero запущен, в нём установлен Better BibTeX, а порт в настройках совпадает с его собственным, и обновите библиографию.",
+	BIBLIOGRAPHY_UNREACHABLE_DESC: "Не удалось получить источники заметки. Убедитесь, что Zotero запущен, в нём установлен Better BibTeX, а порт в настройках совпадает с его собственным. Библиография обновится, как только Zotero ответит.",
 	// Меню записи в списке.
 	BIBLIOGRAPHY_REVEAL: "Показать в Zotero",
 	BIBLIOGRAPHY_REVEAL_NOT_FOUND: "Этого источника больше нет в Zotero.",
