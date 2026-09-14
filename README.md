@@ -32,7 +32,7 @@ With the setting on, a footnote anchor is placed at the cursor and the citation 
 
 ### 4. Preview of the note's bibliography
 
-A tab in the right sidebar lists every source cited in the note — formatted in the citation style chosen for the preview, following its sorting, numbering and indentation. Above the bibliography are the number of entries, a search of the list and a button that copies the bibliography. Right-clicking an entry opens a menu that lets you reveal the source in Zotero, copy the entry or find its mentions in the note.
+A tab in the right sidebar lists every source cited in the note — formatted in the citation style chosen for the preview, following its sorting, numbering and indentation. Above the bibliography are the number of entries, a search of the list and a button that copies the bibliography. Right-clicking an entry opens a menu that lets you open your note about the source or its PDF, reveal the source in Zotero, copy the entry or find its mentions in the note.
 
 
 ## Installation
@@ -120,6 +120,10 @@ The first time the plugin runs, it opens a "Bibliography" tab in the right sideb
 * **The "Refresh bibliography" button** asks Zotero for the data again.
 
 **Right-clicking an entry opens a context menu:**
+
+* **The "Open literature note" option** opens your note about the source — a note named `@key` or `key`, or one with the citation key in its `citekey`, `citationKey` or `citation-key` property, as the plugins that import notes from Zotero write them. The option is shown only when there is such a note; with `Ctrl` (`Cmd` on macOS) held, the note opens in a new tab.
+
+* **The "Open PDF" option** opens the PDF attached to the source in Zotero's reader, along with your annotations. If there are several PDFs, a menu listing the files appears.
 
 * **The "Reveal in Zotero" option** selects the source in Zotero's window, in the library the entry was taken from.
 

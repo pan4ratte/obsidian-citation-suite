@@ -154,6 +154,9 @@ export default {
 	BIBLIOGRAPHY_UNREACHABLE: "Zotero не отвечает",
 	BIBLIOGRAPHY_UNREACHABLE_DESC: "Не удалось получить источники заметки. Убедитесь, что Zotero запущен, в нём установлен Better BibTeX, а порт в настройках совпадает с его собственным. Библиография обновится, как только Zotero ответит.",
 	// Меню записи в списке.
+	BIBLIOGRAPHY_OPEN_NOTE: "Открыть заметку об источнике",
+	BIBLIOGRAPHY_OPEN_PDF: "Открыть PDF",
+	BIBLIOGRAPHY_OPEN_PDF_NONE: "К этому источнику в Zotero не прикреплён PDF.",
 	BIBLIOGRAPHY_REVEAL: "Показать в Zotero",
 	BIBLIOGRAPHY_REVEAL_NOT_FOUND: "Этого источника больше нет в Zotero.",
 	BIBLIOGRAPHY_COPY_ENTRY: "Скопировать запись",

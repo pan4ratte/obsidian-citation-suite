@@ -9,6 +9,8 @@ import { CitationStyle } from "src/types";
 import {
 	asZoteroCites,
 	eventToEventTitle,
+	PdfAttachment,
+	pdfAttachments,
 	selectLink,
 	uppercasesSubtitles,
 } from "src/zoteroCite";
@@ -155,6 +157,11 @@ interface FoundItem {
  * or why there is none — Zotero not answering, or no longer holding the item.
  */
 export type ItemLink = { link: string } | { error: "unreachable" | "not-found" };
+
+/** What asking Zotero for a key's PDFs comes to: the PDFs, or why there are none to hand. */
+export type ItemPdfs =
+	| { pdfs: PdfAttachment[] }
+	| { error: "unreachable" | "not-found" };
 
 /**
  * One call to Better BibTeX's JSON-RPC endpoint: its result, or `null` when
@@ -672,6 +679,34 @@ export class CitationRenderer {
 		);
 		const link = typeof item?.id === "string" ? selectLink(item.id) : null;
 		return link ? { link } : { error: "not-found" };
+	}
+
+	/**
+	 * The PDFs attached to a key's item, in the library it was rendered from,
+	 * asked of Better BibTeX's `item.attachments` when they are wanted rather
+	 * than kept: attaching a PDF in Zotero should not wait for anything to be
+	 * refreshed.
+	 *
+	 * The method answers with an error, not an empty list, for a key the
+	 * library no longer holds, and `rpc` makes that `null` just as it makes a
+	 * closed Zotero `null`; so Zotero is asked for its libraries to tell the
+	 * two apart.
+	 */
+	async itemPdfs(citekey: string): Promise<ItemPdfs> {
+		const library = this.itemLibraries.get(citekey);
+		if (library === undefined) {
+			return { error: "not-found" };
+		}
+		const found = await rpc<unknown[]>(this.port, "item.attachments", [
+			citekey,
+			library,
+		]);
+		if (Array.isArray(found)) {
+			return { pdfs: pdfAttachments(found) };
+		}
+		return {
+			error: (await fetchLibraries(this.port)) === null ? "unreachable" : "not-found",
+		};
 	}
 
 	/**

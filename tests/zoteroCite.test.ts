@@ -4,6 +4,7 @@ import {
 	asZoteroCites,
 	eventToEventTitle,
 	formattedBibliography,
+	pdfAttachments,
 	selectLink,
 	uppercasesSubtitles,
 } from "src/zoteroCite";
@@ -161,6 +162,42 @@ describe("formattedBibliography", () => {
 				'<div class="csl-entry">2. Roe.</div>' +
 				"</div>"
 		);
+	});
+});
+
+describe("pdfAttachments", () => {
+	it("takes the PDFs out of what item.attachments answers, with their file names", () => {
+		// As a running Better BibTeX 9.0.64 answered, a web page snapshot added.
+		const answer = [
+			{
+				open: "zotero://open-pdf/library/items/HBU9YVLE",
+				path: "C:\\Users\\user\\Zotero\\storage\\HBU9YVLE\\Barton - 2019 - A history of the Bible.pdf",
+			},
+			{
+				open: "zotero://open-pdf/library/items/MZM97H4M",
+				path: "C:\\Users\\user\\Zotero\\storage\\MZM97H4M\\obsidian-tutorial.html",
+			},
+			{ open: "zotero://open-pdf/groups/12345/items/ABCD1234", path: "/home/me/Zotero/storage/ABCD1234/Paper.PDF" },
+		];
+		expect(pdfAttachments(answer)).toEqual([
+			{
+				name: "Barton - 2019 - A history of the Bible.pdf",
+				link: "zotero://open-pdf/library/items/HBU9YVLE",
+			},
+			{ name: "Paper.PDF", link: "zotero://open-pdf/groups/12345/items/ABCD1234" },
+		]);
+	});
+
+	it("leaves out a link to a web page, which has no file, and anything malformed", () => {
+		expect(
+			pdfAttachments([
+				{ open: "zotero://open-pdf/library/items/LINK0001", path: false },
+				{ open: "https://example.com/paper.pdf", path: "paper.pdf" },
+				null,
+				"paper.pdf",
+			])
+		).toEqual([]);
+		expect(pdfAttachments({ error: "nope" })).toEqual([]);
 	});
 });
 

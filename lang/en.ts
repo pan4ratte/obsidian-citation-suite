@@ -154,6 +154,9 @@ export default {
 	BIBLIOGRAPHY_UNREACHABLE: "Zotero is not responding",
 	BIBLIOGRAPHY_UNREACHABLE_DESC: "Could not get the note's sources. Make sure Zotero is running, Better BibTeX is installed in it and the port in the settings matches its own. The bibliography will update as soon as Zotero responds.",
 	// The menu of an entry in the list.
+	BIBLIOGRAPHY_OPEN_NOTE: "Open literature note",
+	BIBLIOGRAPHY_OPEN_PDF: "Open PDF",
+	BIBLIOGRAPHY_OPEN_PDF_NONE: "This source has no PDF attached in Zotero.",
 	BIBLIOGRAPHY_REVEAL: "Reveal in Zotero",
 	BIBLIOGRAPHY_REVEAL_NOT_FOUND: "Zotero no longer has this source.",
 	BIBLIOGRAPHY_COPY_ENTRY: "Copy entry",

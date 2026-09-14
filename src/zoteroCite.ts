@@ -175,3 +175,39 @@ export function selectLink(uri: string): string | null {
 		? `zotero://select/library/items/${key}`
 		: `zotero://select/groups/${library}/items/${key}`;
 }
+
+/** A PDF attached to a source: the file's name, and the link that opens it in Zotero. */
+export interface PdfAttachment {
+	name: string;
+	link: string;
+}
+
+/**
+ * The PDFs among what Better BibTeX's `item.attachments` answers with, in the
+ * order Zotero lists them. Every attachment comes with a `zotero://open-pdf`
+ * link — a web page snapshot too, which Zotero's reader also opens — and with
+ * the path of its file, or no path at all for a link to a web page; so a PDF
+ * is told by its path. The link is taken only in the form Zotero routes to its
+ * reader, for My Library or a group.
+ */
+export function pdfAttachments(answer: unknown): PdfAttachment[] {
+	if (!Array.isArray(answer)) {
+		return [];
+	}
+	const pdfs: PdfAttachment[] = [];
+	for (const attachment of answer as unknown[]) {
+		if (!attachment || typeof attachment !== "object") {
+			continue;
+		}
+		const { open, path } = attachment as { open?: unknown; path?: unknown };
+		if (
+			typeof open === "string" &&
+			/^zotero:\/\/open-pdf\/(library|groups\/\d+)\/items\/[A-Z0-9]+$/.test(open) &&
+			typeof path === "string" &&
+			/\.pdf$/i.test(path)
+		) {
+			pdfs.push({ name: path.split(/[\\/]/).pop() ?? path, link: open });
+		}
+	}
+	return pdfs;
+}

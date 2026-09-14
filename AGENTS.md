@@ -5,7 +5,7 @@
 | Command | What it does |
 |---------|-------------|
 | `npm run dev` | esbuild watch mode (no typecheck) |
-| `npm test` | Vitest — 224 tests, all passing |
+| `npm test` | Vitest — 232 tests, all passing |
 | `npm run lint` / `npm run lint:fix` | ESLint (`lint:ts`) and Stylelint (`lint:css`) with the official Obsidian rulesets |
 | `npm run build` | `tsc -noEmit -skipLibCheck && node esbuild.config.mjs production` |
 
@@ -622,9 +622,36 @@ object by `loadSettings` and read by nothing.
   ties with those. The divider is drawn on
   `.csl-entry:not(.hidden) ~ .csl-entry:not(.hidden)` rather than `+`, so a
   filtered list never shows a rule over its first remaining entry.
-- **Right-clicking an entry opens an Obsidian `Menu`** with three items, in
-  this order: reveal in Zotero, copy the entry, find in the note. Missing keys
-  have no menu. Right-clicking marks nothing: only a finding colours an entry.
+- **Right-clicking an entry opens an Obsidian `Menu`**, in this order: open
+  literature note (only when there is one), open PDF, reveal in Zotero, a
+  separator, copy the entry, find in the note. Missing keys have no menu.
+  Right-clicking marks nothing: only a finding colours an entry.
+- **Open literature note** is looked for as the menu opens, over
+  `vault.getMarkdownFiles()` and their cached front matter — cheap, and an
+  item that leads nowhere is not offered. `src/literatureNote.ts` (pure) takes
+  a note named `@key` (Zotero Integration, Citations), then `key`, then one
+  whose front matter `citekey` / `citationKey` / `citation-key` holds the key,
+  with or without `@`, alone or in a list; ties go to the shortest path, then
+  by path. The note the pane follows is never its own literature note. Not
+  `getFirstLinkpathDest`: a key may hold `#`, `^` or `/`, which a link path
+  reads as a heading, a block or a folder. It opens through
+  `workspace.getLeaf(Keymap.isModEvent(event))`, as a link would.
+- **Open PDF** cannot know whether there is one before Zotero is asked, and a
+  menu cannot wait, so the item is always there and asks when chosen:
+  `CitationRenderer.itemPdfs` calls BBT's `item.attachments(citekey, libraryID)`
+  (a numeric library is accepted: its `getLibraryID` tries name, library id and
+  group id). Read out of BBT 9.0.64 and checked live, it answers one
+  `{ open, path }` per attachment — `open` a
+  `zotero://open-pdf/library|groups/ID/items/KEY` link for every attachment, a
+  web page snapshot included (Zotero's reader opens those too), `path` the file
+  or `false` for a link to a web page — and a JSON-RPC **error**, not an empty
+  list, for a key the library does not hold; `rpc` turns both a closed Zotero
+  and that error into `null`, so `user.groups` tells them apart.
+  `pdfAttachments` (in `src/zoteroCite.ts`) keeps what has a `.pdf` path. One
+  PDF opens in Zotero's reader through `window.open`, as reveal does; several
+  are listed in a second `Menu` at the first menu's position; none, or an item
+  gone, is a notice. Checked in the isolated test instance with `window.open`
+  stubbed, so that no reader opened on the desktop.
 - **The entry being found is set apart by its dividers, in the accent.** The
   rule above is the entry's own `border-top`; the rule below, under the mention
   bar, is the next shown entry's, picked out by `~` with a `:not()` that
@@ -957,6 +984,7 @@ src/
   live.ts           — live preview: styled citations and missing-key marks
   reading.ts        — reading view: the same, block by block
   suggestion.ts     — key suggestions: trigger, insertion, ranking (pure)
+  literatureNote.ts — the note kept about a source, found by name or front matter (pure)
   citationSuggest.ts — the EditorSuggest that offers sources after `@`
   bibliography.ts   — the right-sidebar pane listing the note's bibliography
   zoteroCite.ts     — what Zotero does around citeproc, ported (pure)
@@ -984,6 +1012,7 @@ tests/
   noteCitations.test.ts — reading order, note numbers, matching a piece to its note
   citationSession.test.ts — incremental updates against a fresh citeproc engine
   suggestion.test.ts — trigger, insertion, sources shown and ranked
+  literatureNote.test.ts — which note is a source's, and which of several
   mocks/obsidian.ts — stands in for the module at import time
 styles.css          — the status card, the settings rows, the document window
 CHANGELOG_RU.md     — release notes; the original

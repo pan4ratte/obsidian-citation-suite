@@ -1,6 +1,7 @@
 import {
 	debounce,
 	ItemView,
+	Keymap,
 	MarkdownView,
 	Menu,
 	Notice,
@@ -13,6 +14,7 @@ import {
 } from "obsidian";
 import { t } from "lang/helpers";
 import { citedKeys, mentionsOf } from "src/citation";
+import { literatureNote } from "src/literatureNote";
 import { noteCitations } from "src/noteCitations";
 import { NoteRenderer } from "src/noteRendering";
 import { CitationRenderer, RenderedBibliography } from "src/render";
@@ -782,8 +784,15 @@ export class BibliographyView extends ItemView {
 	}
 
 	/**
-	 * The menu of one entry: show its item in Zotero, copy it, or go to where
+	 * The menu of one entry. First what opens the source somewhere else — the
+	 * reader's own note about it, when the vault has one, its PDF, and its item
+	 * in Zotero — then what is done with the entry here: copy it, or go to where
 	 * the note cites it.
+	 *
+	 * The literature note is looked for as the menu opens, since the vault is at
+	 * hand and an item that leads nowhere should not be offered. Whether there
+	 * is a PDF is Zotero's to say, and a menu cannot wait for it, so that item
+	 * is always there and asks when it is chosen.
 	 */
 	private showEntryMenu(
 		event: MouseEvent,
@@ -796,12 +805,29 @@ export class BibliographyView extends ItemView {
 		}
 		event.preventDefault();
 		const menu = new Menu();
+		const note = this.literatureNoteOf(keys);
+		if (note) {
+			menu.addItem((item) =>
+				item
+					.setTitle(t.BIBLIOGRAPHY_OPEN_NOTE)
+					.setIcon("file-text")
+					.onClick((clicked) => void this.openNote(note, clicked))
+			);
+		}
+		const where = { x: event.clientX, y: event.clientY };
+		menu.addItem((item) =>
+			item
+				.setTitle(t.BIBLIOGRAPHY_OPEN_PDF)
+				.setIcon("book-open")
+				.onClick(() => void this.openPdf(keys[0], where))
+		);
 		menu.addItem((item) =>
 			item
 				.setTitle(t.BIBLIOGRAPHY_REVEAL)
 				.setIcon("arrow-up-right")
 				.onClick(() => void this.revealInZotero(keys[0]))
 		);
+		menu.addSeparator();
 		menu.addItem((item) =>
 			item
 				.setTitle(t.BIBLIOGRAPHY_COPY_ENTRY)
@@ -815,6 +841,79 @@ export class BibliographyView extends ItemView {
 				.onClick(() => void this.findInNote(keys))
 		);
 		menu.showAtMouseEvent(event);
+	}
+
+	/**
+	 * The note the reader keeps about the entry's source, found as
+	 * `src/literatureNote.ts` finds one — or `null`. The note the pane is
+	 * showing the bibliography of is not its own literature note, even when it
+	 * cites the source it is about.
+	 */
+	private literatureNoteOf(keys: string[]): TFile | null {
+		const { vault, metadataCache } = this.app;
+		const candidates = vault
+			.getMarkdownFiles()
+			.filter((file) => file !== this.file)
+			.map((file) => ({
+				file,
+				basename: file.basename,
+				path: file.path,
+				frontmatter: metadataCache.getFileCache(file)?.frontmatter,
+			}));
+		for (const key of keys) {
+			const found = literatureNote(key, candidates);
+			if (found) {
+				return found;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Opens the literature note in the tab being read, or — with the modifier
+	 * key held, as Obsidian opens any link — in a new one.
+	 */
+	private async openNote(note: TFile, event: MouseEvent | KeyboardEvent): Promise<void> {
+		await this.app.workspace.getLeaf(Keymap.isModEvent(event)).openFile(note);
+	}
+
+	/**
+	 * Opens the source's PDF in Zotero's own reader, through the
+	 * `zotero://open-pdf` link Better BibTeX gives it — where the reader's
+	 * annotations are. With several PDFs attached, a second menu lists them
+	 * by file name where the first one was.
+	 */
+	private async openPdf(key: string, where: { x: number; y: number }): Promise<void> {
+		const found = await this.context.renderer.itemPdfs(key);
+		if ("error" in found) {
+			new Notice(
+				found.error === "unreachable"
+					? t.NOTICE_ZOTERO_UNREACHABLE
+					: t.BIBLIOGRAPHY_REVEAL_NOT_FOUND
+			);
+			return;
+		}
+		const { pdfs } = found;
+		if (pdfs.length === 0) {
+			new Notice(t.BIBLIOGRAPHY_OPEN_PDF_NONE);
+			return;
+		}
+		if (pdfs.length === 1) {
+			window.open(pdfs[0].link);
+			return;
+		}
+		const menu = new Menu();
+		for (const pdf of pdfs) {
+			menu.addItem((item) =>
+				item
+					.setTitle(pdf.name)
+					.setIcon("file")
+					.onClick(() => {
+						window.open(pdf.link);
+					})
+			);
+		}
+		menu.showAtPosition(where, this.contentEl.doc);
 	}
 
 	/**
