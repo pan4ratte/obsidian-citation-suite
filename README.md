@@ -60,38 +60,31 @@ If you want to test beta-versions of the plugin or use previous versions, you ca
 
 # User guide
 
-You can open this guide right inside Obsidian: with the "Open user guide" command from the command palette, or with the "User guide" button at the top of the plugin settings.
-
 ## 1. Requirements
 
-The plugin needs Zotero and Better BibTeX to work.
+1. Install Zotero: [https://www.zotero.org/download/](https://www.zotero.org/download/).
 
-1. The plugin takes its sources from Zotero, so install Zotero first, from the official site: [https://www.zotero.org/download/](https://www.zotero.org/download/).
+2. Install the Better BibTeX extension in Zotero — it gives sources their citation keys: [https://retorque.re/zotero-better-bibtex/installation/](https://retorque.re/zotero-better-bibtex/installation/).
 
-2. Then install the Better BibTeX extension in Zotero — it gives sources their citation keys and opens the citation window when the plugin asks for it. Installation instructions: [https://retorque.re/zotero-better-bibtex/installation/](https://retorque.re/zotero-better-bibtex/installation/).
+3. Check that *Settings → Advanced → Allow other applications on this computer to communicate with Zotero* is on in Zotero. It is on by default.
 
-3. Make sure Zotero's local server is on: *Settings → Advanced → Allow other applications on this computer to communicate with Zotero*. It is on by default.
-
-You can check that everything is ready at the top of the plugin settings: it shows whether Zotero is running, and if Better BibTeX is not installed in it, a warning with a link to the instructions appears.
+The panel at the top of the plugin settings shows Zotero's status and whether the plugin is ready to work.
 
 
 ## 2. Commands
 
-None of the commands is bound to a key out of the box — assign your own in *Settings → Hotkeys*. Anything selected in the editor is replaced by the citation, so a placeholder you typed can be selected and cited over.
+By default Obsidian assigns no hotkeys to the commands. To set them, go to *Settings → Hotkeys → Citation Suite*.
 
 | Command | What it does |
 | --- | --- |
-| **Insert citation** | Opens Zotero's citation window and inserts the pick in Pandoc format: `[@doe2020, p. 33]`. With **Automatically put citations in footnotes** on, the citation goes into a footnote, and the footnote's text opens in a popup so you can write on after the citation at once. Zotero notes picked in the same window are inserted as their text in Markdown, as paragraphs of their own after the citation. A note that holds citations is inserted as those citations: that is how Better BibTeX hands it over. |
-| **Insert footnote without a citation** | Inserts an empty footnote: the anchor at the cursor and its text where **Where the footnote text appears** puts it, and opens the text in a popup over the anchor so you can write it at once, as Obsidian itself does. With **Open the new footnote's text in a popup** off, the cursor moves to the text in the note instead. It works with **Automatically put citations in footnotes** off too. |
-| **Renumber footnotes in order** | Rewrites the labels of every footnote in the note in the order of their anchors — `[^1]`, `[^2]`, `[^3]`, as the footnote settings write them — and puts the footnote texts that stand together in that order. Named labels such as `[^kuhn]` get numbers too, unless **Do not edit named footnotes when renumbering** is on. One undo reverts it. |
-| **Footnote settings for the current note** | Opens the footnote settings that apply to the current note only. The same window opens from the note's context menu — in the editor, on the tab and in the file list. |
-| **Show bibliography** | Brings the closed "Bibliography" tab back to the right sidebar. |
-| **View changelog** | Shows what is new in the latest versions of the plugin. |
-| **Open user guide** | Opens this guide in an Obsidian window. |
+| **Insert citation** | Opens Zotero's citation window and inserts the citation in Pandoc format. Selected text is replaced by the citation. Zotero notes picked in the window are inserted as Markdown text. |
+| **Insert footnote without a citation** | Inserts an empty footnote following your footnote settings. |
+| **Renumber footnotes in order** | Renumbers the footnotes in the order they appear in the note. One undo reverts it. |
+| **Footnote settings for the current note** | Sets footnote settings for this note only. The same window opens from the note's context menu. |
 
 ## 3. How citations are written
 
-Citations are inserted in [Pandoc](https://pandoc.org/MANUAL.html#citation-syntax) format, so when you export with `pandoc --citeproc`, Quarto or my [Pandoc GUI](https://github.com/pan4ratte/obsidian-pandoc-gui) plugin, they are formatted according to your bibliography.
+Citations are inserted in [Pandoc](https://pandoc.org/MANUAL.html#citation-syntax) format, so when you export with `pandoc --citeproc`, Quarto or my [Pandoc GUI](https://github.com/pan4ratte/obsidian-pandoc-gui) plugin, they are formatted in your citation style.
 
 | In Zotero's window | In the note |
 | --- | --- |
@@ -103,97 +96,69 @@ Citations are inserted in [Pandoc](https://pandoc.org/MANUAL.html#citation-synta
 | Suppress author | `[-@doe2020]` |
 | Two items | `[@doe2020, p. 33; @roe2021]` |
 
-Locator labels are inserted the way Pandoc will read them — in the note's language. If the note's properties give `lang` (or a `csl` style with a language of its own), the label is written in that language: with `lang: ru-RU`, `[@doe2020, с. 33]` and `[@doe2020, гл. 2]`, since in such a note Pandoc leaves `p. 33` as plain text. Without them, labels are written in English. For a language the plugin does not support, the locator's full name is written (`page 33`), which Pandoc reads in any language. Locators Pandoc does not recognise at all ("sub verbo", for one) are inserted as before.
+Locator labels are written in the note's language, because that is how Pandoc reads them: with `lang: ru-RU` in the note's properties you get `[@doe2020, с. 33]`, and without `lang` — `[@doe2020, p. 33]`.
 
-The preview also reads citations typed by hand or inserted by other tools: a braced locator after the comma, the way Better BibTeX writes it (`[@doe2020, {pp. 33–35}]`), and locator labels in the plural, spelled out and in any case (`pp.`, `pages`, `vols.`). Only citations in square brackets are formatted.
+The preview and the "Bibliography" tab recognise only citations in square brackets. Keep this in mind if you turn off **Put citations in square brackets**.
 
-A citation key can be inserted without Zotero's window too: type `@` and the start of a key, a title, an author's surname or a year, and a list of matching sources appears, with the current note's sources first. Your Zotero library is searched from the third character on. Outside square brackets the key is inserted as a citation of its own — in brackets, if **Put citations in square brackets** is on — and inside brackets as the key alone, so a citation of several sources can be typed in full. The suggestions are turned off with **Suggest sources while a citation key is typed**.
+You can also insert a key without opening Zotero's citation window: type `@` and the start of a key, a title, an author's surname or a year. Inside square brackets only the key is inserted, so you can type a citation of several sources in one go. Sources from your Zotero library appear from the third character on.
 
 ## 4. Bibliography
 
-The first time the plugin runs, it opens a "Bibliography" tab in the right sidebar with every source cited in the open note — formatted in the chosen preview style the way it formats a reference list, with its sorting, numbering and indentation. A closed tab does not come back on its own on later launches — the **Show bibliography** command opens it.
+The "Bibliography" tab in the right sidebar shows every source cited in the open note, formatted according to the chosen style. If you closed the tab, you can bring it back with the **Show bibliography** command.
 
-### Managing the bibliography
+The "Copy bibliography" button copies the list with its formatting, as Zotero does: a word processor pastes it with italics, indents and numbering, if the style has them.
 
-* **The "Search the bibliography" button** opens a search field that filters the entries by author, title, year and citation key. `Esc`, or the button again, closes the field and shows the whole list.
+Right-clicking an entry opens a context menu. Two of its items need explaining:
 
-* **The "Copy bibliography" button** copies the list the way Zotero's "Copy Bibliography" option does: a word processor pastes it with its italics, indents and numbering, and a plain text field pastes it as text.
+* **Open literature note** opens a note named `@key` or `key`, or one with the key in its `citekey`, `citationKey` or `citation-key` property. The item appears only when such a note exists. Hold `Ctrl` (`Cmd` on macOS) to open the note in a new tab.
 
-* **The "Refresh bibliography" button** asks Zotero for the data again.
-
-**Right-clicking an entry opens a context menu:**
-
-* **The "Open literature note" option** opens your note about the source — a note named `@key` or `key`, or one with the citation key in its `citekey`, `citationKey` or `citation-key` property, as the plugins that import notes from Zotero write them. The option is shown only when there is such a note; with `Ctrl` (`Cmd` on macOS) held, the note opens in a new tab.
-
-* **The "Open PDF" option** opens the PDF attached to the source in Zotero's reader, along with your annotations. If there are several PDFs, a menu listing the files appears.
-
-* **The "Reveal in Zotero" option** selects the source in Zotero's window, in the library the entry was taken from.
-
-* **The "Copy entry" option** copies the entry to the clipboard.
-
-* **The "Find in note" option** selects the note's first citation of the source and scrolls to it, and a "Mention 1 / 5" bar appears under the entry that lets you go to the previous and the next mention of the source.
-
-Keys Zotero has no item for are listed under the bibliography, in the "Sources not found in Zotero" section. If Zotero is not responding, a "Zotero is not responding" message appears instead of that section — start Zotero and the bibliography updates by itself.
+* **Open PDF** opens the source's PDF in Zotero, along with your annotations.
 
 ## 5. Citation preview
 
-In the plugin settings you can choose a style for the citation preview. In the note itself citations always stay Pandoc citations, so this is a purely visual change that does not affect the export. Styles are loaded from your Zotero library, and the chosen style formats the preview of both the citations and the bibliography in the sidebar.
+Choose a style from your Zotero library in the plugin settings — it formats the citations in your notes and the bibliography. In the note itself citations stay in Pandoc format, so the export is not affected.
 
-The "Citation preview" option under the list of styles shows how citations will look and lets you set their appearance. The buttons beside the title switch the preview mode, and the buttons above the sample set the look of citations in every note: their color, underline and emphasis.
+Citations are formatted with the note's context in mind, just as they will look after export: a repeated citation is shortened or written as "Ibid." and the like, numbered styles number sources in order of first citation, and so on.
 
-Every citation is styled with the whole note taken into account, as the export will style it: a source cited again is written in its short form or as "Ibid." when the style asks for it, numbered styles number sources in order of first citation — just as the "Bibliography" tab does — and works by one author in one year are told apart by letters: 2020a, 2020b. A citation in a footnote's text counts where the footnote is anchored, and in note styles every citation in the body text counts as a footnote of its own.
-
-A citation key Zotero has no source for — one typed with a typo, say — is underlined with a wavy line in reading view, live preview and source mode, even with no preview style chosen. The marking is turned off with **Mark citation keys Zotero does not have**.
+Keys Zotero does not have are underlined with a wavy line, even with no preview style chosen.
 
 ### Style and language from the note's properties
 
-A note you export with Pandoc can name its style and language itself, in its properties — `csl` (or `citation-style`) and `lang`. The preview and the bibliography on the "Bibliography" tab are then styled the way the export will style them:
+If the note's properties set `csl` (or `citation-style`) or `lang`, the preview and the bibliography are formatted the way Pandoc will format them on export:
 
-* **The style** is the file `csl` names. A name without an extension gets `.csl` added, as Pandoc adds it. The file is looked for next to the note, in the vault's root and in the `csl` folder of Pandoc's data directory (on Windows, `%APPDATA%\pandoc\csl`). A style URL (`https://www.zotero.org/styles/apa`) is matched against Zotero's styles — the preview downloads nothing. If the style is not found, the style from the settings is used.
+* **`csl`** is the style file. It is looked for next to the note, in the vault's root and in the `csl` folder of Pandoc's data directory (on Windows, `%APPDATA%\pandoc\csl`). The `.csl` extension can be left out. A style URL such as `https://www.zotero.org/styles/apa` is taken from Zotero's styles.
 
-* **The language** comes from `lang`, and it wins over the language the style itself names. Without `lang`, the style's own language is used, or `en-US` if it names none. The preview supports Russian, English (US and UK), German and French; other languages are styled in `en-US`.
+* **`lang`** is the language, and it wins over the style's own language. Russian, English, German and French are supported.
 
-* **Locator labels** are read in the note's language, as Pandoc reads them: with `lang: ru-RU`, `[@doe2020, с. 33]` cites page 33, while in `[@doe2020, p. 33]` the text `p. 33` stays plain text after the key. The preview shows this just as the export will.
-
-Above the bibliography it says which style and language come from the note's properties, and what of them could not be found. Choosing "Do not style the preview" in the settings turns the preview off for such notes too, and **Style a note in the style and language of its properties** lets you ignore the properties altogether.
+The style and language in use are shown above the bibliography.
 
 ## 6. Automating footnotes
 
-The plugin lets you not only cite, but also create footnotes at the same time, following rules you set.
+Turn on **Automatically put citations in footnotes**, and citations go into footnotes: the `[^1]` anchor appears at the cursor, and `[^1]: [@doe2020, p. 33]` in the footnote text. The same section of the settings controls where the footnote text goes, how footnotes are numbered and where the cursor moves.
 
-* **Put citations in square brackets.** Turn it off if you want citations inserted as `@doe2020, p. 33`, without the brackets around them. Keep in mind that the preview and the "Bibliography" tab only recognise citations in square brackets.
-
-* **Automatically put citations in footnotes.** Turn it on to have a footnote anchor `[^1]` appear at the cursor when you cite, with the citation going into its body: `[^1]: [@doe2020, p. 33]`. Inside an existing footnote the citation is inserted as usual, since a footnote cannot hold another. The related settings let you change where the footnote text appears and how footnotes are numbered, and add text before and after the footnote number.
-
-* **Footnote settings for a single note.** Putting citations in footnotes, where the footnote text goes, the numbering and the text before and after the number can be set for one note: with the "Footnote settings for the current note" command or the "Footnote settings for this note" item in the note's context menu. Changes are saved at once and apply to that note only, and the note takes the rest of its settings from the general ones. The "Reset to general settings" button gives the note all the general settings back at once. The settings follow the note when it is renamed or moved. The "Reset the footnote settings of every note" option removes the footnote settings of every note at once, after confirmation.
-
-* **Do not edit named footnotes when renumbering.** Turn it on, and the "Renumber footnotes in order" command will not edit labels with names, such as `[^kuhn]`. A number is arabic numerals, or roman ones if footnotes are numbered in roman numerals of the same case, with the text before and after the number set above. So `[^x]` in a note numbered in arabic stays a name, and so does a footnote written with an earlier prefix.
-
-* **Open the new footnote's text in a popup.** The text of a footnote — one made when you cite, or with the "Insert footnote without a citation" command — opens in a popup over its anchor, the same one footnotes created by Obsidian itself have: you can write on after the citation at once, or fill in an empty footnote. Turn it off, and the cursor moves to the end of an empty footnote's text in the note.
-
-* **Move the cursor to the footnote text after citing.** Shown when the popup is off. After citing, the cursor moves to the end of the footnote's text in the note, so you can write on after the citation at once. Turn it off, and the cursor stays after the footnote anchor.
+You can also set footnote settings for a single note — with the "Footnote settings for the current note" command or from the note's context menu. Other notes keep using the general settings. A note keeps its settings when it is renamed or moved.
 
 ## 7. Troubleshooting
 
 ### The citation window opens behind Obsidian?
 
-Open *Settings → Advanced → Config Editor* and set `extensions.zotero.integration.keepAddCitationDialogRaised` to `true`: Zotero then keeps the window above the others. The setting is off by default, and Windows does not let the window come to the front. It has no effect on macOS.
+In Zotero, open *Settings → Advanced → Config Editor* and set `extensions.zotero.integration.keepAddCitationDialogRaised` to `true`. This setting has no effect on macOS.
 
 ### The citation window opens off-centre?
 
-The window remembers where it was dragged. Drag it once to where you want it, and it opens there from then on. To reset the position, quit Zotero and delete the `chrome://zotero/content/integration/citationDialog.xhtml` key from `xulstore.json` in the Zotero profile (on Windows, `%APPDATA%\Zotero\Zotero\Profiles\`). Zotero rewrites that file when it quits, so editing it while Zotero runs does nothing.
+The window remembers where you left it: drag it once to where you want it, and it will open there from then on. To reset the position completely, quit Zotero and delete the `chrome://zotero/content/integration/citationDialog.xhtml` key from `xulstore.json` in the Zotero profile (on Windows, `%APPDATA%\Zotero\Zotero\Profiles\`).
 
 ### "Zotero is not answering" error?
 
-Either Zotero is closed, its local server is off, or Better BibTeX is not installed in it — or it is the beta, and **Zotero port** still says `23119`.
+Make sure Zotero is running, Better BibTeX is installed in it and the local server is on (see "Requirements"). If you use the Zotero beta, **Zotero port** must be set to the matching port, not `23119`.
 
-### Cited a source, but the citation preview does not work?
+### The citation preview does not work?
 
-Make sure a citation display style is chosen in the settings, and that the citation is in square brackets. Citations are formatted with Zotero's help: while Zotero is closed, the citation is not formatted. The same happens when Better BibTeX does not know the citation key — a key typed by hand, say, or an item deleted from the library. If Zotero was closed, start it and press "Refresh bibliography" in the sidebar.
+Check that a preview style is chosen in the settings, the citation is in square brackets, and Zotero is running. If Zotero has no such key — say, it has a typo — the citation is not formatted and the key is underlined with a wavy line.
 
 ### A key is underlined with a wavy line, but the source is in Zotero?
 
-The plugin does not ask Zotero again about a key it did not find there. If you added the source or changed its key after opening the note, press "Refresh bibliography" in the sidebar.
+If you added the source or changed its key after opening the note, press "Refresh bibliography" in the sidebar.
 
 
 # About the Author
