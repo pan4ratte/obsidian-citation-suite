@@ -10,11 +10,11 @@ import {
 } from "@codemirror/view";
 import { editorInfoField, editorLivePreviewField, MarkdownView } from "obsidian";
 import { t } from "lang/helpers";
-import { keyMentions } from "src/citation";
+import { ENGLISH_LABELS, keyMentions, LocatorLabels } from "src/citation";
 import { matchCitations, NoteCitation, noteCitations } from "src/noteCitations";
 import { NoteRenderer } from "src/noteRendering";
 import { CitationTooltip, citationEl, MISSING_CLASS } from "src/reading";
-import { CitationRenderer, RenderedCitation } from "src/render";
+import { CitationRenderer, RenderedCitation, StyleRef } from "src/render";
 
 /**
  * Showing citations in their style while the note is being written.
@@ -49,8 +49,14 @@ const REDRAW = StateEffect.define<null>();
 export interface LiveContext {
 	renderer: CitationRenderer;
 	notes: NoteRenderer;
-	/** The style to render in, or empty for none. */
-	styleId(): string;
+	/**
+	 * The style the note at the path is rendered in — `null` for none, and
+	 * `undefined` while it is still being worked out (`src/noteStyles.ts`).
+	 * A path of `null` is text that belongs to no note.
+	 */
+	styleFor(path: string | null): StyleRef | null | undefined;
+	/** Calls back with a note's path when its style changed; answers the unsubscribe. */
+	onStyleChange(listener: (path: string) => void): () => void;
 	tooltip(): CitationTooltip;
 	/** Whether keys Zotero has no source for are marked. */
 	markMissing(): boolean;
@@ -61,21 +67,23 @@ export interface LiveContext {
  * changes on every keystroke, and most keystrokes redraw nothing that needs it.
  */
 class ParsedText {
-	private ordered: NoteCitation[] | null = null;
-	private sorted: NoteCitation[] | null = null;
+	/** The citations as read with each set of labels the note has been read with. */
+	private read = new Map<LocatorLabels, { ordered: NoteCitation[]; sorted: NoteCitation[] }>();
 
 	constructor(private doc: Text) {}
 
-	/** In the order pandoc reads them. */
-	get citations(): NoteCitation[] {
-		this.ordered ??= noteCitations(this.doc.toString());
-		return this.ordered;
-	}
-
-	/** In the order they stand in the text. */
-	get byPosition(): NoteCitation[] {
-		this.sorted ??= [...this.citations].sort((a, b) => a.from - b.from);
-		return this.sorted;
+	/**
+	 * The citations, read with the note's locator labels: in the order pandoc
+	 * reads them, and in the order they stand in the text.
+	 */
+	citations(labels: LocatorLabels): { ordered: NoteCitation[]; sorted: NoteCitation[] } {
+		let read = this.read.get(labels);
+		if (!read) {
+			const ordered = noteCitations(this.doc.toString(), labels);
+			read = { ordered, sorted: [...ordered].sort((a, b) => a.from - b.from) };
+			this.read.set(labels, read);
+		}
+		return read;
 	}
 }
 
@@ -138,19 +146,23 @@ export function citationExtension(context: LiveContext) {
 	const plugin = ViewPlugin.fromClass(
 		class implements PluginValue {
 			decorations: DecorationSet;
-			private stopListening: () => void;
+			private stopListening: (() => void)[];
 
 			constructor(private view: EditorView) {
 				this.decorations = this.build(view);
-				this.stopListening = context.notes.onRendered((path) => {
+				const redraw = (path: string): void => {
 					if (path === this.path()) {
 						this.view.dispatch({ effects: REDRAW.of(null) });
 					}
-				});
+				};
+				this.stopListening = [
+					context.notes.onRendered(redraw),
+					context.onStyleChange(redraw),
+				];
 			}
 
 			destroy(): void {
-				this.stopListening();
+				this.stopListening.forEach((stop) => stop());
 			}
 
 			private path(): string | null {
@@ -185,15 +197,24 @@ export function citationExtension(context: LiveContext) {
 
 			private build(view: EditorView): DecorationSet {
 				const builder = new RangeSetBuilder<Decoration>();
-				const styleId = context.styleId();
-				const draw =
-					styleId !== "" && view.state.field(editorLivePreviewField, false);
+				// Nothing is drawn in a style that is still being worked out;
+				// the editor is told when it is.
+				const style = view.state.field(editorLivePreviewField, false)
+					? context.styleFor(this.path())
+					: null;
 				const mark = context.markMissing();
-				if (!draw && !mark) {
+				if (!style && !mark) {
 					return builder.finish();
 				}
-				const parsed = view.state.field(parsedText);
-				if (parsed.byPosition.length === 0) {
+				if (style && !context.renderer.built(style)) {
+					this.prepare(view, style);
+				}
+				// A key is the same key whatever language its locator is in, so
+				// with no style the note is read in English for its keys alone.
+				const { ordered: citations, sorted: byPosition } = view.state
+					.field(parsedText)
+					.citations(style?.labels ?? ENGLISH_LABELS);
+				if (byPosition.length === 0) {
 					return builder.finish();
 				}
 
@@ -201,7 +222,7 @@ export function citationExtension(context: LiveContext) {
 				// screen, since the whole note decides how each citation reads —
 				// but not the one being typed, which would be looked up a
 				// keystroke at a time.
-				const settled = parsed.citations.filter(
+				const settled = citations.filter(
 					(citation) => !beingEdited(view, citation.from, citation.to)
 				);
 				const pending = context.notes.pendingKeys(settled);
@@ -209,8 +230,8 @@ export function citationExtension(context: LiveContext) {
 					this.fetch(view, pending);
 				}
 
-				const rendered = draw
-					? this.rendered(view, styleId, parsed, pending.length === 0)
+				const rendered = style
+					? this.rendered(view, style, citations, byPosition, pending.length === 0)
 					: new Map<NoteCitation, RenderedCitation | null>();
 				const tooltip = context.tooltip();
 				const missingMark = Decoration.mark({
@@ -222,7 +243,7 @@ export function citationExtension(context: LiveContext) {
 					},
 				});
 
-				for (const citation of parsed.byPosition) {
+				for (const citation of byPosition) {
 					if (
 						!visible(view, citation) ||
 						beingEdited(view, citation.from, citation.to)
@@ -266,29 +287,25 @@ export function citationExtension(context: LiveContext) {
 			 */
 			private rendered(
 				view: EditorView,
-				styleId: string,
-				parsed: ParsedText,
+				style: StyleRef,
+				citations: NoteCitation[],
+				byPosition: NoteCitation[],
 				ready: boolean
 			): Map<NoteCitation, RenderedCitation | null> {
 				const result = new Map<NoteCitation, RenderedCitation | null>();
 				const info = view.state.field(editorInfoField, false);
 				const path = info?.file?.path;
 				if (path && info instanceof MarkdownView) {
-					const note = context.notes.current(
-						styleId,
-						path,
-						parsed.citations,
-						ready
-					);
+					const note = context.notes.current(style, path, citations, ready);
 					note?.citations.forEach((citation, index) => {
 						result.set(citation, note.rendered[index]);
 					});
 					return result;
 				}
-				const note = path ? context.notes.latest(styleId, path) : null;
+				const note = path ? context.notes.latest(style, path) : null;
 				const matches = note
 					? matchCitations(
-							parsed.byPosition,
+							byPosition,
 							[...note.citations].sort((a, b) => a.from - b.from)
 						)
 					: [];
@@ -298,16 +315,26 @@ export function citationExtension(context: LiveContext) {
 						note.rendered[index],
 					])
 				);
-				parsed.byPosition.forEach((citation, index) => {
+				byPosition.forEach((citation, index) => {
 					const match = matches[index];
 					result.set(
 						citation,
 						match
 							? (written.get(match) ?? null)
-							: context.renderer.renderWith(styleId, citation)
+							: context.renderer.renderWith(style, citation)
 					);
 				});
 				return result;
+			}
+
+			/**
+			 * Builds a style's engines, which a note naming its own style may be
+			 * the first to want, and tells the editor when they are built.
+			 */
+			private prepare(view: EditorView, style: StyleRef): void {
+				void context.renderer.engineFor(style).then(() => {
+					view.dispatch({ effects: REDRAW.of(null) });
+				});
 			}
 
 			/**

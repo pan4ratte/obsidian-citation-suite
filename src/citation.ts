@@ -76,12 +76,16 @@ const LOCALE_LABELS: Record<string, string[]> = {
 	volume: ["volume", "volumes", "vol.", "vols."],
 };
 
+/** Label words, lowercased, each mapped to the CSL locator it names. */
+export type LocatorLabels = Record<string, string>;
+
 /**
- * Every label word, lowercased, mapped back to its CSL label: the locale's
- * terms above, the CSL label names themselves, and the abbreviations the
- * plugin writes (`src/pandoc.ts`).
+ * The labels a note is read with unless it says what language it is in: the
+ * English terms above, the CSL label names themselves, and the abbreviations
+ * the plugin writes (`src/pandoc.ts`). A note with pandoc's `lang` is read
+ * with its language's labels instead (`src/localeTerms.ts`).
  */
-const LABELS: Record<string, string> = Object.fromEntries(
+export const ENGLISH_LABELS: LocatorLabels = Object.fromEntries(
 	[
 		...Object.entries(LOCALE_LABELS).flatMap(([label, words]) =>
 			words.map((word): [string, string] => [word, label])
@@ -98,13 +102,20 @@ const LABELS: Record<string, string> = Object.fromEntries(
 
 /**
  * The CSL label a word names — `p.`, `pp.`, `Pages` and `p` all name `page` —
- * or empty for a word that is not a label. Case does not matter to pandoc, and
- * neither does a missing full stop or a comma left after the label.
+ * or empty for a word that is not a label. Case does not matter to pandoc.
+ *
+ * A note read in its own language is read as pandoc reads it, word for word:
+ * en-GB's `bk` is a book and `bk.` is not. A note without one is read with
+ * the English labels, more forgivingly — a missing full stop or a comma left
+ * after the label — as the plugin always read it.
  */
-function labelOf(word: string): string {
-	const lower = word.toLowerCase().replace(/,+$/, "");
+function labelOf(word: string, labels: LocatorLabels): string {
+	if (labels !== ENGLISH_LABELS) {
+		return labels[word.toLocaleLowerCase()] ?? "";
+	}
+	const lower = word.toLocaleLowerCase().replace(/,+$/, "");
 	const bare = lower.replace(/[.]+$/, "");
-	return LABELS[lower] ?? LABELS[bare] ?? LABELS[`${bare}.`] ?? "";
+	return labels[lower] ?? labels[bare] ?? labels[`${bare}.`] ?? "";
 }
 
 /**
@@ -113,21 +124,24 @@ function labelOf(word: string): string {
  * label empty: the style decides what an unqualified number means, and for
  * every style that has an opinion it means a page.
  */
-export function splitLocator(text: string): { label: string; locator: string } {
+export function splitLocator(
+	text: string,
+	labels: LocatorLabels = ENGLISH_LABELS
+): { label: string; locator: string } {
 	const trimmed = text.trim();
 	const space = trimmed.indexOf(" ");
 	if (space === -1) {
 		return { label: "", locator: trimmed };
 	}
-	const label = labelOf(trimmed.slice(0, space));
+	const label = labelOf(trimmed.slice(0, space), labels);
 	return label
 		? { label, locator: trimmed.slice(space + 1).trim() }
 		: { label: "", locator: trimmed };
 }
 
 /** Whether a word opens a locator by naming what it counts: `p.`, `pp.`. */
-function isLabel(word: string): boolean {
-	return labelOf(word) !== "";
+function isLabel(word: string, labels: LocatorLabels): boolean {
+	return labelOf(word, labels) !== "";
 }
 
 /**
@@ -151,14 +165,17 @@ function isLocatorWord(word: string): boolean {
  * reads the locator as a label and a run of numbers and stops there, and so
  * does this.
  */
-function splitLocatorSuffix(text: string): { locator: string; suffix: string } {
+function splitLocatorSuffix(
+	text: string,
+	labels: LocatorLabels
+): { locator: string; suffix: string } {
 	const words = text.split(/[ ]+/).filter((word) => word);
-	let taken = words.length > 0 && isLabel(words[0]) ? 1 : 0;
+	let taken = words.length > 0 && isLabel(words[0], labels) ? 1 : 0;
 	while (taken < words.length && isLocatorWord(words[taken])) {
 		taken++;
 	}
 	// A label with nothing counted after it is not a locator at all.
-	if (taken === 1 && isLabel(words[0])) {
+	if (taken === 1 && isLabel(words[0], labels)) {
 		taken = 0;
 	}
 	return {
@@ -195,20 +212,29 @@ function bracedLocator(
  * at the first thing that cannot be part of one, and the plugin's own writer
  * never puts a suffix after a bare locator without a comma of its own.
  */
-function splitTail(tail: string): { locator: string; suffix: string } {
+function splitTail(
+	tail: string,
+	labels: LocatorLabels
+): { locator: string; suffix: string } {
 	const braced = bracedLocator(tail);
 	if (braced) {
 		return braced;
 	}
 	if (tail.startsWith(",")) {
 		const rest = tail.slice(1).trim();
-		return bracedLocator(rest) ?? splitLocatorSuffix(rest);
+		const split = bracedLocator(rest) ?? splitLocatorSuffix(rest, labels);
+		// No locator after all: the comma belongs to the suffix, and pandoc
+		// writes it — `[@doe2020, and more]` reads "(Doe 2020, and more)".
+		return split.locator || !rest ? split : { locator: "", suffix: `, ${rest}` };
 	}
 	return { locator: "", suffix: tail.trim() };
 }
 
 /** One `prefix -@key, locator suffix`, as it stands between two semicolons. */
-export function parseCitation(text: string): ParsedCitation | null {
+export function parseCitation(
+	text: string,
+	labels: LocatorLabels = ENGLISH_LABELS
+): ParsedCitation | null {
 	const match = CITATION.exec(text);
 	if (!match) {
 		return null;
@@ -220,8 +246,8 @@ export function parseCitation(text: string): ParsedCitation | null {
 
 	const prefix = text.slice(0, match.index).trim();
 	const tail = text.slice(match.index + match[0].length).trim();
-	const { locator, suffix } = splitTail(tail);
-	const { label, locator: bare } = splitLocator(locator);
+	const { locator, suffix } = splitTail(tail, labels);
+	const { label, locator: bare } = splitLocator(locator, labels);
 
 	return {
 		id,
@@ -239,8 +265,14 @@ export function parseCitation(text: string): ParsedCitation | null {
  * Only bracketed groups are read. A bare `@key` is a citation to pandoc too,
  * but in a note it is far more often an address or a name, and a rendering that
  * guesses wrong rewrites text that was never a citation.
+ *
+ * Locators are read with `labels`: English, unless the note's language says
+ * otherwise.
  */
-export function parseGroups(text: string): CitationGroup[] {
+export function parseGroups(
+	text: string,
+	labels: LocatorLabels = ENGLISH_LABELS
+): CitationGroup[] {
 	const groups: CitationGroup[] = [];
 	const brackets = /\[([^[\]]*)\]/g;
 	let match: RegExpExecArray | null;
@@ -253,7 +285,7 @@ export function parseGroups(text: string): CitationGroup[] {
 		}
 		const citations = inner
 			.split(";")
-			.map(parseCitation)
+			.map((part) => parseCitation(part, labels))
 			.filter((citation): citation is ParsedCitation => citation !== null);
 		if (citations.length === 0) {
 			continue;

@@ -31,6 +31,7 @@ import { applyLook, clearLook } from "src/look";
 import { MarkdownModal } from "src/markdownModal";
 import { NoteFootnoteModal } from "src/noteFootnoteModal";
 import { NoteRenderer } from "src/noteRendering";
+import { NoteStyles } from "src/noteStyles";
 import {
 	forgetNoteFootnotes,
 	moveNoteFootnotes,
@@ -86,6 +87,12 @@ export default class CitationSuitePlugin extends Plugin {
 	);
 	/** Writes a note's citations together, for every view that shows them. */
 	notes = new NoteRenderer(this.renderer);
+	/** The style each note is previewed in: the settings', or its own pandoc `csl` and `lang`. */
+	noteStyles = new NoteStyles(this.app, {
+		renderer: this.renderer,
+		styleId: () => this.settings.citationStyle,
+		readProperties: () => this.settings.noteStyleProperties,
+	});
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -114,17 +121,48 @@ export default class CitationSuitePlugin extends Plugin {
 		const citations = {
 			renderer: this.renderer,
 			notes: this.notes,
-			styleId: () => this.settings.citationStyle,
 			tooltip: () => this.citationTooltip(),
 			markMissing: () => this.settings.markMissingKeys,
 		};
+		const onStyleChange = (listener: (path: string) => void): (() => void) =>
+			this.noteStyles.onChange(listener);
 		this.registerMarkdownPostProcessor((el, ctx) => {
 			return renderCitations(el, ctx, {
 				...citations,
+				styleFor: async (path) => (await this.noteStyles.resolve(path)).ref,
 				noteText: (path) => this.noteText(path),
 			});
 		});
-		this.registerEditorExtension(citationExtension(citations));
+		this.registerEditorExtension(
+			citationExtension({
+				...citations,
+				styleFor: (path) => this.noteStyles.current(path)?.ref,
+				onStyleChange,
+			})
+		);
+		// A note's `csl` or `lang` is read from its metadata, which Obsidian
+		// reads again after the note is saved.
+		this.registerEvent(
+			this.app.metadataCache.on("changed", (file) => {
+				this.noteStyles.metadataChanged(file);
+			})
+		);
+		// Reading view draws a note once, so one whose style changed is drawn
+		// again; editors and the pane listen for themselves.
+		this.register(
+			this.noteStyles.onChange((path) => {
+				for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
+					const view = leaf.view;
+					if (
+						view instanceof MarkdownView &&
+						view.file?.path === path &&
+						view.getMode() === "preview"
+					) {
+						view.previewMode.rerender(true);
+					}
+				}
+			})
+		);
 		const suggest = new CitationSuggest(this.app, {
 			renderer: this.renderer,
 			enabled: () => this.settings.citationSuggestions,
@@ -138,7 +176,8 @@ export default class CitationSuitePlugin extends Plugin {
 				new BibliographyView(leaf, {
 					renderer: this.renderer,
 					notes: this.notes,
-					styleId: () => this.settings.citationStyle,
+					noteStyle: (path) => this.noteStyles.resolve(path),
+					onStyleChange,
 					redrawCitations: () => this.redrawCitations(),
 					typedKey: (file, text) => suggest.typedKey(file, text),
 					onTypingChange: (listener) => suggest.onTypingChange(listener),
@@ -387,7 +426,7 @@ export default class CitationSuitePlugin extends Plugin {
 		try {
 			// This waits for as long as the citation window is open, which is
 			// as long as the reader takes.
-			pick = await this.pick(options);
+			pick = await this.pick(options, ctx.file);
 		} catch (error) {
 			const detail = error instanceof CaywError ? error.message : "";
 			new Notice(
@@ -596,6 +635,7 @@ export default class CitationSuitePlugin extends Plugin {
 	 */
 	async restyle(): Promise<void> {
 		this.notes.clear();
+		this.noteStyles.clear();
 		this.renderer.reset(
 			this.settings.port,
 			this.styles,
@@ -635,7 +675,7 @@ export default class CitationSuitePlugin extends Plugin {
 	 * can render later from the bibliography. Zotero notes become their text,
 	 * as Zotero's word-processor plugins insert them.
 	 */
-	private async pick(options: PickOptions): Promise<Pick> {
+	private async pick(options: PickOptions, file: TFile | null): Promise<Pick> {
 		const picked = await pickCitations(options);
 		if (picked.length === 0) {
 			return { citation: "", notes: "" };
@@ -651,11 +691,15 @@ export default class CitationSuitePlugin extends Plugin {
 			new Notice(t.NOTICE_ITEMS_WITHOUT_KEYS);
 		}
 
+		// Locators are written in the words pandoc will read them in, which is
+		// the note's language: `p. 33` in English, `с. 33` with `lang: ru-RU`.
+		const locale = await this.noteStyles.pandocLocale(file?.path ?? null);
 		return {
 			citation:
 				citations.length > 0
 					? formatCitations(citations, {
 							brackets: this.settings.brackets,
+							labels: this.renderer.labelWriter(locale),
 						})
 					: "",
 			notes: notes

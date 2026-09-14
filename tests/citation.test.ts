@@ -8,6 +8,8 @@ import {
 	proseOf,
 	splitLocator,
 } from "src/citation";
+import { readFileSync } from "node:fs";
+import { labelWriter, localeLabels, PANDOC_LOCATORS } from "src/localeTerms";
 import { formatCitations } from "src/pandoc";
 import { Citation } from "src/types";
 
@@ -67,6 +69,15 @@ describe("parseCitation", () => {
 			suffix: "",
 			suppressAuthor: false,
 		});
+	});
+
+	it("keeps the comma in a suffix when no locator follows it, as pandoc writes it", () => {
+		expect(parseCitation("@doe2020, and more")).toMatchObject({
+			locator: "",
+			label: "",
+			suffix: ", and more",
+		});
+		expect(parseCitation("@doe2020 and more")).toMatchObject({ suffix: "and more" });
 	});
 
 	it("reads the prefix, the locator and the suffix around it", () => {
@@ -153,11 +164,35 @@ describe("parseGroups", () => {
 describe("what the plugin writes, read back", () => {
 	// The two halves have to agree: whatever `src/pandoc.ts` puts in the note
 	// is what the renderer is handed back when it reads the note again.
+	const locale = (name: string): string =>
+		readFileSync(new URL(`../locales/locales-${name}.xml`, import.meta.url), "utf8");
+	const EN = locale("en-US");
+	const english = labelWriter(EN, EN);
 	const roundTrip = (source: Citation) => {
-		const text = formatCitations([source], { brackets: true });
+		const text = formatCitations([source], { brackets: true, labels: english });
 		const [group] = parseGroups(text);
 		return group.citations[0];
 	};
+
+	for (const name of ["en-US", "en-GB", "ru-RU", "de-DE", "fr-FR"]) {
+		it(`reads back every locator written in ${name}, one and several`, () => {
+			const labels = localeLabels(locale(name), EN, "", name);
+			const writer = labelWriter(locale(name), EN);
+			for (const label of PANDOC_LOCATORS) {
+				for (const locator of ["3", "3–5"]) {
+					const text = formatCitations(
+						[citation({ locator, label })],
+						{ brackets: true, labels: writer }
+					);
+					const [group] = parseGroups(text, labels);
+					expect({ text, label: group.citations[0].label }).toEqual({
+						text,
+						label,
+					});
+				}
+			}
+		});
+	}
 
 	it("recovers a plain citation", () => {
 		expect(roundTrip(citation())).toMatchObject({ id: "doe2020" });

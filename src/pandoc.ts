@@ -15,8 +15,16 @@ import { Citation } from "src/types";
  */
 
 /**
- * CSL locator labels, abbreviated as a citation spells them. Copied from BBT's
- * `shortLabel` so a locator reads the same whichever tool wrote it.
+ * CSL locator labels, abbreviated as Better BibTeX's `shortLabel` spells them.
+ *
+ * These were once what every locator was written with, and pandoc does not
+ * read several of them — `ch.` in no language, `p.` in a note whose `lang` is
+ * Russian — so a chapter was exported as the text "ch. 2". A locator is now
+ * written in the words pandoc reads in the note's language
+ * (`src/localeTerms.ts`), and these are left for two things: the labels
+ * pandoc reads in no form at all (sub verbo, appendix, Juris-M's), where one
+ * abbreviation is as good as another, and reading back the notes written
+ * with them (`ENGLISH_LABELS`).
  */
 export const LOCATOR_LABELS: Record<string, string> = {
 	article: "art.",
@@ -69,13 +77,31 @@ export function citationKeyToken(citationKey: string): string {
 		: `@{${citationKey}}`;
 }
 
-/** The locator as it is written after a key: `p. 33`, `ch. 2`, `33`. */
-export function locatorText(citation: Citation): string {
+/**
+ * How a locator's label is written: the word for a CSL label, for one locator
+ * or several. The plugin's own writes the words pandoc reads in the note's
+ * language (`labelWriter` in `src/localeTerms.ts`).
+ */
+export type LabelWriter = (label: string, plural: boolean) => string;
+
+/**
+ * Whether a locator names more than one — `33–35`, `33, 35`, `3 & 5` — which
+ * is when a label is written in the plural: `pp.`, `сс.`.
+ */
+export function pluralLocator(locator: string): boolean {
+	return /[-–—,;&]|\band\b/.test(locator);
+}
+
+/** The locator as it is written after a key: `p. 33`, `chap. 2`, `33`. */
+export function locatorText(citation: Citation, labels: LabelWriter): string {
 	const locator = citation.locator.trim();
 	if (!locator) {
 		return "";
 	}
-	const label = shortLabel(citation.label).trim();
+	// Zotero's window names a locator as CSL 1.0.1 did, `sub verbo` with a
+	// space; CSL now writes `sub-verbo`.
+	const name = citation.label.trim().replace(/\s+/g, "-");
+	const label = name ? labels(name, pluralLocator(locator)).trim() : "";
 	return label ? `${label} ${locator}` : locator;
 }
 
@@ -96,8 +122,8 @@ export function locatorText(citation: Citation): string {
  * only where the plain form would break — and the output is plain pandoc in
  * every other case.
  */
-export function locatorSuffix(citation: Citation): string {
-	const text = locatorText(citation);
+export function locatorSuffix(citation: Citation, labels: LabelWriter): string {
+	const text = locatorText(citation, labels);
 	if (!text) {
 		return "";
 	}
@@ -108,7 +134,7 @@ export function locatorSuffix(citation: Citation): string {
  * One citation, without the brackets that would enclose the whole group:
  * `Doe says -@doe2020, p. 33 and so on`.
  */
-function parenthetical(citation: Citation): string {
+function parenthetical(citation: Citation, labels: LabelWriter): string {
 	let cite = "";
 	if (citation.prefix) {
 		cite += `${citation.prefix} `;
@@ -119,7 +145,7 @@ function parenthetical(citation: Citation): string {
 		cite += "-";
 	}
 	cite += citationKeyToken(citation.citationKey);
-	cite += locatorSuffix(citation);
+	cite += locatorSuffix(citation, labels);
 	if (citation.suffix) {
 		cite += ` ${citation.suffix}`;
 	}
@@ -129,6 +155,8 @@ function parenthetical(citation: Citation): string {
 export interface FormatOptions {
 	/** Wrap the group in `[ ]`, which is what pandoc reads as one citation. */
 	brackets: boolean;
+	/** How locator labels are written: in the words pandoc reads in the note. */
+	labels: LabelWriter;
 }
 
 /**
@@ -142,6 +170,8 @@ export function formatCitations(
 	if (citations.length === 0) {
 		return "";
 	}
-	const formatted = citations.map(parenthetical).join("; ");
+	const formatted = citations
+		.map((citation) => parenthetical(citation, options.labels))
+		.join("; ");
 	return options.brackets ? `[${formatted}]` : formatted;
 }

@@ -4,14 +4,20 @@ import {
 	setTooltip,
 } from "obsidian";
 import { t } from "lang/helpers";
-import { CitationGroup, keyMentions, parseGroups } from "src/citation";
+import {
+	CitationGroup,
+	ENGLISH_LABELS,
+	keyMentions,
+	LocatorLabels,
+	parseGroups,
+} from "src/citation";
 import {
 	matchCitations,
 	NoteCitation,
 	noteCitations,
 } from "src/noteCitations";
 import { NoteRenderer } from "src/noteRendering";
-import { CitationRenderer, RenderedCitation } from "src/render";
+import { CitationRenderer, RenderedCitation, StyleRef } from "src/render";
 
 /**
  * Showing citations in their style in reading view.
@@ -127,8 +133,8 @@ function missingKeyEl(text: string, tooltip: CitationTooltip): HTMLElement {
 export interface ReadingContext {
 	renderer: CitationRenderer;
 	notes: NoteRenderer;
-	/** The style to render in, or empty for none. */
-	styleId(): string;
+	/** The style the note at the path is rendered in, or `null` for none. */
+	styleFor(path: string): Promise<StyleRef | null>;
 	tooltip(): CitationTooltip;
 	/** Whether keys Zotero has no source for are marked. */
 	markMissing(): boolean;
@@ -197,11 +203,15 @@ function decorateNode(
 }
 
 /** The note last read, since every block of it asks for the same one. */
-let lastNote: { text: string; citations: NoteCitation[] } | null = null;
+let lastNote: {
+	text: string;
+	labels: LocatorLabels;
+	citations: NoteCitation[];
+} | null = null;
 
-function citationsOf(text: string): NoteCitation[] {
-	if (lastNote?.text !== text) {
-		lastNote = { text, citations: noteCitations(text) };
+function citationsOf(text: string, labels: LocatorLabels): NoteCitation[] {
+	if (lastNote?.text !== text || lastNote.labels !== labels) {
+		lastNote = { text, labels, citations: noteCitations(text, labels) };
 	}
 	return lastNote.citations;
 }
@@ -229,13 +239,20 @@ export async function renderCitations(
 	ctx: MarkdownPostProcessorContext,
 	context: ReadingContext
 ): Promise<void> {
-	const styleId = context.styleId();
-	if (!styleId && !context.markMissing()) {
+	const textNodes = citableTextNodes(el);
+	if (textNodes.length === 0) {
 		return;
 	}
-	const nodes: CitingNode[] = citableTextNodes(el).map((node) => ({
+	const style = await context.styleFor(ctx.sourcePath);
+	if (!style && !context.markMissing()) {
+		return;
+	}
+	// Locators are read in the note's language when it gives one; with no
+	// style, only the keys matter, and those read the same in any language.
+	const labels = style?.labels ?? ENGLISH_LABELS;
+	const nodes: CitingNode[] = textNodes.map((node) => ({
 		node,
-		groups: parseGroups(node.nodeValue ?? ""),
+		groups: parseGroups(node.nodeValue ?? "", labels),
 		inFootnotes: node.parentElement?.closest(".footnotes") != null,
 	}));
 	const groups = nodes.flatMap((entry) => entry.groups);
@@ -250,8 +267,8 @@ export async function renderCitations(
 	);
 
 	const rendered = new Map<CitationGroup, RenderedCitation | null>();
-	if (styleId) {
-		await renderInNote(el, ctx, context, styleId, nodes, rendered);
+	if (style) {
+		await renderInNote(el, ctx, context, style, nodes, rendered);
 	}
 	for (const entry of nodes) {
 		decorateNode(entry, rendered, context);
@@ -267,7 +284,7 @@ async function renderInNote(
 	el: HTMLElement,
 	ctx: MarkdownPostProcessorContext,
 	context: ReadingContext,
-	styleId: string,
+	style: StyleRef,
 	nodes: CitingNode[],
 	rendered: Map<CitationGroup, RenderedCitation | null>
 ): Promise<void> {
@@ -275,10 +292,10 @@ async function renderInNote(
 	const text = section?.text ?? (await context.noteText(ctx.sourcePath));
 	const note =
 		text !== null
-			? await context.notes.render(styleId, ctx.sourcePath, citationsOf(text))
+			? await context.notes.render(style, ctx.sourcePath, citationsOf(text, style.labels))
 			: null;
 	if (text === null || !note) {
-		const engines = await context.renderer.engineFor(styleId);
+		const engines = await context.renderer.engineFor(style);
 		for (const group of nodes.flatMap((entry) => entry.groups)) {
 			rendered.set(group, engines ? context.renderer.render(engines, group) : null);
 		}

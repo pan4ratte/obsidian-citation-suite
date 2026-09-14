@@ -6,6 +6,7 @@ import {
 	RenderedBibliography,
 	RenderedCitation,
 	StyleEngines,
+	StyleRef,
 } from "src/render";
 
 /**
@@ -144,12 +145,12 @@ export class NoteRenderer {
 	 * until it is typed, and should not hold the rest of the note back.
 	 */
 	current(
-		styleId: string,
+		style: StyleRef,
 		path: string,
 		citations: NoteCitation[],
 		ready: boolean
 	): NoteRendering | null {
-		const engines = this.renderer.preparedEngines(styleId);
+		const engines = this.renderer.preparedEngines(style);
 		if (!engines) {
 			return null;
 		}
@@ -175,11 +176,11 @@ export class NoteRenderer {
 	 * when the style will not load.
 	 */
 	async render(
-		styleId: string,
+		style: StyleRef,
 		path: string,
 		citations: NoteCitation[]
 	): Promise<NoteRendering | null> {
-		const state = await this.written(styleId, path, citations, false);
+		const state = await this.written(style, path, citations, false);
 		return state ? compose(citations, state.input, state.outputs) : null;
 	}
 
@@ -188,11 +189,11 @@ export class NoteRenderer {
 	 * for a style that writes none or will not load.
 	 */
 	async bibliography(
-		styleId: string,
+		style: StyleRef,
 		path: string,
 		citations: NoteCitation[]
 	): Promise<RenderedBibliography | null> {
-		const state = await this.written(styleId, path, citations, true);
+		const state = await this.written(style, path, citations, true);
 		return state?.bibliography ?? null;
 	}
 
@@ -200,16 +201,16 @@ export class NoteRenderer {
 	 * What the note at the path was last written as, whatever it cited then —
 	 * for a piece of the note shown on its own, which is matched against it.
 	 */
-	latest(styleId: string, path: string): NoteRendering | null {
+	latest(style: StyleRef, path: string): NoteRendering | null {
 		const state = this.states.get(path);
-		if (!state || state.engines !== this.renderer.preparedEngines(styleId)) {
+		if (!state || state.engines !== this.renderer.preparedEngines(style)) {
 			return null;
 		}
 		return compose(state.citations, state.input, state.outputs);
 	}
 
 	private async written(
-		styleId: string,
+		style: StyleRef,
 		path: string,
 		citations: NoteCitation[],
 		bibliography: boolean
@@ -217,7 +218,7 @@ export class NoteRenderer {
 		await this.renderer.load(
 			citations.flatMap((group) => group.citations.map((citation) => citation.id))
 		);
-		const engines = await this.renderer.engineFor(styleId);
+		const engines = await this.renderer.engineFor(style);
 		if (!engines) {
 			return null;
 		}

@@ -9,6 +9,12 @@
 * **Unknown citation keys marked.** A key Zotero has no source for — one with a typo, say — is underlined with a wavy line in every view mode, even with no preview style chosen. The marking can be turned off in the settings.
 * **Suggestions while typing a citation key.** Typing `@` opens a list of sources from Zotero whose key, title, authors or year hold the text typed, with the current note's sources first. The key picked is inserted in Pandoc format, and the suggestions can be turned off in the settings.
 * **Literature note and PDF from the bibliography.** The context menu of an entry on the "Bibliography" tab has new "Open literature note" — when the vault has a note named `@key` or `key`, or with the key in its `citekey` property — and "Open PDF" options, the latter opening the PDF attached to the source in Zotero's reader.
+* **Style and language from the note's properties.** When a note's properties give `csl` (or `citation-style`) or `lang`, the preview and the bibliography are styled the way exporting with Pandoc will style them: in that style, in that language and with locator labels in that language — with `lang: ru-RU`, for instance, Pandoc reads `с. 33` as a page and leaves `p. 33` as text. The style file is looked for where Pandoc looks for it, and the bibliography says which style and language come from the properties. This can be turned off in the settings.
+
+### UI/UX enhancements and bug fixes
+
+* Locator labels are now inserted so that Pandoc reads them: in the note's language (`с. 33` with `lang: ru-RU`) and with abbreviations Pandoc recognises (`chap. 2` rather than `ch. 2`). Such locators used to end up in the export as plain text.
+* The comma before text after a key that is not a locator (`[@doe2020, and more]`) is now kept in the preview, as Pandoc keeps it.
 
 
 ## 1.1.0

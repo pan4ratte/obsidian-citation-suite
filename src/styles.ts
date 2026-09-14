@@ -217,7 +217,7 @@ function localeFromPrefs(prefs: string): string {
 }
 
 /** The head of one style file, or nothing if it cannot be read. */
-async function readHead(path: string): Promise<string | null> {
+export async function readHead(path: string): Promise<string | null> {
 	let file;
 	try {
 		file = await open(path);

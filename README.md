@@ -97,11 +97,13 @@ Citations are inserted in [Pandoc](https://pandoc.org/MANUAL.html#citation-synta
 | --- | --- |
 | One item | `[@doe2020]` |
 | Page 33 | `[@doe2020, p. 33]` |
-| Chapter 2 | `[@doe2020, ch. 2]` |
-| Pages 33 and 35 | `[@doe2020{p. 33, 35}]` |
+| Chapter 2 | `[@doe2020, chap. 2]` |
+| Pages 33 and 35 | `[@doe2020{pp. 33, 35}]` |
 | Prefix "see", suffix "and following" | `[see @doe2020 and following]` |
 | Suppress author | `[-@doe2020]` |
 | Two items | `[@doe2020, p. 33; @roe2021]` |
+
+Locator labels are inserted the way Pandoc will read them — in the note's language. If the note's properties give `lang` (or a `csl` style with a language of its own), the label is written in that language: with `lang: ru-RU`, `[@doe2020, с. 33]` and `[@doe2020, гл. 2]`, since in such a note Pandoc leaves `p. 33` as plain text. Without them, labels are written in English. For a language the plugin does not support, the locator's full name is written (`page 33`), which Pandoc reads in any language. Locators Pandoc does not recognise at all ("sub verbo", for one) are inserted as before.
 
 The preview also reads citations typed by hand or inserted by other tools: a braced locator after the comma, the way Better BibTeX writes it (`[@doe2020, {pp. 33–35}]`), and locator labels in the plural, spelled out and in any case (`pp.`, `pages`, `vols.`). Only citations in square brackets are formatted.
 
@@ -142,6 +144,18 @@ The "Citation preview" option under the list of styles shows how citations will 
 Every citation is styled with the whole note taken into account, as the export will style it: a source cited again is written in its short form or as "Ibid." when the style asks for it, numbered styles number sources in order of first citation — just as the "Bibliography" tab does — and works by one author in one year are told apart by letters: 2020a, 2020b. A citation in a footnote's text counts where the footnote is anchored, and in note styles every citation in the body text counts as a footnote of its own.
 
 A citation key Zotero has no source for — one typed with a typo, say — is underlined with a wavy line in reading view, live preview and source mode, even with no preview style chosen. The marking is turned off with **Mark citation keys Zotero does not have**.
+
+### Style and language from the note's properties
+
+A note you export with Pandoc can name its style and language itself, in its properties — `csl` (or `citation-style`) and `lang`. The preview and the bibliography on the "Bibliography" tab are then styled the way the export will style them:
+
+* **The style** is the file `csl` names. A name without an extension gets `.csl` added, as Pandoc adds it. The file is looked for next to the note, in the vault's root and in the `csl` folder of Pandoc's data directory (on Windows, `%APPDATA%\pandoc\csl`). A style URL (`https://www.zotero.org/styles/apa`) is matched against Zotero's styles — the preview downloads nothing. If the style is not found, the style from the settings is used.
+
+* **The language** comes from `lang`, and it wins over the language the style itself names. Without `lang`, the style's own language is used, or `en-US` if it names none. The preview supports Russian, English (US and UK), German and French; other languages are styled in `en-US`.
+
+* **Locator labels** are read in the note's language, as Pandoc reads them: with `lang: ru-RU`, `[@doe2020, с. 33]` cites page 33, while in `[@doe2020, p. 33]` the text `p. 33` stays plain text after the key. The preview shows this just as the export will.
+
+Above the bibliography it says which style and language come from the note's properties, and what of them could not be found. Choosing "Do not style the preview" in the settings turns the preview off for such notes too, and **Style a note in the style and language of its properties** lets you ignore the properties altogether.
 
 ## 6. Automating footnotes
 

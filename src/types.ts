@@ -89,6 +89,11 @@ export interface CitationSuiteSettings {
 	/** How long, in milliseconds, a citation is hovered before its tooltip shows. */
 	citationTooltipDelay: number;
 	/**
+	 * Preview a note that names pandoc's `csl` or `lang` in the style and the
+	 * language it names, as pandoc will export it (`src/noteStyles.ts`).
+	 */
+	noteStyleProperties: boolean;
+	/**
 	 * Mark a citation key Zotero has no source for, in every view of a note,
 	 * whether or not a style is chosen.
 	 */
@@ -145,6 +150,7 @@ export const DEFAULT_SETTINGS: CitationSuiteSettings = {
 	citationItalic: false,
 	citationTooltips: true,
 	citationTooltipDelay: DEFAULT_TOOLTIP_DELAY,
+	noteStyleProperties: true,
 	markMissingKeys: true,
 	citationSuggestions: true,
 	// The view a note is written in, which is where most citations are read.

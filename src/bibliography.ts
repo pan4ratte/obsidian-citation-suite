@@ -17,6 +17,7 @@ import { citedKeys, mentionsOf } from "src/citation";
 import { literatureNote } from "src/literatureNote";
 import { noteCitations } from "src/noteCitations";
 import { NoteRenderer } from "src/noteRendering";
+import { NoteStyle } from "src/noteStyles";
 import { CitationRenderer, RenderedBibliography } from "src/render";
 import { matchesTerms, queryTerms } from "src/search";
 import { spinner, Spinner } from "src/spinner";
@@ -151,7 +152,10 @@ async function play(el: HTMLElement, cls: string): Promise<void> {
 export interface BibliographyContext {
 	renderer: CitationRenderer;
 	notes: NoteRenderer;
-	styleId(): string;
+	/** How the note at the path is previewed, worked out if it has to be. */
+	noteStyle(path: string): Promise<NoteStyle>;
+	/** Calls back with a note's path when its style changed; answers the unsubscribe. */
+	onStyleChange(listener: (path: string) => void): () => void;
 	redrawCitations(): void;
 	/** Where in `text` a key is being typed, while sources are suggested for it. */
 	typedKey(file: TFile, text: string): { from: number; to: number } | null;
@@ -279,6 +283,14 @@ export class BibliographyView extends ItemView {
 		// A key being typed is not cited yet, and is left out while sources
 		// are suggested for it; once the list closes it counts, found or not.
 		this.register(this.context.onTypingChange(() => this.refreshSoon()));
+		// The note's `csl` or `lang` changed, or was found for the first time.
+		this.register(
+			this.context.onStyleChange((path) => {
+				if (path === this.file?.path) {
+					this.refreshSoon();
+				}
+			})
+		);
 
 		this.file = this.noteFile();
 		void this.refresh();
@@ -364,14 +376,18 @@ export class BibliographyView extends ItemView {
 		const pass = ++this.pass;
 		this.cancelRetry();
 		const file = this.file;
-		const styleId = this.context.styleId();
 		const renderer = this.context.renderer;
 
 		if (!file) {
 			this.showMessage(null, t.BIBLIOGRAPHY_NO_NOTE);
 			return;
 		}
-		if (!styleId) {
+		const noteStyle = await this.context.noteStyle(file.path);
+		if (pass !== this.pass) {
+			return;
+		}
+		const style = noteStyle.ref;
+		if (!style) {
 			this.showMessage(file, t.BIBLIOGRAPHY_NO_STYLE);
 			return;
 		}
@@ -394,7 +410,7 @@ export class BibliographyView extends ItemView {
 
 		const unanswered = keys.filter((key) => renderer.unreachable(key));
 		await renderer.load(keys, true);
-		const engines = await renderer.engineFor(styleId);
+		const engines = await renderer.engineFor(style);
 		if (unanswered.some((key) => renderer.has(key))) {
 			this.context.redrawCitations();
 		}
@@ -416,9 +432,9 @@ export class BibliographyView extends ItemView {
 		const bibliography =
 			missing.length < keys.length
 				? await this.context.notes.bibliography(
-						styleId,
+						style,
 						file.path,
-						noteCitations(text)
+						noteCitations(text, style.labels)
 					)
 				: null;
 		if (pass !== this.pass) {
@@ -426,6 +442,7 @@ export class BibliographyView extends ItemView {
 		}
 
 		this.startBody(file, bibliography, notFound.length > 0);
+		this.drawNoteStyle(noteStyle);
 		if (bibliography) {
 			this.drawEntries(bibliography);
 		} else if (missing.length < keys.length) {
@@ -636,6 +653,38 @@ export class BibliographyView extends ItemView {
 		this.finding = null;
 		this.startBody(file, null, false);
 		this.drawMessage(text);
+	}
+
+	/**
+	 * What the note's own `csl` and `lang` make of its preview, above the list,
+	 * so that a list styled otherwise than the settings say is not a mystery:
+	 * the style and language it is written in, and whatever the properties
+	 * asked for that the preview could not have. Nothing for a note that names
+	 * neither.
+	 */
+	private drawNoteStyle(noteStyle: NoteStyle): void {
+		const { ref, properties, missingCsl, uncarriedLocale } = noteStyle;
+		if (!ref || !properties) {
+			return;
+		}
+		const section = this.bodyEl.createDiv({
+			cls: "citation-suite-bibliography-note-style",
+		});
+		section.createDiv({
+			text: `${t.BIBLIOGRAPHY_NOTE_STYLE} ${ref.style.title}, ${ref.locale}`,
+		});
+		if (missingCsl) {
+			section.createDiv({
+				cls: "citation-suite-bibliography-note-style-problem",
+				text: `${t.BIBLIOGRAPHY_CSL_NOT_FOUND} ${missingCsl}`,
+			});
+		}
+		if (uncarriedLocale) {
+			section.createDiv({
+				cls: "citation-suite-bibliography-note-style-problem",
+				text: `${t.BIBLIOGRAPHY_LOCALE_NOT_CARRIED} ${uncarriedLocale}`,
+			});
+		}
 	}
 
 	private drawMessage(text: string): void {

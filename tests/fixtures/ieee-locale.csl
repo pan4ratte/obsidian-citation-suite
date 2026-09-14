@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The English locale block of IEEE's style (Zotero's ieee.csl, CC BY-SA 3.0), which is what the test reads. -->
+<style xmlns="http://purl.org/net/xbiblio/csl" class="in-text" version="1.0">
+  <locale xml:lang="en">
+    <date form="text">
+      <date-part name="month" form="short" suffix=" "/>
+      <date-part name="day" form="numeric-leading-zeros" suffix=", "/>
+      <date-part name="year"/>
+    </date>
+    <terms>
+      <term name="chapter" form="short">ch.</term>
+      <term name="chapter-number" form="short">ch.</term>
+      <term name="presented at">presented at the</term>
+      <term name="available at">available</term>
+      <!-- always use three-letter abbreviations for months -->
+      <term name="month-06" form="short">Jun.</term>
+      <term name="month-07" form="short">Jul.</term>
+      <term name="month-09" form="short">Sep.</term>
+    </terms>
+  </locale>
+</style>

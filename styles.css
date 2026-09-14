@@ -1268,6 +1268,21 @@ body.citation-suite-citation-italic .citation-suite-citation em {
 /* The keys the note cites that Zotero had nothing for, or the word that
    Zotero did not answer, under a rule. */
 .citation-suite-bibliography-missing,
+/* What the note's own `csl` and `lang` make of the list, above it: muted, as
+   the pane's other notes are, and in the warning colour what the properties
+   asked for that the preview could not have. */
+.citation-suite-bibliography-note-style {
+	margin-bottom: var(--size-4-3);
+	font-size: var(--font-ui-smaller);
+	line-height: var(--line-height-normal);
+	color: var(--text-muted);
+}
+
+.citation-suite-bibliography-note-style-problem {
+	margin-top: var(--size-2-2);
+	color: var(--text-warning);
+}
+
 .citation-suite-bibliography-unreachable {
 	margin-top: var(--size-4-4);
 	padding-top: var(--size-4-3);

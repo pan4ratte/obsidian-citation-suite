@@ -1,8 +1,15 @@
 import { BibliographyParams, CslCitationItem, CslSys, Engine } from "citeproc";
 import { requestUrl } from "obsidian";
 import { REQUEST_HEADERS } from "src/cayw";
-import { CitationGroup, ParsedCitation } from "src/citation";
+import {
+	CitationGroup,
+	ENGLISH_LABELS,
+	LocatorLabels,
+	ParsedCitation,
+} from "src/citation";
 import { CitationSession } from "src/citationSession";
+import { labelWriter, localeLabels } from "src/localeTerms";
+import { LabelWriter } from "src/pandoc";
 import { withoutCitationNumbers, ZoteroCitePrefs } from "src/styles";
 import { tooltipEntry } from "src/typography";
 import { CitationStyle } from "src/types";
@@ -95,6 +102,29 @@ export interface StyleEngines {
 	/** The tooltip text of the sources a citation names, by their keys. */
 	tooltips: Map<string, string>;
 }
+
+/**
+ * A style to render in, and how — which is more than the style.
+ *
+ * A note is rendered the way Zotero renders unless it names pandoc's `csl` or
+ * `lang` (`src/noteStyles.ts`); then it is rendered the way pandoc will export
+ * it, in the style it names and in its language, forced over whatever the
+ * style asks for, with its locators read in that language. So one style can be
+ * running in two ways at once, and engines are kept by `key`.
+ */
+export interface StyleRef {
+	/** Engines are kept and found by this. */
+	key: string;
+	/** A style Zotero has, or a CSL file a note names. */
+	style: CitationStyle;
+	/** The locale forced on the style, or empty for the one Zotero would choose. */
+	locale: string;
+	/** What the locators of the note's citations are read with. */
+	labels: LocatorLabels;
+}
+
+/** How many styles are kept running: enough for the notes open side by side. */
+const KEPT_ENGINES = 4;
 
 /** A group as the style writes it: the citation, and the sources it cites. */
 export interface RenderedCitation {
@@ -405,7 +435,7 @@ function searchConditions(query: string): unknown[] {
  * and the parent's are the ones Zotero would use. The href is the parent's id,
  * which is how every style is keyed.
  */
-function parentId(csl: string): string {
+export function parentId(csl: string): string {
 	const link = /<link[^>]*rel="independent-parent"[^>]*>/.exec(csl);
 	const href = link ? /href="([^"]*)"/.exec(link[0]) : null;
 	return href ? href[1] : "";
@@ -416,7 +446,7 @@ function parentId(csl: string): string {
  * bare `ru` alike, and `de-DE` for an Austrian `de-AT` the plugin does not
  * carry — closer than CSL's `en-US`. Empty for a language not carried at all.
  */
-function carriedLocale(lang: string): string {
+export function carriedLocale(lang: string): string {
 	if (lang in LOCALES) {
 		return lang;
 	}
@@ -447,7 +477,7 @@ function zoteroEngine(
 }
 
 /** The locale a style asks for, when it asks for one. */
-function styleLocale(csl: string): string {
+export function styleLocale(csl: string): string {
 	const match = /<style[^>]*default-locale="([^"]*)"/.exec(csl);
 	return match ? match[1] : "";
 }
@@ -465,8 +495,14 @@ export class CitationRenderer {
 	private lookups = new Map<string, Promise<void>>();
 	/** Zotero's libraries, in the order a key is looked for in them. */
 	private libraries: number[] | null = null;
-	private engine: StyleEngines | null = null;
-	private engineStyle = "";
+	/** The styles running, by `StyleRef.key`, the latest used last; `null` for one that would not. */
+	private engines = new Map<string, StyleEngines | null>();
+	/** Styles being built, so that two asking at once build one. */
+	private building = new Map<string, Promise<StyleEngines | null>>();
+	/** How locator labels are written, by carried locale (`""` for none carried). */
+	private writers = new Map<string, LabelWriter>();
+	/** Locator labels, by the key of the style and locale they are read in. */
+	private labels = new Map<string, LocatorLabels>();
 
 	constructor(
 		private port: number,
@@ -486,8 +522,8 @@ export class CitationRenderer {
 		this.unreached.clear();
 		this.lookups.clear();
 		this.libraries = null;
-		this.engine = null;
-		this.engineStyle = "";
+		this.engines.clear();
+		this.building.clear();
 	}
 
 	/**
@@ -741,22 +777,82 @@ export class CitationRenderer {
 		];
 	}
 
-	private async buildEngine(styleId: string): Promise<StyleEngines | null> {
-		let style = this.styles.find((candidate) => candidate.id === styleId);
-		if (!style) {
+	/**
+	 * How locator labels are written in a note pandoc reads in `locale`, a
+	 * carried locale — or `null` for a language the plugin carries none for,
+	 * where the CSL names are written, which pandoc reads in every language.
+	 */
+	labelWriter(locale: string | null): LabelWriter {
+		const key = locale ?? "";
+		let writer = this.writers.get(key);
+		if (!writer) {
+			writer = labelWriter(
+				locale === null ? null : (LOCALES[locale] ?? LOCALES[FALLBACK_LOCALE]),
+				LOCALES[FALLBACK_LOCALE]
+			);
+			this.writers.set(key, writer);
+		}
+		return writer;
+	}
+
+	/** Every style Zotero has. */
+	knownStyles(): CitationStyle[] {
+		return this.styles;
+	}
+
+	/** The style Zotero has under the id, or `undefined`. */
+	styleById(id: string): CitationStyle | undefined {
+		return this.styles.find((candidate) => candidate.id === id);
+	}
+
+	/**
+	 * The style chosen in the settings, run as Zotero runs it: in Zotero's
+	 * language unless the style names its own, with locators read in English.
+	 * `null` for no style, or one Zotero no longer has.
+	 */
+	zoteroStyle(styleId: string): StyleRef | null {
+		const style = styleId ? this.styleById(styleId) : undefined;
+		return style
+			? { key: styleId, style, locale: "", labels: ENGLISH_LABELS }
+			: null;
+	}
+
+	/**
+	 * A style run as pandoc runs it for a note: in `locale` — a carried locale
+	 * — forced over the style's own, with locators read in it and in the
+	 * style's own terms for it. `csl` is the text of the style whose terms
+	 * count: the style's, or its parent's for a dependent one.
+	 */
+	pandocStyle(style: CitationStyle, locale: string, csl: string): StyleRef {
+		const key = `${style.path || style.id}\n${locale}`;
+		let labels = this.labels.get(key);
+		if (!labels) {
+			labels = localeLabels(
+				LOCALES[locale] ?? LOCALES[FALLBACK_LOCALE],
+				LOCALES[FALLBACK_LOCALE],
+				csl,
+				locale
+			);
+			this.labels.set(key, labels);
+		}
+		return { key, style, locale, labels };
+	}
+
+	private async buildEngine(ref: StyleRef): Promise<StyleEngines | null> {
+		let style = ref.style;
+		let csl: string;
+		try {
+			csl = await this.readStyle(style);
+		} catch {
 			return null;
 		}
-
-		let csl = await this.readStyle(style);
 		// citeproc is only ever given the parent, so it cannot see the language
 		// a dependent style names; Zotero forces that language, and so does
 		// this.
 		let forcedLocale = "";
 		const parent = parentId(csl);
 		if (parent) {
-			const independent = this.styles.find(
-				(candidate) => candidate.id === parent
-			);
+			const independent = this.styleById(parent);
 			if (!independent) {
 				return null;
 			}
@@ -766,10 +862,15 @@ export class CitationRenderer {
 		}
 		csl = eventToEventTitle(csl);
 
-		// The language Zotero asks citeproc for when none is forced; a style
+		// A note's own language is forced, as pandoc forces `lang`. Otherwise
+		// the language Zotero asks citeproc for when none is forced; a style
 		// naming its own still wins inside citeproc, as it does in Zotero.
 		const locale =
-			forcedLocale || carriedLocale(this.zotero.locale) || FALLBACK_LOCALE;
+			ref.locale ||
+			forcedLocale ||
+			carriedLocale(this.zotero.locale) ||
+			FALLBACK_LOCALE;
+		const forced = !!ref.locale || !!forcedLocale;
 
 		const sys = {
 			// A style may ask for a language the plugin does not carry, and
@@ -782,11 +883,11 @@ export class CitationRenderer {
 					? asZoteroCites(item, this.zotero.citePaperArticleURLs)
 					: { id, type: "document" };
 			},
-			uppercase_subtitles: uppercasesSubtitles(styleId, style.id),
+			uppercase_subtitles: uppercasesSubtitles(ref.style.id, style.id),
 		};
 		let citation: Engine;
 		try {
-			citation = zoteroEngine(sys, csl, locale, !!forcedLocale);
+			citation = zoteroEngine(sys, csl, locale, forced);
 		} catch {
 			// Not a style citeproc can run. Nothing is rendered, and the note
 			// goes on reading as the pandoc citation it holds.
@@ -799,7 +900,7 @@ export class CitationRenderer {
 				sys,
 				withoutCitationNumbers(csl),
 				locale,
-				!!forcedLocale
+				forced
 			);
 			bibliography.setOutputFormat("text");
 		} catch {
@@ -816,19 +917,50 @@ export class CitationRenderer {
 		};
 	}
 
-	/** The engines of the prepared style, synchronously, or `null` when it is not prepared. */
-	preparedEngines(styleId: string): StyleEngines | null {
-		return this.engine && this.engineStyle === styleId ? this.engine : null;
+	/**
+	 * Whether a style has been built, or tried and would not run — either way
+	 * there is nothing left to wait for.
+	 */
+	built(ref: StyleRef): boolean {
+		return this.engines.has(ref.key);
 	}
 
-	/** The engine for a style, built once and kept until the style changes. */
-	async engineFor(styleId: string): Promise<StyleEngines | null> {
-		if (this.engine && this.engineStyle === styleId) {
-			return this.engine;
+	/** The engines of a style, synchronously, or `null` when they are not built yet. */
+	preparedEngines(ref: StyleRef): StyleEngines | null {
+		return this.engines.get(ref.key) ?? null;
+	}
+
+	/**
+	 * The engines for a style, built once and kept while it is among the last
+	 * few used. Building one takes up to a second, so the styles notes are open
+	 * in stay running; one that has not been used for longest makes way.
+	 */
+	async engineFor(ref: StyleRef): Promise<StyleEngines | null> {
+		if (this.engines.has(ref.key)) {
+			const engines = this.engines.get(ref.key) ?? null;
+			// The latest used goes last.
+			this.engines.delete(ref.key);
+			this.engines.set(ref.key, engines);
+			return engines;
 		}
-		this.engine = await this.buildEngine(styleId);
-		this.engineStyle = this.engine ? styleId : "";
-		return this.engine;
+		let build = this.building.get(ref.key);
+		if (!build) {
+			build = this.buildEngine(ref);
+			this.building.set(ref.key, build);
+		}
+		const engines = await build;
+		if (this.building.get(ref.key) === build) {
+			this.building.delete(ref.key);
+			this.engines.set(ref.key, engines);
+			while (this.engines.size > KEPT_ENGINES) {
+				const oldest = this.engines.keys().next().value;
+				if (oldest === undefined) {
+					break;
+				}
+				this.engines.delete(oldest);
+			}
+		}
+		return engines;
 	}
 
 	/**
@@ -838,22 +970,20 @@ export class CitationRenderer {
 	 * changes.
 	 */
 	async prepare(styleId: string): Promise<void> {
-		if (!styleId) {
-			this.engine = null;
-			this.engineStyle = "";
-			return;
+		const ref = this.zoteroStyle(styleId);
+		if (ref) {
+			await this.engineFor(ref);
 		}
-		await this.engineFor(styleId);
 	}
 
 	/**
-	 * The group in the prepared style, synchronously — `null` if the style is
-	 * not prepared yet or the items are not in hand. Both are ordinary and
-	 * neither is an error: the citation stays as the note wrote it, and the
-	 * caller asks again once the loading it started has finished.
+	 * The group in a style, synchronously — `null` if the style is not built
+	 * yet or the items are not in hand. Both are ordinary and neither is an
+	 * error: the citation stays as the note wrote it, and the caller asks again
+	 * once the loading it started has finished.
 	 */
-	renderWith(styleId: string, group: CitationGroup): RenderedCitation | null {
-		const engine = this.preparedEngines(styleId);
+	renderWith(ref: StyleRef, group: CitationGroup): RenderedCitation | null {
+		const engine = this.preparedEngines(ref);
 		return engine ? this.render(engine, group) : null;
 	}
 
@@ -869,7 +999,8 @@ export class CitationRenderer {
 		styleId: string,
 		item: CslItem
 	): Promise<RenderedCitation | null> {
-		const engines = await this.engineFor(styleId);
+		const ref = this.zoteroStyle(styleId);
+		const engines = ref ? await this.engineFor(ref) : null;
 		if (!engines) {
 			return null;
 		}

@@ -1,4 +1,10 @@
-import { CitationGroup, parseGroups, proseOf } from "src/citation";
+import {
+	CitationGroup,
+	ENGLISH_LABELS,
+	LocatorLabels,
+	parseGroups,
+	proseOf,
+} from "src/citation";
 import { footnoteLayout } from "src/footnote";
 
 /**
@@ -111,9 +117,12 @@ function inlineNotes(prose: string): Span[] {
  * Every citation in the note, in the order pandoc reads them, each with the
  * note it stands in. Code, comments and front matter hold none (`proseOf`).
  */
-export function noteCitations(text: string): NoteCitation[] {
+export function noteCitations(
+	text: string,
+	labels: LocatorLabels = ENGLISH_LABELS
+): NoteCitation[] {
 	const prose = proseOf(text);
-	const groups = parseGroups(prose);
+	const groups = parseGroups(prose, labels);
 	if (groups.length === 0) {
 		return [];
 	}

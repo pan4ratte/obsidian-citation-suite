@@ -5,7 +5,7 @@
 | Command | What it does |
 |---------|-------------|
 | `npm run dev` | esbuild watch mode (no typecheck) |
-| `npm test` | Vitest — 232 tests, all passing |
+| `npm test` | Vitest — 257 tests, all passing |
 | `npm run lint` / `npm run lint:fix` | ESLint (`lint:ts`) and Stylelint (`lint:css`) with the official Obsidian rulesets |
 | `npm run build` | `tsc -noEmit -skipLibCheck && node esbuild.config.mjs production` |
 
@@ -321,6 +321,79 @@ body-level `pointerover` handler reads for any element (read out of 1.13.7's
 the pane's refresh button (`forgetUnknown`) — the README's troubleshooting
 says so.
 
+## A note's own style: pandoc's `csl` and `lang`
+
+A note that names `csl` (or `citation-style`) or `lang` in its front matter is
+previewed — citations, tooltips and the pane — as pandoc will export it; a note
+that names neither is previewed as before, in the settings' style the way
+Zotero writes it. "Do not style the preview" still turns everything off, and
+`noteStyleProperties` (on by default) turns the reading of properties off.
+Every rule below was read off pandoc 3.11 itself, not the manual:
+
+- **`csl`**: `.csl` is added to a name with no extension; a relative file is
+  looked for in the resource path and in the `csl` folder of the user data
+  directory, **not** the data directory's root (`%APPDATA%\pandoc\gost2018.csl`
+  was not found). Pandoc GUI runs pandoc in the note's folder with the vault on
+  the resource path, so `NoteStyles.findStyle` tries the note's folder, the
+  vault root, then `<data dir>/csl` (`%APPDATA%\pandoc` on Windows,
+  `$XDG_DATA_HOME/pandoc` or `~/.local/share/pandoc` and `~/.pandoc`
+  elsewhere). Not the attachment folder: `fileManager.getAvailablePathForAttachment`
+  is the only public way to it, and it is not a lookup. A URL is downloaded
+  by pandoc; the preview matches it to Zotero's style ids instead
+  (`styleForUrl`: scheme, `www.` and `.csl` ignored, then the short name).
+- **`lang` wins over a style's `default-locale`**; without it the style's
+  `default-locale` (a dependent style's before its parent's) is used, then
+  `en-US`. So the engine is built with `locale` forced
+  (`StyleRef.locale`). A language the plugin does not carry is rendered in
+  `en-US` and reported in the pane.
+- **Locators are read in that locale, and only in it.** With `lang: ru-RU`
+  pandoc reads `с. 33` as a page and `p. 33` as suffix text; with none (or
+  `en-US`) it reads English terms but **not `ch.`**. The words are the locale's
+  terms in every form and number plus the CSL locator names (`page 3` is read
+  in any language) and the symbols (`§`); the style's own `<locale>` terms are
+  **added** — IEEE's `<locale xml:lang="en">` makes `ch.` a chapter alongside
+  `chap.` — and `en-US` fills in only a locator the locale and style do not
+  name. `src/localeTerms.ts` builds that table from the carried locale files
+  and the style's text (XML comments stripped first — a comment mentioning
+  `<locale>` was once read as a block), and `tests/localeTerms.test.ts` pins
+  what pandoc did for 44 locators in three languages; `PANDOC_LOCATORS` is
+  the fifteen locators pandoc reads at all, and a table built from a locale is
+  matched exactly (`labelOf`), where `ENGLISH_LABELS` stays forgiving. The parser takes the
+  table (`parseGroups(text, labels)`, `ENGLISH_LABELS` by default — the old,
+  more forgiving list, kept for notes without properties), and every view
+  parses a note with its style's labels, so signatures match between the note
+  and a block of it.
+- **A suffix after a comma with no locator keeps the comma**: pandoc's raw
+  suffix is `, and more`, and it writes "(Doe 2020, and more)". This applies
+  to every note, and is `splitTail`'s last line.
+- **Pandoc cannot run CSL-M styles** such as the multilingual GOST ones
+  ("Multiple layout elements present in citation"); citeproc-js can. Such a
+  note previews and does not export — nothing the preview can match.
+
+The resolution is `src/noteStyles.ts` (`NoteStyles`), with the pure rules in
+`src/noteStyle.ts`. A note without either property is answered synchronously;
+one with them is resolved once (file system) and cached by the settings' style
+and its two values; `current()` returns `undefined` until then and `onChange`
+fires. `metadataCache` `changed` re-resolves a note whose values changed; live
+preview and the pane redraw from `onChange`, reading view is re-rendered by
+`main.ts`. `restyle()` clears it.
+
+**Engines are kept per `StyleRef`** (`key`: the style's id for the settings'
+style, `path + locale` for a note's), four at most, least recently used out;
+`built()` says whether a style was tried, so the editor does not ask for a
+style that would not run on every redraw. `NoteRenderer`, `renderWith`,
+`engineFor` and `preparedEngines` all take a `StyleRef`. Building a style
+takes up to a second, as it always did; a note in a new style pays it once.
+
+The pane draws `drawNoteStyle` above the list: the style and locale in use, and
+the `csl` not found or the locale not carried.
+
+Checked against pandoc on the same notes, in the test instance: APA with
+`lang: ru-RU` gave `(Barton, 2019, с. 12)` and `(Barton, 2019, p. 14)` as
+pandoc did; IEEE by URL gave `[2, Ch. 2]` and `[1, Ch. 3]`; `lang: de-DE` read
+`S. 12` and not `p. 14`; editing `lang` through `processFrontMatter` redrew the
+editor and the pane without reopening the note.
+
 ## Citation key suggestions
 
 `src/citationSuggest.ts` is an `EditorSuggest`; `src/suggestion.ts` holds
@@ -361,10 +434,28 @@ rule testable without Zotero running.
 
 Two things follow from that, and both have to be kept:
 
-- **`LOCATOR_LABELS` and `PLAIN_CITATION_KEY` are copied from BBT** (`shortLabel`
-  and the key regex in its `pandoc` formatter), so a locator and a key read the
-  same whichever tool wrote them. If BBT changes either, this file is what
-  drifts.
+- **`PLAIN_CITATION_KEY` is copied from BBT** (the key regex in its `pandoc`
+  formatter), so a key reads the same whichever tool wrote it. If BBT changes
+  it, this file is what drifts.
+- **Locator labels are written in the words pandoc reads, not BBT's.** BBT's
+  `shortLabel` abbreviations (`LOCATOR_LABELS`) were what the plugin wrote until
+  pandoc was asked: it reads `ch.`, `vrs.` and `sv.` in no language, and in a
+  note with `lang: ru-RU` not even `p.` — each was exported as plain text.
+  `formatCitations` now takes a `LabelWriter`, and `main.ts` hands it
+  `renderer.labelWriter(await noteStyles.pandocLocale(path))`: the locale
+  pandoc reads the note in (`lang`, else the language of the style `csl`
+  names, else `en-US` — read whatever the preview settings say), its short
+  term, or long where the short is not one word, in the plural when the
+  locator names more than one (`pluralLocator`: `-–—,;&` or "and"). A language
+  the plugin does not carry gets the CSL name (`page 33`), which pandoc reads in
+  every language. The fifteen locators pandoc reads are `PANDOC_LOCATORS`;
+  anything else (sub verbo, appendix, Juris-M's) is read by pandoc in no form,
+  and keeps BBT's abbreviation. `sub verbo`, as Zotero's window names it, is
+  looked up as `sub-verbo`. Checked by writing all fifteen, one and several, in
+  en-US, en-GB, ru-RU, de-DE, fr-FR and an uncarried es-ES, and running them
+  through pandoc with a label-printing style: 210 of 210 read with the right
+  label. `LOCATOR_LABELS` stays for reading back notes written with it
+  (`ENGLISH_LABELS`).
 - **`locatorSuffix` deliberately differs from BBT.** BBT wraps a locator in
   `{…}` *after* the comma whenever brackets are on — `[@doe2020, {p. 33}]` —
   which the pandoc manual does not document as a locator at all. Here the braces
@@ -985,6 +1076,9 @@ src/
   reading.ts        — reading view: the same, block by block
   suggestion.ts     — key suggestions: trigger, insertion, ranking (pure)
   literatureNote.ts — the note kept about a source, found by name or front matter (pure)
+  noteStyle.ts      — a note's `csl` and `lang`, and where pandoc finds the style (pure)
+  noteStyles.ts     — the style each note is previewed in, resolved and kept
+  localeTerms.ts    — locator labels in a language, from CSL locale and style terms (pure)
   citationSuggest.ts — the EditorSuggest that offers sources after `@`
   bibliography.ts   — the right-sidebar pane listing the note's bibliography
   zoteroCite.ts     — what Zotero does around citeproc, ported (pure)
@@ -1013,6 +1107,9 @@ tests/
   citationSession.test.ts — incremental updates against a fresh citeproc engine
   suggestion.test.ts — trigger, insertion, sources shown and ranked
   literatureNote.test.ts — which note is a source's, and which of several
+  noteStyle.test.ts — properties, file names, URLs matched to Zotero's styles, lookup order
+  localeTerms.test.ts — locators read as pandoc 3.11 read them, per language and style
+  fixtures/         — IEEE's English locale block, for the style-terms test
   mocks/obsidian.ts — stands in for the module at import time
 styles.css          — the status card, the settings rows, the document window
 CHANGELOG_RU.md     — release notes; the original
