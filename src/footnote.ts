@@ -407,13 +407,11 @@ export function footnoteEdit(
 	}
 	at -= 1;
 
-	// A footnote joining others is written straight under them; one standing
-	// on its own is kept a blank line away from the text above it, and from a
-	// heading right under it.
-	const joins = DEFINITION.test(anchoredLines[blockStart(anchoredLines, line)]);
+	// The footnote is kept a blank line away from whatever is above it — the
+	// text, or the footnotes already there — and from a heading right under it.
 	const crowded =
 		line + 1 < anchoredLines.length && !BLANK.test(anchoredLines[line + 1]);
-	const opening = `${joins ? "\n" : "\n\n"}[^${label}]: `;
+	const opening = `\n\n[^${label}]: `;
 	const definition = `${opening}${content}${crowded ? "\n" : ""}`;
 
 	// Back from the anchored note to the one the edits are made against. The

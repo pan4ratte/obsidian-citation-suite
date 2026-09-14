@@ -148,7 +148,7 @@ describe("footnoteEdit", () => {
 
 	it("adds to the footnotes already at the end of the note", () => {
 		expect(cite("One[^1]. Two|.\n\n[^1]: [@roe2021]\n")).toBe(
-			"One[^1]. Two[^2]|.\n\n[^1]: [@roe2021]\n[^2]: [@doe2020, p. 33]\n"
+			"One[^1]. Two[^2]|.\n\n[^1]: [@roe2021]\n\n[^2]: [@doe2020, p. 33]\n"
 		);
 	});
 
@@ -166,8 +166,14 @@ describe("footnoteEdit", () => {
 				placement: "paragraph",
 			})
 		).toBe(
-			"First[^1][^2]|.\n\n[^1]: [@roe2021]\n[^2]: [@doe2020, p. 33]\n\nSecond."
+			"First[^1][^2]|.\n\n[^1]: [@roe2021]\n\n[^2]: [@doe2020, p. 33]\n\nSecond."
 		);
+	});
+
+	it("goes past footnotes written straight under one another", () => {
+		expect(
+			cite("A[^1][^2]|.\n\n[^1]: x\n[^2]: y\n\nNext.", { placement: "paragraph" })
+		).toBe("A[^1][^2][^3]|.\n\n[^1]: x\n[^2]: y\n\n[^3]: [@doe2020, p. 33]\n\nNext.");
 	});
 
 	it("puts the text at the end of the section, before the next heading", () => {
@@ -249,7 +255,7 @@ describe("a footnote with nothing in it", () => {
 	it("does so under other footnotes, and above a paragraph after it", () => {
 		expect(
 			blank("A[^1]|.\n\n[^1]: x\n\nNext.", { placement: "paragraph" })
-		).toBe("A[^1][^2].\n\n[^1]: x\n[^2]: |\n\nNext.");
+		).toBe("A[^1][^2].\n\n[^1]: x\n\n[^2]: |\n\nNext.");
 	});
 });
 

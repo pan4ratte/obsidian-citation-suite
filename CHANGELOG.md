@@ -10,6 +10,7 @@
 * The Zotero status card has been reworked, with a better look, a more compact layout and animations.
 * When Zotero is not responding, the bibliography pane now says so instead of listing the sources as not found in the library, and updates by itself once Zotero starts.
 * The bibliography pane's icon has been updated, and the bibliography refresh button now has an animation.
+* A new footnote is now separated from the existing footnotes by a blank line instead of being added right under them.
 
 
 ## 1.0.0
