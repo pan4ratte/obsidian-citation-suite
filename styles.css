@@ -292,15 +292,16 @@
 	display: flex;
 }
 
-/* The status panel's icon turns while Zotero is being asked. It is the span
+/* An icon turns while Zotero is being asked: the status panel's, and the
+   bibliography pane's refresh button's. In the status panel it is the span
    around the icon that turns, so the icon's own box is left alone. The turn's
-   length is `SPIN_TURN_MS` in src/statusCard.ts, which slows it down from this
+   length is `SPIN_TURN_MS` in src/spinner.ts, which slows it down from this
    speed once the answer is in: change the two together. */
-.citation-suite-action-icon.is-spinning {
-	animation: citation-suite-status-spin 0.8s linear infinite;
+.citation-suite-spinning {
+	animation: citation-suite-spin 0.8s linear infinite;
 }
 
-@keyframes citation-suite-status-spin {
+@keyframes citation-suite-spin {
 	to {
 		transform: rotate(360deg);
 	}
@@ -309,7 +310,7 @@
 /* A reader who asked the system for less motion sees the state change, and
    nothing turn. */
 @media (prefers-reduced-motion: reduce) {
-	.citation-suite-action-icon.is-spinning {
+	.citation-suite-spinning {
 		animation: none;
 	}
 }

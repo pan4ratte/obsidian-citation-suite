@@ -15,6 +15,7 @@ import { t } from "lang/helpers";
 import { citedKeys, mentionsOf } from "src/citation";
 import { CitationRenderer, RenderedBibliography } from "src/render";
 import { matchesTerms, queryTerms } from "src/search";
+import { spinner, Spinner } from "src/spinner";
 import { formattedBibliography } from "src/zoteroCite";
 
 /**
@@ -179,6 +180,10 @@ export class BibliographyView extends ItemView {
 	private searchButton!: HTMLElement;
 	private copyButton!: HTMLElement;
 	private refreshButton!: HTMLElement;
+	/** The refresh button's icon, turning while a press of it is answered. */
+	private refreshSpin!: Spinner;
+	/** Counts the presses, so that only the latest one's answer stops the icon. */
+	private refreshPresses = 0;
 	private searchRow!: HTMLElement;
 	private searchOpen = false;
 	private search!: SearchComponent;
@@ -209,7 +214,7 @@ export class BibliographyView extends ItemView {
 	}
 
 	getIcon(): string {
-		return "library";
+		return "scroll-text";
 	}
 
 	protected onOpen(): Promise<void> {
@@ -475,9 +480,19 @@ export class BibliographyView extends ItemView {
 				// The keys missed while Zotero was closed are the ones a
 				// reader presses this for.
 				this.context.renderer.forgetUnknown();
-				void this.refresh();
+				const press = ++this.refreshPresses;
+				this.refreshSpin.start();
+				void this.refresh().finally(() => {
+					if (press === this.refreshPresses) {
+						this.refreshSpin.stop();
+					}
+				});
 			}
 		);
+		// The icon turns rather than the button, whose hover shape would
+		// turn with it.
+		const refreshIcon = this.refreshButton.querySelector<HTMLElement>(".svg-icon");
+		this.refreshSpin = spinner(refreshIcon ?? this.refreshButton);
 
 		// The row is always in the pane, collapsed to no height while closed,
 		// so that opening and closing it can be animated; the field sits in

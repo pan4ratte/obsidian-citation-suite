@@ -2,6 +2,7 @@ import { App, setIcon, setTooltip } from "obsidian";
 import { getChangelogContent, getUserGuideContent, t } from "lang/helpers";
 import { checkZotero, ZoteroCheck } from "src/cayw";
 import { MarkdownModal } from "src/markdownModal";
+import { spinner } from "src/spinner";
 
 /**
  * The card at the head of the settings, drawn after the one Pandoc GUI keeps at
@@ -20,22 +21,6 @@ import { MarkdownModal } from "src/markdownModal";
 /** Where Better BibTeX's installation is explained, for the notice to link to. */
 const BETTER_BIBTEX_INSTALL_URL =
 	"https://retorque.re/zotero-better-bibtex/installation/";
-
-/** One turn of the status icon while Zotero is asked, as styles.css spins it. */
-const SPIN_TURN_MS = 800;
-
-/**
- * The least the icon turns while slowing down, in degrees. Less of the turn
- * left than this, and it goes round once more.
- */
-const SPIN_MIN_SETTLE_DEG = 120;
-
-/**
- * How the icon slows down: leaving at one and a half times the curve's average
- * speed, and ending at none.
- */
-const SETTLE_EASING = "cubic-bezier(0.3, 0.45, 0.55, 1)";
-const SETTLE_START_SLOPE = 1.5;
 
 export interface StatusCardOptions {
 	app: App;
@@ -145,6 +130,7 @@ export function renderStatusCard(
 	status.label.appendText(" ");
 	const line = status.label.createSpan({ cls: "citation-suite-status-line" });
 	setTooltip(status.button, t.STATUS_RECHECK);
+	const spin = spinner(status.icon);
 	actionButton(panels, "scroll-text", t.STATUS_CHANGELOG, () => {
 		new MarkdownModal(options.app, getChangelogContent()).open();
 	});
@@ -194,67 +180,18 @@ export function renderStatusCard(
 		}
 	};
 
-	/** The icon slowing to a stop after a check, while it does. */
-	let settling: Animation | null = null;
-
-	/**
-	 * Stops the icon turning: it slows down from the speed it turns at and
-	 * comes to rest upright, never partway round. It starts slowing where the
-	 * turn has got to, so nothing jumps, and goes on for more than the rest of
-	 * the turn when little of it is left, so the slowing can be seen. With no
-	 * animation running, as for a reader who asked for less motion, it stops
-	 * at once.
-	 */
-	const stopSpinning = (): void => {
-		const icon = status.icon;
-		const spin = icon
-			.getAnimations()
-			.find((animation) => animation instanceof CSSAnimation);
-		const time = Number(spin?.currentTime ?? Number.NaN);
-		if (!spin || Number.isNaN(time)) {
-			icon.removeClass("is-spinning");
-			return;
-		}
-		const angle = (360 * (time % SPIN_TURN_MS)) / SPIN_TURN_MS;
-		const left = 360 - angle;
-		const distance = left < SPIN_MIN_SETTLE_DEG ? left + 360 : left;
-		settling = icon.animate(
-			[
-				{ transform: `rotate(${angle}deg)` },
-				{ transform: `rotate(${angle + distance}deg)` },
-			],
-			{
-				// The curve leaves at SETTLE_START_SLOPE times its average
-				// speed, which the duration sets to the speed of the spin.
-				duration: (SETTLE_START_SLOPE * distance * SPIN_TURN_MS) / 360,
-				easing: SETTLE_EASING,
-			}
-		);
-		icon.removeClass("is-spinning");
-		const finished = settling;
-		void finished.finished
-			.catch(() => undefined)
-			.then(() => {
-				if (settling === finished) {
-					settling = null;
-				}
-			});
-	};
-
 	const refresh = (): void => {
 		const current = ++generation;
 		notices.empty();
 		drawLine("checking", t.STATUS_CHECKING);
-		settling?.cancel();
-		settling = null;
-		status.icon.addClass("is-spinning");
+		spin.start();
 		void checkZotero(options.port()).then((check) => {
 			if (current !== generation || !card.isConnected) {
 				return;
 			}
 			options.onChecked(check);
 			draw(check);
-			stopSpinning();
+			spin.stop();
 		});
 	};
 
