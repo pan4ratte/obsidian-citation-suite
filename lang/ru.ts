@@ -117,7 +117,9 @@ export default {
 	BIBLIOGRAPHY_STYLE_FAILED: "Не удалось загрузить выбранный стиль предпросмотра.",
 	BIBLIOGRAPHY_NONE_IN_STYLE: "Выбранный стиль предпросмотра не оформляет список литературы.",
 	BIBLIOGRAPHY_MISSING: "Источники, не найденные в Zotero",
-	BIBLIOGRAPHY_MISSING_DESC: "Для этих ключей цитирования в Better BibTeX нет элементов, либо Zotero не был запущен, когда производился поиск. Запустите Zotero и обновите список литературы.",
+	BIBLIOGRAPHY_MISSING_DESC: "Для этих ключей цитирования в Better BibTeX нет элементов. Если вы уже добавили источники в Zotero, обновите библиографию.",
+	BIBLIOGRAPHY_UNREACHABLE: "Zotero не отвечает",
+	BIBLIOGRAPHY_UNREACHABLE_DESC: "Не удалось получить источники заметки. Убедитесь, что Zotero запущен, в нём установлен Better BibTeX, а порт в настройках совпадает с его собственным, и обновите библиографию.",
 	// Меню записи в списке.
 	BIBLIOGRAPHY_REVEAL: "Показать в Zotero",
 	BIBLIOGRAPHY_REVEAL_NOT_FOUND: "Этого источника больше нет в Zotero.",

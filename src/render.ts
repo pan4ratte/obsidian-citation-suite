@@ -210,14 +210,18 @@ interface PandocFilterAnswer {
  * that: it turns the hyphen in an issue range into an en dash, for one, which
  * citeproc prints as it is given. Only if that export fails is Better BibTeX's
  * copy kept.
+ *
+ * `answered` is false when a library was asked and nothing came back — Zotero
+ * closed while the keys were looked for — so a key not found may yet be there.
  */
 async function fetchItems(
 	port: number,
 	citekeys: string[],
 	libraries: number[],
 	style: string | undefined
-): Promise<FoundItem[]> {
+): Promise<{ found: FoundItem[]; answered: boolean }> {
 	const found: FoundItem[] = [];
+	let answered = true;
 	let remaining = citekeys;
 	for (const library of libraries) {
 		if (remaining.length === 0) {
@@ -232,8 +236,12 @@ async function fetchItems(
 				? [remaining, true, library, style]
 				: [remaining, true, library]
 		);
+		if (answer === null) {
+			answered = false;
+			continue;
+		}
 		const better = new Map<string, CslItem>();
-		for (const [key, item] of Object.entries(answer?.items ?? {})) {
+		for (const [key, item] of Object.entries(answer.items ?? {})) {
 			if (item && typeof item === "object") {
 				better.set(key, { ...item, id: key });
 			}
@@ -248,7 +256,7 @@ async function fetchItems(
 		}
 		remaining = remaining.filter((key) => !better.has(key));
 	}
-	return found;
+	return { found, answered };
 }
 
 /** Zotero's own "CSL JSON" export translator, by the id Zotero ships it under. */
@@ -374,6 +382,8 @@ export class CitationRenderer {
 	private itemLibraries = new Map<string, number>();
 	/** Keys Better BibTeX has no item for. Asked once, then left alone. */
 	private unknown = new Set<string>();
+	/** The keys in `unknown` that were missed because Zotero did not answer. */
+	private unreached = new Set<string>();
 	/** Zotero's libraries, in the order a key is looked for in them. */
 	private libraries: number[] | null = null;
 	private engine: StyleEngines | null = null;
@@ -394,6 +404,7 @@ export class CitationRenderer {
 		this.items.clear();
 		this.itemLibraries.clear();
 		this.unknown.clear();
+		this.unreached.clear();
 		this.libraries = null;
 		this.engine = null;
 		this.engineStyle = "";
@@ -419,28 +430,41 @@ export class CitationRenderer {
 		// Asked once and kept: a library is added in Zotero far less often
 		// than a note is read, and the refresh button asks again.
 		this.libraries ??= await fetchLibraries(this.port);
-		const items = this.libraries
+		const { found, answered } = this.libraries
 			? await fetchItems(
 					this.port,
 					wanted,
 					this.libraries,
 					this.installedStyle()
 				)
-			: [];
-		for (const { item, library } of items) {
+			: { found: [], answered: false };
+		for (const { item, library } of found) {
 			if (typeof item.id === "string") {
 				this.items.set(item.id, item);
 				this.itemLibraries.set(item.id, library);
 			}
 		}
+		if (!answered) {
+			// Read again once Zotero answers: a group may have been joined
+			// while it was closed.
+			this.libraries = null;
+		}
 		for (const key of wanted) {
 			if (!this.items.has(key)) {
 				// Better BibTeX does not know it: a key typed by hand, or one
-				// whose item has gone. Asking again on every keystroke would
-				// only be told the same thing.
+				// whose item has gone — or Zotero did not answer. Asking again
+				// on every keystroke would only be told the same thing.
 				this.unknown.add(key);
+				if (!answered) {
+					this.unreached.add(key);
+				}
 			}
 		}
+	}
+
+	/** Whether the key was missed because Zotero did not answer when asked. */
+	unreachable(citekey: string): boolean {
+		return this.unreached.has(citekey);
 	}
 
 	/**
@@ -508,6 +532,7 @@ export class CitationRenderer {
 	 */
 	forgetUnknown(): void {
 		this.unknown.clear();
+		this.unreached.clear();
 		// A key may be missing because its group was joined after the list
 		// of libraries was read.
 		this.libraries = null;

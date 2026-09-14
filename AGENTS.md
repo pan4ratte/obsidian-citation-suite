@@ -459,6 +459,13 @@ object by `loadSettings` and read by nothing.
   once is never asked about again, and a Zotero that was closed at that moment
   misses every key; this is the one way back short of changing the style or
   port.
+- **A key missed because Zotero did not answer is not listed as missing.**
+  `load` marks it `unreachable` when `user.groups` or an `item.pandoc_filter`
+  call got no answer, and drops the kept library list so it is read again. The
+  pane shows a "Zotero is not responding" notice in place of those keys, drawn
+  like the missing section but not searched, since it holds no source; keys
+  Zotero did answer about still go under "Sources not found in Zotero".
+  `forgetUnknown()` clears both.
 - **The layout follows citeproc's bibliography params.** `hangingindent` and
   `maxoffset` are handed to styles.css as custom properties
   (`--citation-suite-bibliography-indent`, `--citation-suite-bibliography-number-width`, in

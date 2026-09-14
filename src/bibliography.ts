@@ -355,19 +355,26 @@ export class BibliographyView extends ItemView {
 		}
 
 		const missing = keys.filter((key) => !renderer.has(key));
+		// A key Zotero was not there to be asked about is not missing from
+		// it, and is not listed as though it were.
+		const unreached = missing.some((key) => renderer.unreachable(key));
+		const notFound = missing.filter((key) => !renderer.unreachable(key));
 		const bibliography =
 			missing.length < keys.length
 				? renderer.bibliographyOf(engines, keys)
 				: null;
 
-		this.startBody(file, bibliography, missing.length > 0);
+		this.startBody(file, bibliography, notFound.length > 0);
 		if (bibliography) {
 			this.drawEntries(bibliography);
 		} else if (missing.length < keys.length) {
 			this.drawMessage(t.BIBLIOGRAPHY_NONE_IN_STYLE);
 		}
-		if (missing.length > 0) {
-			this.drawMissing(missing);
+		if (unreached) {
+			this.drawUnreachable();
+		}
+		if (notFound.length > 0) {
+			this.drawMissing(notFound);
 		}
 		this.redrawFinding(file, text);
 		this.applySearch();
@@ -568,6 +575,24 @@ export class BibliographyView extends ItemView {
 					this.showEntryMenu(event, index, keys)
 				);
 			}
+		});
+	}
+
+	/**
+	 * Says Zotero did not answer when the note's sources were asked for, in
+	 * place of listing them as not found. Not searched: it holds no source.
+	 */
+	private drawUnreachable(): void {
+		const section = this.bodyEl.createDiv({
+			cls: "citation-suite-bibliography-unreachable",
+		});
+		section.createDiv({
+			cls: "citation-suite-bibliography-missing-title",
+			text: t.BIBLIOGRAPHY_UNREACHABLE,
+		});
+		section.createDiv({
+			cls: "citation-suite-bibliography-missing-desc",
+			text: t.BIBLIOGRAPHY_UNREACHABLE_DESC,
 		});
 	}
 

@@ -1212,15 +1212,18 @@ body.citation-suite-citation-italic .citation-suite-citation em {
 	}
 }
 
-/* The keys the note cites that Zotero had nothing for, under a rule. */
-.citation-suite-bibliography-missing {
+/* The keys the note cites that Zotero had nothing for, or the word that
+   Zotero did not answer, under a rule. */
+.citation-suite-bibliography-missing,
+.citation-suite-bibliography-unreachable {
 	margin-top: var(--size-4-4);
 	padding-top: var(--size-4-3);
 	border-top: 1px solid var(--background-modifier-border);
 }
 
 /* Nothing above it to be set apart from: every key was missed. */
-.citation-suite-bibliography-body > .citation-suite-bibliography-missing:first-child {
+.citation-suite-bibliography-body > .citation-suite-bibliography-missing:first-child,
+.citation-suite-bibliography-body > .citation-suite-bibliography-unreachable:first-child {
 	margin-top: 0;
 	padding-top: 0;
 	border-top: none;

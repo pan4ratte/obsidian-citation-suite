@@ -8,6 +8,7 @@
 * Fixed a bug that left the bibliography empty or not updated after switching from one note to another.
 * The Zotero port option now has a button that resets the port to the default one.
 * The Zotero status card has been reworked, with a better look, a more compact layout and animations.
+* When Zotero is not responding, the bibliography pane now says so instead of listing the sources as not found in the library.
 
 
 ## 1.0.0
