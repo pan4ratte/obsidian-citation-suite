@@ -490,6 +490,11 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 						desc: t.SETTING_FOOTNOTE_KEEP_NAMED_DESC,
 						control: { type: "toggle", key: "footnoteKeepNamed" },
 					},
+					{
+						name: t.SETTING_FOOTNOTE_POPOVER_NAME,
+						desc: t.SETTING_FOOTNOTE_POPOVER_DESC,
+						control: { type: "toggle", key: "footnotePopover" },
+					},
 				],
 			},
 			{

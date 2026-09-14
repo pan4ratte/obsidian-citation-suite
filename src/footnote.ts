@@ -353,6 +353,8 @@ export interface FootnoteEdit {
 	 * where a footnote written by hand is typed into.
 	 */
 	textEnd: number;
+	/** The new footnote's label, or `null` when none was made. */
+	label: string | null;
 }
 
 /**
@@ -387,6 +389,7 @@ export function footnoteEdit(
 			changes: [{ from, to, text: content }],
 			cursor: end,
 			textEnd: end,
+			label: null,
 		};
 	}
 	const cursorLine = text.slice(0, from).split("\n").length - 1;
@@ -427,6 +430,7 @@ export function footnoteEdit(
 		// The anchored note is the note after the first change, and the
 		// second goes in at `at` in it.
 		textEnd: at + opening.length + content.length,
+		label,
 	};
 }
 

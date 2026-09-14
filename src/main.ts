@@ -1,4 +1,10 @@
-import { Editor, MarkdownView, Notice, Plugin } from "obsidian";
+import {
+	Editor,
+	MarkdownFileInfo,
+	MarkdownView,
+	Notice,
+	Plugin,
+} from "obsidian";
 import { getChangelogContent, getUserGuideContent, t } from "lang/helpers";
 import {
 	CaywError,
@@ -11,10 +17,12 @@ import {
 import { BIBLIOGRAPHY_VIEW, BibliographyView } from "src/bibliography";
 import {
 	footnoteEdit,
+	FootnoteEdit,
 	FootnoteOptions,
 	inFootnoteText,
 	renumberFootnotes,
 } from "src/footnote";
+import { openFootnotePopover } from "src/footnotePopover";
 import { citationExtension } from "src/live";
 import { applyLook, clearLook } from "src/look";
 import { MarkdownModal } from "src/markdownModal";
@@ -118,16 +126,16 @@ export default class CitationSuitePlugin extends Plugin {
 		this.addCommand({
 			id: "insert-citation",
 			name: t.COMMAND_INSERT_CITATION,
-			editorCallback: (editor: Editor) => {
-				void this.insertCitation(editor);
+			editorCallback: (editor: Editor, ctx: MarkdownView | MarkdownFileInfo) => {
+				void this.insertCitation(editor, ctx);
 			},
 		});
 
 		this.addCommand({
 			id: "insert-footnote",
 			name: t.COMMAND_INSERT_FOOTNOTE,
-			editorCallback: (editor: Editor) => {
-				this.insertBlankFootnote(editor);
+			editorCallback: (editor: Editor, ctx: MarkdownView | MarkdownFileInfo) => {
+				void this.insertBlankFootnote(editor, ctx);
 			},
 		});
 
@@ -246,7 +254,10 @@ export default class CitationSuitePlugin extends Plugin {
 	 * its database look identical from here — a request that fails — and the
 	 * citation window would be asked for in a moment when it cannot be drawn.
 	 */
-	private async insertCitation(editor: Editor): Promise<void> {
+	private async insertCitation(
+		editor: Editor,
+		ctx: MarkdownView | MarkdownFileInfo
+	): Promise<void> {
 		const status = await probeZotero(this.settings.port);
 		if (status === "unreachable") {
 			new Notice(t.NOTICE_ZOTERO_UNREACHABLE);
@@ -279,15 +290,20 @@ export default class CitationSuitePlugin extends Plugin {
 
 		// A closed window with nothing chosen is not a failure and says
 		// nothing: the reader changed their mind.
+		let footnote: FootnoteEdit | null = null;
 		if (pick.citation) {
 			if (this.settings.footnotes) {
-				this.insertFootnote(editor, pick.citation, false);
+				footnote = this.insertFootnote(editor, pick.citation);
 			} else {
 				editor.replaceSelection(pick.citation);
 			}
 		}
 		if (pick.notes) {
 			this.insertNotes(editor, pick.notes);
+		}
+		// Last, once the notes are in: the popover takes the focus.
+		if (footnote) {
+			await this.openFootnoteText(editor, ctx, footnote, false);
 		}
 	}
 
@@ -328,17 +344,11 @@ export default class CitationSuitePlugin extends Plugin {
 	 * selection, and its text where the settings put it. Both go in as one
 	 * transaction, so a single undo takes the whole footnote back out.
 	 *
-	 * The cursor stays after the anchor for a citation, which is written, and
-	 * goes into the footnote's text for an empty footnote, which is there to be
-	 * written in. It is set afterwards rather than in the transaction, because
-	 * the transaction reads positions against the note as it was before the
-	 * edit.
+	 * The cursor is left after the anchor. It is set afterwards rather than in
+	 * the transaction, because the transaction reads positions against the note
+	 * as it was before the edit.
 	 */
-	private insertFootnote(
-		editor: Editor,
-		content: string,
-		toText: boolean
-	): void {
+	private insertFootnote(editor: Editor, content: string): FootnoteEdit {
 		const edit = footnoteEdit(
 			editor.getValue(),
 			editor.posToOffset(editor.getCursor("from")),
@@ -353,11 +363,52 @@ export default class CitationSuitePlugin extends Plugin {
 				text: change.text,
 			})),
 		});
-		const cursor = editor.offsetToPos(toText ? edit.textEnd : edit.cursor);
-		editor.setCursor(cursor);
-		if (toText) {
-			editor.scrollIntoView({ from: cursor, to: cursor }, true);
+		editor.setCursor(editor.offsetToPos(edit.cursor));
+		return edit;
+	}
+
+	/**
+	 * Takes the reader to a new footnote's text, to write it or to go on after
+	 * the citation in it: in Obsidian's footnote popover when the settings say
+	 * so, with the cursor in the note left after the anchor, as Obsidian's own
+	 * command leaves it.
+	 *
+	 * Without the popover, an empty footnote has the cursor put at its text in
+	 * the note, since there is nothing else to do with it; a citation leaves the
+	 * cursor after the anchor, to write on in the sentence. When the popover
+	 * was asked for and could not be opened, the same goes — unless the note was
+	 * typed in while it was waited for, when moving the cursor would pull it out
+	 * from under the reader. A citation written into a footnote's text made no
+	 * footnote, and has nothing to open.
+	 */
+	private async openFootnoteText(
+		editor: Editor,
+		ctx: MarkdownView | MarkdownFileInfo,
+		edit: FootnoteEdit,
+		blank: boolean
+	): Promise<void> {
+		if (edit.label === null) {
+			return;
 		}
+		if (!this.settings.footnotePopover || !(ctx instanceof MarkdownView)) {
+			if (blank) {
+				this.goToFootnoteText(editor, edit);
+			}
+			return;
+		}
+		const written = editor.getValue();
+		const anchorFrom = edit.cursor - `[^${edit.label}]`.length;
+		const opened = await openFootnotePopover(ctx, editor, anchorFrom, edit.label);
+		if (!opened && blank && editor.getValue() === written) {
+			this.goToFootnoteText(editor, edit);
+		}
+	}
+
+	/** Puts the cursor at the end of the footnote's text, and the text in view. */
+	private goToFootnoteText(editor: Editor, edit: FootnoteEdit): void {
+		const cursor = editor.offsetToPos(edit.textEnd);
+		editor.setCursor(cursor);
+		editor.scrollIntoView({ from: cursor, to: cursor }, true);
 	}
 
 	/**
@@ -365,13 +416,17 @@ export default class CitationSuitePlugin extends Plugin {
 	 * say whether or not citations go into footnotes, for the reader to write.
 	 * Inside a footnote's text there is nowhere for one to go.
 	 */
-	private insertBlankFootnote(editor: Editor): void {
+	private async insertBlankFootnote(
+		editor: Editor,
+		ctx: MarkdownView | MarkdownFileInfo
+	): Promise<void> {
 		const from = editor.posToOffset(editor.getCursor("from"));
 		if (inFootnoteText(editor.getValue(), from)) {
 			new Notice(t.NOTICE_FOOTNOTE_IN_FOOTNOTE);
 			return;
 		}
-		this.insertFootnote(editor, "", true);
+		const edit = this.insertFootnote(editor, "");
+		await this.openFootnoteText(editor, ctx, edit, true);
 	}
 
 	/**

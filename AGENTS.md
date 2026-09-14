@@ -280,6 +280,33 @@ footnote's text (`inFootnoteText`).
   front matter. Setext headings are not read.
 - **A citation made inside a footnote's text is written there plainly** — a
   footnote cannot hold a footnote.
+- **A new footnote's text opens in Obsidian's footnote popover** while
+  `footnotePopover` is on — a citation's and an empty one's alike, after any
+  picked Zotero notes are in — and only from a `MarkdownView`. Read out of
+  Obsidian 1.13.7's `app.js`, its own `Editor.insertFootnote` saves the note,
+  awaits `metadataCache.computeFileMetadataAsync` — the popover finds the text
+  by `#[^label]`, which only the cache resolves — and creates an unexported
+  `HoverPopover` subclass on that link with `state: { mode: "source" }`, which
+  is what makes the embed editable and focused at once. `src/footnotePopover.ts`
+  reaches that same class through the core Page preview plugin's
+  `instance.onLinkHover`: every core plugin is instantiated and `init`ed at
+  startup, enabled or not, and `onLinkHover` does not check. It saves with
+  `view.save()` and waits for the cache's `changed` event to list the label,
+  up to 2 s. The popover's editor (its `embed.editor`) holds the footnote's
+  text alone, cursor at its start, and is focused only once the popover is on
+  screen — after `onLinkHover` resolves — which loses a cursor set earlier. So
+  the cursor goes to the end of its last non-blank line on the popover's first
+  `focusin`, and again after `onLinkHover` if the focus came before the text.
+  `workspace.activeEditor` is not the popover's yet at that point: do not go
+  back to it. The popover stands by the anchor's element, 300 ms after asking,
+  where Obsidian's own is placed at the anchor's coordinates at once —
+  `onLinkHover` passes neither. The parent handed over wraps the view's
+  `hoverPopover`, only so the popover can be caught arriving and given
+  Obsidian's hand-back of the focus when it closes. None of this is public
+  API: any step failing leaves the cursor as with the setting off — after the
+  anchor for a citation, at the text in the note for an empty footnote, unless
+  the note was typed in meanwhile. Check it again when
+  Obsidian is updated.
 - **The prefix and suffix are refused by `validate` when they hold whitespace or
   `[ ] ^ \ |`**, and cleaned of the same when a label is built, because
   `validate` does not stop a hand-edited `data.json`.

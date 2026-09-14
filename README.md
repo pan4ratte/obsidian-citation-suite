@@ -81,8 +81,8 @@ None of the commands is bound to a key out of the box — assign your own in *Se
 
 | Command | What it does |
 | --- | --- |
-| **Insert citation** | Opens Zotero's citation window and inserts the pick in Pandoc format: `[@doe2020, p. 33]`. With **Automatically put citations in footnotes** on, the citation goes into a footnote. Zotero notes picked in the same window are inserted as their text in Markdown, as paragraphs of their own after the citation. A note that holds citations is inserted as those citations: that is how Better BibTeX hands it over. |
-| **Insert footnote without a citation** | Inserts an empty footnote: the anchor at the cursor and its text where **Where the footnote text appears** puts it, with the cursor in the text so you can write it at once. It works with **Automatically put citations in footnotes** off too. |
+| **Insert citation** | Opens Zotero's citation window and inserts the pick in Pandoc format: `[@doe2020, p. 33]`. With **Automatically put citations in footnotes** on, the citation goes into a footnote, and the footnote's text opens in a popup so you can write on after the citation at once. Zotero notes picked in the same window are inserted as their text in Markdown, as paragraphs of their own after the citation. A note that holds citations is inserted as those citations: that is how Better BibTeX hands it over. |
+| **Insert footnote without a citation** | Inserts an empty footnote: the anchor at the cursor and its text where **Where the footnote text appears** puts it, and opens the text in a popup over the anchor so you can write it at once, as Obsidian itself does. With **Open the new footnote's text in a popup** off, the cursor moves to the text in the note instead. It works with **Automatically put citations in footnotes** off too. |
 | **Renumber footnotes in order** | Rewrites the labels of every footnote in the note in the order of their anchors — `[^1]`, `[^2]`, `[^3]`, as the footnote settings write them — and puts the footnote texts that stand together in that order. Named labels such as `[^kuhn]` get numbers too, unless **Do not edit named footnotes when renumbering** is on. One undo reverts it. |
 | **Show bibliography** | Brings the closed "Bibliography" tab back to the right sidebar. |
 | **View changelog** | Shows what is new in the latest versions of the plugin. |
@@ -141,6 +141,8 @@ The plugin lets you not only cite, but also create footnotes at the same time, f
 * **Automatically put citations in footnotes.** Turn it on to have a footnote anchor `[^1]` appear at the cursor when you cite, with the citation going into its body: `[^1]: [@doe2020, p. 33]`. Inside an existing footnote the citation is inserted as usual, since a footnote cannot hold another. The related settings let you change where the footnote text appears and how footnotes are numbered, and add text before and after the footnote number.
 
 * **Do not edit named footnotes when renumbering.** Turn it on, and the "Renumber footnotes in order" command will not edit labels with names, such as `[^kuhn]`. A number is arabic numerals, or roman ones if footnotes are numbered in roman numerals of the same case, with the text before and after the number set above. So `[^x]` in a note numbered in arabic stays a name, and so does a footnote written with an earlier prefix.
+
+* **Open the new footnote's text in a popup.** The text of a footnote — one made when you cite, or with the "Insert footnote without a citation" command — opens in a popup over its anchor, the same one footnotes created by Obsidian itself have: you can write on after the citation at once, or fill in an empty footnote. Turn it off, and the cursor stays after the footnote anchor, and for an empty footnote moves to its text in the note.
 
 ## 7. Troubleshooting
 

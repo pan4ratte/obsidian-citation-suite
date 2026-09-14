@@ -105,6 +105,11 @@ export interface CitationSuiteSettings {
 	footnoteSuffix: string;
 	/** Leave named footnotes, such as `[^kuhn]`, as they are when renumbering. */
 	footnoteKeepNamed: boolean;
+	/**
+	 * Write an empty footnote's text in Obsidian's footnote popover, rather
+	 * than in the note where the text stands.
+	 */
+	footnotePopover: boolean;
 	/** Minimize Zotero's window once the pick is done, handing focus back. */
 	minimizeZotero: boolean;
 	/** The version whose changelog banner has been dismissed. Never drawn as a setting. */
@@ -130,6 +135,8 @@ export const DEFAULT_SETTINGS: CitationSuiteSettings = {
 	footnotePrefix: "",
 	footnoteSuffix: "",
 	footnoteKeepNamed: false,
+	// What Obsidian's own "Insert footnote" command does.
+	footnotePopover: true,
 	minimizeZotero: false,
 	dismissedChangelogVersion: "",
 };

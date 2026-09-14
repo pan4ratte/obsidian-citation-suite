@@ -59,6 +59,8 @@ export default {
 	SETTING_FOOTNOTE_SUFFIX_DESC: "Added to the footnote label after the number: for example, -cite turns [^1] into [^1-cite].",
 	SETTING_FOOTNOTE_KEEP_NAMED_NAME: "Do not edit named footnotes when renumbering",
 	SETTING_FOOTNOTE_KEEP_NAMED_DESC: "The command that fixes footnote numbering will not edit named footnotes. For example, the footnote [^kuhn] will be left as it is.",
+	SETTING_FOOTNOTE_POPOVER_NAME: "Open the new footnote's text in a popup",
+	SETTING_FOOTNOTE_POPOVER_DESC: "The footnote's text opens in a popup over its anchor, as with footnotes Obsidian creates itself, so you can write on after the citation or fill in an empty footnote at once. When turned off, the cursor stays after the footnote anchor, and for an empty footnote moves to its text in the note.",
 	SETTING_FOOTNOTE_LABEL_INVALID: "Error: a footnote label cannot hold spaces or the characters [ ] ^ \\ |.",
 
 	SECTION_CONNECTION: "Connection to Zotero",

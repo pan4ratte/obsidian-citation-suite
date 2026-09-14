@@ -11,6 +11,7 @@
 * When Zotero is not responding, the bibliography pane now says so instead of listing the sources as not found in the library, and updates by itself once Zotero starts.
 * The bibliography pane's icon has been updated, and the bibliography refresh button now has an animation.
 * A new footnote is now separated from the existing footnotes by a blank line instead of being added right under them.
+* The text of a new footnote — with a citation or empty — now opens in a popup, as with Obsidian's own footnotes, so you can write on after the citation at once. This can be turned off in the settings.
 
 
 ## 1.0.0
