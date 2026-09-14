@@ -2,8 +2,10 @@ import {
 	Editor,
 	MarkdownFileInfo,
 	MarkdownView,
+	Menu,
 	Notice,
 	Plugin,
+	TFile,
 } from "obsidian";
 import { getChangelogContent, getUserGuideContent, t } from "lang/helpers";
 import {
@@ -26,6 +28,13 @@ import { openFootnotePopover } from "src/footnotePopover";
 import { citationExtension } from "src/live";
 import { applyLook, clearLook } from "src/look";
 import { MarkdownModal } from "src/markdownModal";
+import { NoteFootnoteModal } from "src/noteFootnoteModal";
+import {
+	forgetNoteFootnotes,
+	moveNoteFootnotes,
+	noteFootnoteSettings,
+	readNoteFootnotes,
+} from "src/noteFootnotes";
 import { formatCitations } from "src/pandoc";
 import { CitationTooltip, renderCitations } from "src/reading";
 import { CitationRenderer } from "src/render";
@@ -50,6 +59,11 @@ interface Pick {
 	citation: string;
 	/** The Markdown of every Zotero note picked, or empty. */
 	notes: string;
+}
+
+/** Whether a file of the vault is a note, which is what has footnote settings. */
+function isNote(file: unknown): file is TFile {
+	return file instanceof TFile && file.extension === "md";
 }
 
 export default class CitationSuitePlugin extends Plugin {
@@ -142,10 +156,54 @@ export default class CitationSuitePlugin extends Plugin {
 		this.addCommand({
 			id: "renumber-footnotes",
 			name: t.COMMAND_RENUMBER_FOOTNOTES,
-			editorCallback: (editor: Editor) => {
-				this.renumberFootnotes(editor);
+			editorCallback: (editor: Editor, ctx: MarkdownView | MarkdownFileInfo) => {
+				this.renumberFootnotes(editor, ctx.file);
 			},
 		});
+
+		this.addCommand({
+			id: "note-footnote-settings",
+			name: t.COMMAND_NOTE_FOOTNOTE_SETTINGS,
+			checkCallback: (checking: boolean) => {
+				const file = this.app.workspace.getActiveFile();
+				if (!isNote(file)) {
+					return false;
+				}
+				if (!checking) {
+					new NoteFootnoteModal(this.app, this, file).open();
+				}
+				return true;
+			},
+		});
+
+		// The same modal from a note's menus: the file explorer's and the
+		// tab's, which Obsidian raises as `file-menu`, and the editor's own.
+		this.registerEvent(
+			this.app.workspace.on("file-menu", (menu, file) => {
+				this.addNoteFootnoteItem(menu, file);
+			})
+		);
+		this.registerEvent(
+			this.app.workspace.on("editor-menu", (menu, _editor, info) => {
+				this.addNoteFootnoteItem(menu, info.file);
+			})
+		);
+
+		// A note's own footnote settings are kept by its path, and follow it.
+		this.registerEvent(
+			this.app.vault.on("rename", (file, oldPath) => {
+				if (moveNoteFootnotes(this.settings.noteFootnotes, oldPath, file.path)) {
+					void this.saveSettings();
+				}
+			})
+		);
+		this.registerEvent(
+			this.app.vault.on("delete", (file) => {
+				if (forgetNoteFootnotes(this.settings.noteFootnotes, file.path)) {
+					void this.saveSettings();
+				}
+			})
+		);
 
 		this.addCommand({
 			id: "show-bibliography",
@@ -174,6 +232,21 @@ export default class CitationSuitePlugin extends Plugin {
 				new MarkdownModal(this.app, getUserGuideContent()).open();
 			},
 		});
+	}
+
+	/** The item opening a note's footnote settings, in a menu raised on a note. */
+	private addNoteFootnoteItem(menu: Menu, file: unknown): void {
+		if (!isNote(file)) {
+			return;
+		}
+		menu.addItem((item) =>
+			item
+				.setTitle(t.NOTE_FOOTNOTES_TITLE)
+				.setIcon("superscript")
+				.onClick(() => {
+					new NoteFootnoteModal(this.app, this, file).open();
+				})
+		);
 	}
 
 	onunload(): void {
@@ -239,6 +312,11 @@ export default class CitationSuitePlugin extends Plugin {
 		// settings object.
 		const stored: unknown = await this.loadData();
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, stored);
+		// The one nested field: read afresh, so that it is never the defaults'
+		// own object, and cleaned of what no footnote can be written with.
+		this.settings.noteFootnotes = readNoteFootnotes(
+			this.settings.noteFootnotes
+		);
 	}
 
 	async saveSettings(): Promise<void> {
@@ -292,8 +370,8 @@ export default class CitationSuitePlugin extends Plugin {
 		// nothing: the reader changed their mind.
 		let footnote: FootnoteEdit | null = null;
 		if (pick.citation) {
-			if (this.settings.footnotes) {
-				footnote = this.insertFootnote(editor, pick.citation);
+			if (noteFootnoteSettings(this.settings, ctx.file?.path).footnotes) {
+				footnote = this.insertFootnote(editor, pick.citation, ctx.file);
 			} else {
 				editor.replaceSelection(pick.citation);
 			}
@@ -333,17 +411,26 @@ export default class CitationSuitePlugin extends Plugin {
 	}
 
 	/**
-	 * How a footnote is written, as the settings say. The insertion, the
-	 * settings' example and the style preview all read it from here, so none of
-	 * them can label a footnote differently from the others.
+	 * How a footnote is written, as the settings say — in `file`, as that note's
+	 * own footnote settings say where it has any. The insertion, the
+	 * renumbering and the style preview all read it from here, so none of them
+	 * can label a footnote differently from the others; the preview, which
+	 * stands in no note, passes none.
 	 */
-	footnoteOptions(): FootnoteOptions {
+	footnoteOptions(file: TFile | null = null): FootnoteOptions {
+		const settings = noteFootnoteSettings(this.settings, file?.path);
 		return {
-			placement: this.settings.footnotePlacement,
-			numbering: this.settings.footnoteNumbering,
-			prefix: this.settings.footnotePrefix,
-			suffix: this.settings.footnoteSuffix,
+			placement: settings.footnotePlacement,
+			numbering: settings.footnoteNumbering,
+			prefix: settings.footnotePrefix,
+			suffix: settings.footnoteSuffix,
 		};
+	}
+
+	/** Takes every note's own footnote settings away: each follows the settings again. */
+	async resetNoteFootnotes(): Promise<void> {
+		this.settings.noteFootnotes = {};
+		await this.saveSettings();
 	}
 
 	/**
@@ -355,13 +442,17 @@ export default class CitationSuitePlugin extends Plugin {
 	 * the transaction, because the transaction reads positions against the note
 	 * as it was before the edit.
 	 */
-	private insertFootnote(editor: Editor, content: string): FootnoteEdit {
+	private insertFootnote(
+		editor: Editor,
+		content: string,
+		file: TFile | null
+	): FootnoteEdit {
 		const edit = footnoteEdit(
 			editor.getValue(),
 			editor.posToOffset(editor.getCursor("from")),
 			editor.posToOffset(editor.getCursor("to")),
 			content,
-			this.footnoteOptions()
+			this.footnoteOptions(file)
 		);
 		editor.transaction({
 			changes: edit.changes.map((change) => ({
@@ -434,19 +525,19 @@ export default class CitationSuitePlugin extends Plugin {
 			new Notice(t.NOTICE_FOOTNOTE_IN_FOOTNOTE);
 			return;
 		}
-		const edit = this.insertFootnote(editor, "");
+		const edit = this.insertFootnote(editor, "", ctx.file);
 		await this.openFootnoteText(editor, ctx, edit, true);
 	}
 
 	/**
 	 * Numbers the note's footnotes in the order they come, as the settings
-	 * write labels — leaving named ones alone if the settings say so — in one
-	 * transaction: one undo puts the old labels back.
+	 * write labels in that note — leaving named ones alone if the settings say
+	 * so — in one transaction: one undo puts the old labels back.
 	 */
-	private renumberFootnotes(editor: Editor): void {
+	private renumberFootnotes(editor: Editor, file: TFile | null): void {
 		const { changes, count } = renumberFootnotes(
 			editor.getValue(),
-			this.footnoteOptions(),
+			this.footnoteOptions(file),
 			this.settings.footnoteKeepNamed
 		);
 		if (count === 0) {

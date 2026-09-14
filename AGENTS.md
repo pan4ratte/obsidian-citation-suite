@@ -5,7 +5,7 @@
 | Command | What it does |
 |---------|-------------|
 | `npm run dev` | esbuild watch mode (no typecheck) |
-| `npm test` | Vitest — 160 tests, all passing |
+| `npm test` | Vitest — 181 tests, all passing |
 | `npm run lint` / `npm run lint:fix` | ESLint (`lint:ts`) and Stylelint (`lint:css`) with the official Obsidian rulesets |
 | `npm run build` | `tsc -noEmit -skipLibCheck && node esbuild.config.mjs production` |
 
@@ -313,6 +313,48 @@ footnote's text (`inFootnoteText`).
   `[ ] ^ \ |`**, and cleaned of the same when a label is built, because
   `validate` does not stop a hand-edited `data.json`.
 
+### A note's own footnote settings
+
+`src/noteFootnoteModal.ts` draws five of the tab's footnote rows — the toggle,
+placement, numbering, prefix and suffix — for one note, opened by the
+`note-footnote-settings` command (active note only) or from `file-menu` (file
+explorer, tab) and `editor-menu`. It uses plain `Setting` rows with the tab's
+names and descriptions, not the declarative API, which only a settings tab has.
+
+- **Kept in `data.json` as `noteFootnotes`**, a map from note path to only the
+  fields set for that note (`Partial<NoteFootnoteSettings>`). A field not set
+  follows the tab, including later changes to it. A field set to the same value
+  as the tab stays set. The reset button deletes the note's entry and is
+  disabled while there is none. Not front matter: the settings are the plugin's,
+  and writing them into a note would edit every note they are set for.
+- **Every reader of a footnote setting goes through `noteFootnoteSettings`**
+  (`src/noteFootnotes.ts`, pure and tested): `footnoteOptions(file)` for the
+  insertion, the blank footnote and the renumbering, and the toggle in
+  `insertCitation`. The style preview calls `footnoteOptions()` with no file,
+  so it always shows the tab's settings. `footnoteKeepNamed`,
+  `footnotePopover` and `footnoteCursorToText` are the reader's habits, not a
+  note's, and stay global. `NOTE_FOOTNOTE_KEYS` in `src/types.ts` is the list.
+- **The path is the key, so the entry follows the note.** Vault `rename` moves
+  it and `delete` drops it, for the path itself and everything under it as a
+  folder, so a folder's event and its children's events can both arrive in
+  either order. A rename or deletion made while the plugin is not running is
+  not seen and leaves the entry stale, as is a move a sync tool writes as a
+  delete and a create.
+- **`loadSettings` reads it with `readNoteFootnotes`**, the only nested field.
+  It makes a fresh object, so the settings never share `DEFAULT_SETTINGS`'
+  `{}`, and drops fields and values no footnote can be written with.
+  A prefix or suffix typed in the modal is refused as in the tab, with
+  `setErrorMessage`, and not saved.
+- **The tab's last footnote row resets every note at once**
+  (`resetNoteFootnotesSetting`, `plugin.resetNoteFootnotes()`), after
+  `src/confirmModal.ts` asks. Obsidian exports no confirmation dialog, so that
+  one draws its own, laid out like Obsidian's delete dialog, with the focus on
+  cancel. The row is a `render` for its `setDestructive()` button, disabled
+  while no note has settings. The declarative `action` row (read out of 1.13.7's
+  `app.js`: `setAction` adds `mod-action tappable` to the row and draws no
+  control) gives a click on the whole row with nothing that looks like a
+  delete. After a reset the tab calls `update()` to disable the button again.
+
 The footnote's rows are drawn **whatever the toggle says**: placement,
 numbering, prefix and suffix are read by the `insert-footnote` and
 `renumber-footnotes` commands too, which work with the toggle off, so hiding
@@ -539,6 +581,9 @@ under them, and the empty control block is hidden. A choice goes through
 control's change goes. A click saves at once; the arrow keys save once they
 stop, so walking down the list does not restyle every open note on each step.
 
+The **note footnote reset** row is also a `render`, for its destructive
+button; see "A note's own footnote settings" under Footnotes.
+
 The other exception is the **port**, for its reset button. Read out of
 Obsidian 1.13.7's `app.js`: a control's `defaultValue` draws a `rotate-ccw`
 extra button only for `slider` and `color`; for `number` it is merely what an
@@ -628,6 +673,12 @@ groups: the group is a card, and every row in it is restyled by
     a control that cannot shrink takes the whole row inside a nested layout and
     squeezes the name and description to zero width. Publish to Telegram has
     the long version of this note; read it before touching the value.
+  - Both are also made for the rows of a note's footnote settings modal
+    (`citation-suite-note-footnotes`). Those rows are outside any group, but
+    both causes are Obsidian's base `.setting-item` / `.setting-item-control`
+    rules. Their rules come before the tab's, because Stylelint's
+    `no-descending-specificity` refuses the less specific selectors after the
+    tab's, even in the same selector list.
 
 **Every stylesheet in the family carries a file-order rule, and so does this
 one**: rules that re-assert a look on one of these rows tie with the block at
@@ -723,10 +774,13 @@ was renamed with it, from `pan4ratte/obsidian-zoterik` to
 
 ```
 src/
-  main.ts           — Plugin class, 6 commands, the bibliography view, settings load/save
+  main.ts           — Plugin class, 7 commands, note menus, the bibliography view, settings load/save
   cayw.ts           — the Better BibTeX CAYW client: probe, Zotero check, pick, parse
   pandoc.ts         — citations → pandoc syntax (pure; no Obsidian, no network)
   footnote.ts       — a citation as a footnote: label, numbering, placement (pure)
+  noteFootnotes.ts  — a note's own footnote settings: in force, read, moved, dropped (pure)
+  noteFootnoteModal.ts — the modal those settings are set in
+  confirmModal.ts   — a question asked before something that cannot be undone
   citation.ts       — pandoc citations read back out of a note, and its cited keys (pure)
   render.ts         — citeproc: a citation, its tooltip, and a note's bibliography
   bibliography.ts   — the right-sidebar pane listing the note's bibliography
@@ -751,6 +805,7 @@ tests/
   pandoc.test.ts    — the formatter, every form and every field
   cayw.test.ts      — parsing what the endpoint answers, incl. a real answer
   footnote.test.ts  — labels, roman numerals, and where a footnote's text goes
+  noteFootnotes.test.ts — a note's footnote settings over the tab's, and following renames
   mocks/obsidian.ts — stands in for the module at import time
 styles.css          — the status card, the settings rows, the document window
 CHANGELOG_RU.md     — release notes; the original

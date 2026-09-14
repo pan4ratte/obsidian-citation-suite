@@ -1,6 +1,7 @@
 import {
 	App,
 	ExtraButtonComponent,
+	Notice,
 	PluginSettingTab,
 	Setting,
 	SettingDefinitionControl,
@@ -17,6 +18,7 @@ import {
 import { renderStylePreview, StylePreview } from "src/preview";
 import { renderStylePicker, StyleChoice } from "src/stylePicker";
 import { ZoteroCheck } from "src/cayw";
+import { ConfirmModal } from "src/confirmModal";
 import { renderStatusCard, StatusCard } from "src/statusCard";
 import {
 	asIndexable,
@@ -44,14 +46,14 @@ const tooltipDelayFormat = new Intl.NumberFormat(lang, {
 });
 
 /** What the placement dropdown offers, in the order it offers it. */
-const PLACEMENT_OPTIONS: Record<FootnotePlacement, string> = {
+export const PLACEMENT_OPTIONS: Record<FootnotePlacement, string> = {
 	paragraph: t.FOOTNOTE_PLACEMENT_PARAGRAPH,
 	section: t.FOOTNOTE_PLACEMENT_SECTION,
 	document: t.FOOTNOTE_PLACEMENT_DOCUMENT,
 };
 
 /** What the numbering dropdown offers, in the order it offers it. */
-const NUMBERING_OPTIONS: Record<FootnoteNumbering, string> = {
+export const NUMBERING_OPTIONS: Record<FootnoteNumbering, string> = {
 	arabic: t.FOOTNOTE_NUMBERING_ARABIC,
 	"roman-lower": t.FOOTNOTE_NUMBERING_ROMAN_LOWER,
 	"roman-upper": t.FOOTNOTE_NUMBERING_ROMAN_UPPER,
@@ -269,6 +271,49 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 						input.blur();
 					}
 				});
+			},
+		};
+	}
+
+	/**
+	 * The row that takes every note's own footnote settings away at once,
+	 * after asking — the answer cannot be taken back.
+	 *
+	 * A `render` definition, because what it needs is a button in the warning
+	 * colour. The declarative `action` row, read out of Obsidian 1.13.7's
+	 * `app.js`, makes the whole row clickable and draws nothing to click, which
+	 * does not say that pressing it deletes anything. The button is disabled
+	 * while no note has settings of its own; `update()` redraws the row after a
+	 * reset, so what the last run drew is removed first.
+	 */
+	private resetNoteFootnotesSetting(): SettingDefinitionRender {
+		return {
+			name: t.SETTING_NOTE_FOOTNOTES_RESET_NAME,
+			desc: t.SETTING_NOTE_FOOTNOTES_RESET_DESC,
+			render: (setting: Setting) => {
+				setting.controlEl.empty();
+				const count = Object.keys(this.plugin.settings.noteFootnotes).length;
+				setting.addButton((button) =>
+					button
+						.setButtonText(t.SETTING_NOTE_FOOTNOTES_RESET_BUTTON)
+						.setDestructive()
+						.setDisabled(count === 0)
+						.onClick(() => {
+							new ConfirmModal(this.app, {
+								title: t.NOTE_FOOTNOTES_RESET_ALL_TITLE,
+								paragraphs: [
+									t.NOTE_FOOTNOTES_RESET_ALL_TEXT,
+									`${t.NOTE_FOOTNOTES_RESET_ALL_COUNT} ${count}`,
+								],
+								confirm: t.SETTING_NOTE_FOOTNOTES_RESET_BUTTON,
+								onConfirm: async () => {
+									await this.plugin.resetNoteFootnotes();
+									new Notice(t.NOTICE_NOTE_FOOTNOTES_RESET);
+									this.update();
+								},
+							}).open();
+						})
+				);
 			},
 		};
 	}
@@ -502,6 +547,7 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 						visible: () => !this.plugin.settings.footnotePopover,
 						control: { type: "toggle", key: "footnoteCursorToText" },
 					},
+					this.resetNoteFootnotesSetting(),
 				],
 			},
 			{

@@ -13,6 +13,7 @@ export default {
 	COMMAND_INSERT_CITATION: "Insert citation",
 	COMMAND_INSERT_FOOTNOTE: "Insert footnote without a citation",
 	COMMAND_RENUMBER_FOOTNOTES: "Renumber footnotes in order",
+	COMMAND_NOTE_FOOTNOTE_SETTINGS: "Footnote settings for the current note",
 	COMMAND_SHOW_BIBLIOGRAPHY: "Show bibliography",
 	COMMAND_SHOW_CHANGELOG: "View changelog",
 	COMMAND_OPEN_USER_GUIDE: "Open user guide",
@@ -27,6 +28,7 @@ export default {
 	NOTICE_NO_FOOTNOTES: "This note has no footnotes.",
 	NOTICE_FOOTNOTES_IN_ORDER: "The footnotes are already numbered in order.",
 	NOTICE_FOOTNOTES_RENUMBERED: "Footnotes renumbered in order.",
+	NOTICE_NOTE_FOOTNOTES_RESET: "The footnote settings of every note were reset to the general settings.",
 
 	// ─── Settings ────────────────────────────────────────────────────────────
 	SECTION_CITATION: "Citation format",
@@ -63,6 +65,9 @@ export default {
 	SETTING_FOOTNOTE_POPOVER_DESC: "The footnote's text opens in a popup over its anchor, as with footnotes Obsidian creates itself, so you can write on after the citation or fill in an empty footnote at once. When turned off, the cursor moves to the end of an empty footnote's text in the note, and after citing as the setting below says.",
 	SETTING_FOOTNOTE_CURSOR_NAME: "Move the cursor to the footnote text after citing",
 	SETTING_FOOTNOTE_CURSOR_DESC: "The cursor moves to the end of the footnote's text in the note, so you can write on after the citation at once. When turned off, the cursor stays after the footnote anchor.",
+	SETTING_NOTE_FOOTNOTES_RESET_NAME: "Reset the footnote settings of every note",
+	SETTING_NOTE_FOOTNOTES_RESET_DESC: "Removes the footnote settings set for single notes through the command or the note's context menu, and every note uses the general settings above again.",
+	SETTING_NOTE_FOOTNOTES_RESET_BUTTON: "Reset",
 	SETTING_FOOTNOTE_LABEL_INVALID: "Error: a footnote label cannot hold spaces or the characters [ ] ^ \\ |.",
 
 	SECTION_CONNECTION: "Connection to Zotero",
@@ -73,6 +78,19 @@ export default {
 	SETTING_PORT_RESET: "Restore default",
 	SETTING_MINIMIZE_NAME: "Minimize Zotero after picking a source",
 	SETTING_MINIMIZE_DESC: "Zotero's window is minimized once a source is picked, and focus returns to Obsidian.",
+
+	// ─── Note footnote settings ──────────────────────────────────────────────
+	NOTE_FOOTNOTES_TITLE: "Footnote settings for this note",
+	// The note's name goes between them, which is why the quotation marks are
+	// in the strings themselves and the first has no punctuation at its end.
+	NOTE_FOOTNOTES_DESC_BEFORE: "These settings apply only to the note “",
+	NOTE_FOOTNOTES_DESC_AFTER: "”, and footnotes in other notes are created by the plugin's general settings.",
+	NOTE_FOOTNOTES_RESET: "Reset to general settings",
+	NOTE_FOOTNOTES_RESET_ALL_TITLE: "Reset the footnote settings of every note?",
+	NOTE_FOOTNOTES_RESET_ALL_TEXT: "The footnote settings set for single notes will be removed, and every note will use the plugin's general settings. This cannot be undone.",
+	// Followed by the number of notes.
+	NOTE_FOOTNOTES_RESET_ALL_COUNT: "Notes with footnote settings of their own:",
+	CONFIRM_CANCEL: "Cancel",
 
 	// ─── Style list ──────────────────────────────────────────────────────────
 	STYLE_PICKER_EMPTY: "No Zotero styles were found: Zotero's data folder is either empty or could not be found.",

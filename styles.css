@@ -74,6 +74,19 @@
 	background: var(--setting-items-background);
 }
 
+/* The first two corrections below are made for the rows of a note's footnote
+   settings too, and come first because their selectors are the less specific
+   ones. Those rows are plain rows in a modal, outside any group, but the cause
+   of both is in Obsidian's base `.setting-item` and `.setting-item-control`
+   rules, which apply there as well. */
+.citation-suite-note-footnotes .setting-item {
+	align-items: center;
+}
+
+.citation-suite-note-footnotes .setting-item.mod-toggle > .setting-item-control {
+	flex: 0 1 max-content;
+}
+
 /* First: 1.13 lays a row out with `align-items: flex-start`, which lifts the
    control to the top of the row, so a toggle sits level with the first line of
    the name while the description runs on below it. Every row in this tab
@@ -598,6 +611,23 @@ body.citation-suite-citation-color-custom .citation-suite-style-preview-swatch {
 	font-family: var(--font-monospace);
 	font-size: 0.9em;
 	color: var(--text-muted);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   A note's footnote settings
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* Obsidian's own setting rows in a plain modal, under a line naming the note
+   they apply to. The first row's top border divides the two. */
+.citation-suite-note-footnotes-desc {
+	margin-bottom: var(--size-4-3);
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+/* A long note name breaks anywhere rather than widening the modal. */
+.citation-suite-note-footnotes-file {
+	overflow-wrap: anywhere;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

@@ -1,7 +1,12 @@
 # Changelog
 
 
-## Unreleased
+## 1.1.0
+
+### New features
+
+* **Footnote settings for a single note.** Putting citations in footnotes, where the footnote text goes, the numbering and the text before and after the number can now be set for one note — with the "Footnote settings for the current note" command or from the note's context menu. The "Reset to general settings" button gives the note the plugin's general settings back, and the "Reset the footnote settings of every note" option does it for every note at once after confirmation.
+* **Popup for footnotes.** The text of a new footnote can now optionally open in a popup, so there is no need to scroll the page. This can be turned off in the settings, and the cursor position after a footnote is created can then be set (after the footnote anchor or in its text).
 
 ### UI/UX enhancements and bug fixes
 
@@ -11,7 +16,6 @@
 * When Zotero is not responding, the bibliography pane now says so instead of listing the sources as not found in the library, and updates by itself once Zotero starts.
 * The bibliography pane's icon has been updated, and the bibliography refresh button now has an animation.
 * A new footnote is now separated from the existing footnotes by a blank line instead of being added right under them.
-* The text of a new footnote — with a citation or empty — now opens in a popup, as with Obsidian's own footnotes, so you can write on after the citation at once. This can be turned off in the settings.
 
 
 ## 1.0.0

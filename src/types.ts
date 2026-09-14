@@ -116,6 +116,12 @@ export interface CitationSuiteSettings {
 	 * footnote's text takes the cursor whatever this says.
 	 */
 	footnoteCursorToText: boolean;
+	/**
+	 * The footnote settings a note has of its own, by the note's path: only the
+	 * fields set for it, the rest following the settings above. See
+	 * `src/noteFootnotes.ts`.
+	 */
+	noteFootnotes: NoteFootnoteOverrides;
 	/** Minimize Zotero's window once the pick is done, handing focus back. */
 	minimizeZotero: boolean;
 	/** The version whose changelog banner has been dismissed. Never drawn as a setting. */
@@ -144,9 +150,35 @@ export const DEFAULT_SETTINGS: CitationSuiteSettings = {
 	// What Obsidian's own "Insert footnote" command does.
 	footnotePopover: true,
 	footnoteCursorToText: true,
+	noteFootnotes: {},
 	minimizeZotero: false,
 	dismissedChangelogVersion: "",
 };
+
+/**
+ * The footnote settings a note can have of its own, which are the ones that say
+ * what a new footnote looks like and whether a citation goes into one. How the
+ * text is opened, and what renumbering leaves alone, are the reader's habits
+ * rather than a note's, and stay in the settings alone.
+ */
+export const NOTE_FOOTNOTE_KEYS = [
+	"footnotes",
+	"footnotePlacement",
+	"footnoteNumbering",
+	"footnotePrefix",
+	"footnoteSuffix",
+] as const;
+
+export type NoteFootnoteKey = (typeof NOTE_FOOTNOTE_KEYS)[number];
+
+/** One note's footnote settings, in full. */
+export type NoteFootnoteSettings = Pick<CitationSuiteSettings, NoteFootnoteKey>;
+
+/** What notes set for themselves, by path: each only the fields it set. */
+export type NoteFootnoteOverrides = Record<
+	string,
+	Partial<NoteFootnoteSettings>
+>;
 
 /**
  * The settings object, read by the key a setting definition names. The
