@@ -252,12 +252,27 @@ export function citationExtension(context: LiveContext) {
 					}
 					const source = view.state.sliceDoc(citation.from, citation.to);
 					const written = rendered.get(citation);
-					if (written) {
+					// Pandoc reads a citation across a line break, but the editor
+					// will not let an extension draw anything over one: the
+					// citation is left as it is written.
+					const oneLine = view.state.doc.lineAt(citation.from).to >= citation.to;
+					if (written && oneLine) {
 						builder.add(
 							citation.from,
 							citation.to,
 							Decoration.replace({
 								widget: new CitationWidget(written, source, tooltip),
+								// Obsidian hides the brackets of a link on a
+								// footnote's line, and to it `[@key]` is one: the
+								// hidden `[` starts where the citation does. Of two
+								// ranges drawn over the same place from the same
+								// point the editor draws one, and which one goes by
+								// the order the extensions were added in — so the
+								// citation could lose to an empty span. Starting
+								// inclusively puts it first wherever it starts.
+								// The decorations are built again on every change,
+								// so what inclusive does to mapping never matters.
+								inclusiveStart: true,
 							})
 						);
 						continue;

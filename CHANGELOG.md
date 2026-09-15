@@ -1,6 +1,14 @@
 # Changelog
 
 
+## 1.2.1
+
+### UI/UX enhancements and bug fixes
+
+* Fixed a bug that sometimes kept citations in footnote text from showing in Live Preview: a blank space was left in their place, and a citation only appeared after it was clicked.
+* Fixed a bug that made a citation broken into parts by a line break cause an editor error.
+
+
 ## 1.2.0
 
 ### New features
