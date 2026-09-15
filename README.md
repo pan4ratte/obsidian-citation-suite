@@ -20,19 +20,19 @@ English | <a href="https://github.com/pan4ratte/obsidian-citation-suite/blob/mai
 
 ### 1. Citing sources through Zotero
 
-The window opens with a hotkey or from the command palette and lets you set the page, the prefix, the suffix or suppress the author. Once a source is picked, it is inserted into the note in Pandoc format (`[@doe2020, p. 33]`), and several sources into a group separated by `;`. Zotero notes can be picked in the same window too — their text is inserted into the note as Markdown. A source's key can also be inserted right in the text: typing `@` brings up suggestions from your Zotero library.
+Once you pick a source in the familiar citation window, it is inserted into the note in Pandoc format (`[@doe2020, p. 33]`) automatically, and several sources are gathered into a group separated by `;`. Zotero notes can be picked in the same window too, and their text is inserted into the note as Markdown. Keys can also be inserted without opening the window at all, thanks to autocomplete suggestions from your Zotero library after typing `@` in the note editor.
 
 ### 2. Formatted citation preview
 
-In the plugin settings you can choose a citation style from your Zotero library to format the preview of citations in your notes. The citation itself stays in Pandoc format — this is only how it looks, and it has no effect on how the note is exported. Hovering over a citation shows the bibliography entry of each source — these tooltips can be turned off, or their delay changed. Under the list of styles is a preview of how citations look, which you can adjust to your taste: the citation color, the underline style, bold and italic. The preview takes the whole note into account: repeated citations are written in their short form, the numbering matches the bibliography, and keys Zotero does not have are underlined with a wavy line.
+In the plugin settings you can choose a citation style from your Zotero library to format the preview of citations in your notes. The citation itself stays in Pandoc format — this is only how it looks, and it has no effect on how the note is exported. Hovering over a citation shows the source's bibliography entry, and the look of citations is finely adjustable: their color, the underline style, bold and italic. The preview is built with the context of the whole note in mind: repeated citations are written in their short form, the numbering matches the bibliography, and keys Zotero does not have are underlined with a wavy line.
 
-### 3. Automatic footnotes
+### 3. Preview of the note's bibliography
 
-With the setting on, a footnote anchor is placed at the cursor and the citation itself goes into the footnote's body — after the current paragraph, at the end of the current section or at the end of the note. Footnote numbers are written in arabic or roman numerals, and text of your own can be added before and after the number. The citation preview also shows it in a footnote when the option is on. The "Insert footnote without a citation" command creates an empty footnote with the chosen settings without opening the citation window, and the "Renumber footnotes in order" command renumbers every footnote in the note in order.
+A tab in the right sidebar lists every source cited in the note — formatted in the citation style chosen for the preview, following its sorting, numbering and indentation. Above the bibliography is the number of sources, a search of the list and a way to copy the bibliography. Right-clicking an entry opens a context menu that lets you open your note about the source or its PDF, reveal the source in Zotero, copy a single entry or find every mention of the source in the note.
 
-### 4. Preview of the note's bibliography
+### 4. Automatic footnotes
 
-A tab in the right sidebar lists every source cited in the note — formatted in the citation style chosen for the preview, following its sorting, numbering and indentation. Above the bibliography are the number of entries, a search of the list and a button that copies the bibliography. Right-clicking an entry opens a menu that lets you open your note about the source or its PDF, reveal the source in Zotero, copy the entry or find its mentions in the note.
+Optionally, every citation can be placed into a footnote automatically, and where the body of the footnote goes is up to you — after the current paragraph, at the end of the current section or at the end of the note. Footnote numbers are written in arabic or roman numerals, text of your own can be added before and after the number, and all of these settings can be applied either globally or to individual notes. The "Insert footnote without a citation" command creates an empty footnote with the chosen settings without opening the citation window, and the "Renumber footnotes in order" command renumbers every footnote in the note in order and sorts them correctly.
 
 
 ## Installation
