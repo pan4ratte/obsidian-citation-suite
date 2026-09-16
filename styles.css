@@ -898,10 +898,119 @@ body.citation-suite-citation-italic .citation-suite-citation em {
 	gap: var(--size-2-1);
 }
 
-/* The search button while its field is open. */
+/* The search button while its field is open. The accent comes up and goes
+   down with the field rather than at once. */
+.citation-suite-bibliography-actions .clickable-icon {
+	transition:
+		color var(--anim-duration-moderate) ease-in-out,
+		background-color var(--anim-duration-moderate) ease-in-out;
+}
+
 .citation-suite-bibliography-actions .clickable-icon.is-active {
 	color: var(--interactive-accent);
 	background-color: var(--background-modifier-hover);
+}
+
+/* The search button's glass leans into the field as it opens and swings back
+   as it shuts, and the copy button's icon gives way to a tick that says the
+   list is on the clipboard. Both are animations `src/bibliography.ts` plays
+   by class, since they are one-off answers to a press rather than states. */
+@keyframes citation-suite-search-lean-in {
+	40% {
+		transform: rotate(-14deg) scale(1.16);
+	}
+}
+
+@keyframes citation-suite-search-lean-out {
+	40% {
+		transform: rotate(10deg) scale(0.86);
+	}
+}
+
+/* The tick pops in, holds long enough to be read, and shrinks away for the
+   copy icon to come back in its place. */
+@keyframes citation-suite-copy-tick {
+	0% {
+		opacity: 0;
+		transform: scale(0.4);
+	}
+
+	20% {
+		opacity: 1;
+		transform: scale(1.16);
+	}
+
+	32% {
+		transform: scale(1);
+	}
+
+	85% {
+		opacity: 1;
+		transform: scale(1);
+	}
+
+	100% {
+		opacity: 0;
+		transform: scale(0.7);
+	}
+}
+
+@keyframes citation-suite-copy-back {
+	from {
+		opacity: 0;
+		transform: scale(0.7);
+	}
+}
+
+/* A tick that holds still, for a reader who asked for less motion: it is
+   there for as long, and nothing about it moves. */
+@keyframes citation-suite-copy-held {
+	from {
+		opacity: 1;
+	}
+}
+
+/* How long the tick is up, the pop at either end included. */
+.citation-suite-bibliography-actions .clickable-icon.is-copied {
+	color: var(--text-success);
+}
+
+.citation-suite-bibliography-actions .clickable-icon.is-copied .svg-icon {
+	animation: citation-suite-copy-tick 1.1s ease-in-out forwards;
+}
+
+.citation-suite-bibliography-actions .clickable-icon.is-uncopied .svg-icon {
+	animation: citation-suite-copy-back var(--anim-duration-fast)
+		var(--anim-motion-swing);
+}
+
+.citation-suite-bibliography-actions .clickable-icon.is-opening .svg-icon {
+	animation: citation-suite-search-lean-in var(--anim-duration-moderate)
+		ease-in-out;
+}
+
+.citation-suite-bibliography-actions .clickable-icon.is-closing .svg-icon {
+	animation: citation-suite-search-lean-out var(--anim-duration-moderate)
+		ease-in-out;
+}
+
+/* A reader who asked the system for less motion sees the tick and the accent,
+   and nothing lean or pop. The tick still holds for as long, so that it is
+   read before the copy icon comes back. */
+@media (prefers-reduced-motion: reduce) {
+	.citation-suite-bibliography-actions .clickable-icon {
+		transition: none;
+	}
+
+	.citation-suite-bibliography-actions .clickable-icon.is-copied .svg-icon {
+		animation-name: citation-suite-copy-held;
+	}
+
+	.citation-suite-bibliography-actions .clickable-icon.is-uncopied .svg-icon,
+	.citation-suite-bibliography-actions .clickable-icon.is-opening .svg-icon,
+	.citation-suite-bibliography-actions .clickable-icon.is-closing .svg-icon {
+		animation: none;
+	}
 }
 
 /* The field under the bar: Obsidian's own search input, drawn by its

@@ -5,6 +5,7 @@
 
 ### UI/UX enhancements and bug fixes
 
+* The search and copy buttons on the "Bibliography" tab now answer a press: the search icon leans as the search field opens and shuts, and a tick takes the place of the copy icon for a moment once the list has been copied.
 * Fixed a bug that sometimes kept citations in footnote text from showing in Live Preview: a blank space was left in their place, and a citation only appeared after it was clicked.
 * Fixed a bug that made a citation broken into parts by a line break cause an editor error.
 

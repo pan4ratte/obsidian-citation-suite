@@ -66,11 +66,13 @@ const HIDDEN_CLASS = "citation-suite-bibliography-hidden";
  * as HTML with its layout written in, for a word processor to paste with the
  * italics and the indents, and as text for everywhere else. The whole list, or
  * the one entry at `index`, numbered as the list numbers it.
+ *
+ * Answers whether it was copied, which is what the copy button's tick is for.
  */
 async function copyBibliography(
 	bibliography: RenderedBibliography,
 	index?: number
-): Promise<void> {
+): Promise<boolean> {
 	const one = index !== undefined;
 	const entries = one
 		? bibliography.entries.slice(index, index + 1)
@@ -88,10 +90,12 @@ async function copyBibliography(
 			}),
 		]);
 		new Notice(one ? t.BIBLIOGRAPHY_ENTRY_COPIED : t.BIBLIOGRAPHY_COPIED);
+		return true;
 	} catch {
 		new Notice(
 			one ? t.BIBLIOGRAPHY_ENTRY_COPY_FAILED : t.BIBLIOGRAPHY_COPY_FAILED
 		);
+		return false;
 	}
 }
 
@@ -121,6 +125,12 @@ interface MentionBar {
 const COUNT_ROLLS = ["is-stepping-next", "is-stepping-previous", "is-changing"];
 
 /**
+ * Which play of a class on an element is the latest one, so that a play cut
+ * short by another does not take the class off the animation that cut it.
+ */
+const plays = new WeakMap<HTMLElement, Map<string, symbol>>();
+
+/**
  * Plays the one-off animation a class gives an element and its children —
  * from the start, if it was already playing — and takes the class off once it
  * has finished or been cut short. styles.css gives the class no animation for
@@ -129,8 +139,15 @@ const COUNT_ROLLS = ["is-stepping-next", "is-stepping-previous", "is-changing"];
  * An animation that leaves its element changed (`forwards`) keeps it so until
  * the class comes off, which is after whatever is chained on here has run:
  * no frame is drawn in between.
+ *
+ * A play started again while it runs leaves the class to the later play, and
+ * answers as soon as the earlier animation has been cut short.
  */
 async function play(el: HTMLElement, cls: string): Promise<void> {
+	const latest = plays.get(el) ?? new Map<string, symbol>();
+	plays.set(el, latest);
+	const token = Symbol(cls);
+	latest.set(cls, token);
 	el.removeClass(cls);
 	// Asking for the animations brings the element's style up to date, which
 	// ends the one taken off above before the class starts it again.
@@ -140,6 +157,10 @@ async function play(el: HTMLElement, cls: string): Promise<void> {
 		.getAnimations({ subtree: true })
 		.filter((animation) => animation instanceof CSSAnimation);
 	await Promise.allSettled(running.map((animation) => animation.finished));
+	if (latest.get(cls) !== token) {
+		return;
+	}
+	latest.delete(cls);
 	el.removeClass(cls);
 }
 
@@ -207,6 +228,11 @@ export class BibliographyView extends ItemView {
 	private refreshSpin!: Spinner;
 	/** Counts the presses, so that only the latest one's answer stops the icon. */
 	private refreshPresses = 0;
+	/**
+	 * Counts the copy presses, so that only the latest one's tick puts the
+	 * copy icon back: an older one's would take a newer tick off.
+	 */
+	private copyPresses = 0;
 	private searchRow!: HTMLElement;
 	private searchOpen = false;
 	private search!: SearchComponent;
@@ -523,7 +549,7 @@ export class BibliographyView extends ItemView {
 		this.searchButton.setAttr("aria-expanded", "false");
 		this.copyButton = this.iconButton(actions, "copy", t.BIBLIOGRAPHY_COPY, () => {
 			if (this.bibliography) {
-				void copyBibliography(this.bibliography);
+				void this.copyList(this.bibliography);
 			}
 		});
 		this.refreshButton = this.iconButton(
@@ -588,6 +614,12 @@ export class BibliographyView extends ItemView {
 		this.searchRow.toggleClass("is-open", open);
 		this.searchButton.toggleClass("is-active", open);
 		this.searchButton.setAttr("aria-expanded", String(open));
+		// The glass leans in as the field opens and swings back as it shuts —
+		// not on a button being hidden for having nothing to search, where
+		// there would be nothing to see.
+		if (!this.searchButton.hasClass(HIDDEN_CLASS)) {
+			void play(this.searchButton, open ? "is-opening" : "is-closing");
+		}
 		if (open) {
 			this.search.inputEl.focus();
 			this.search.inputEl.select();
@@ -598,6 +630,29 @@ export class BibliographyView extends ItemView {
 				this.searchButton.focus();
 			}
 		}
+	}
+
+	/**
+	 * Copies the list and tells the reader it went: the copy icon gives way
+	 * to a tick, which holds for a moment and then hands the copy icon back.
+	 * A copy that failed says so in its notice and leaves the icon alone.
+	 *
+	 * A press while a tick is up starts the tick afresh; the press it belongs
+	 * to is what puts the copy icon back, so that the older press's turn to do
+	 * it, which comes as the newer tick goes up, passes.
+	 */
+	private async copyList(bibliography: RenderedBibliography): Promise<void> {
+		if (!(await copyBibliography(bibliography))) {
+			return;
+		}
+		const press = ++this.copyPresses;
+		setIcon(this.copyButton, "check");
+		await play(this.copyButton, "is-copied");
+		if (press !== this.copyPresses) {
+			return;
+		}
+		setIcon(this.copyButton, "copy");
+		await play(this.copyButton, "is-uncopied");
 	}
 
 	/** One of the bar's buttons: an icon, its tooltip, and the keyboard too. */
