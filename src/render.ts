@@ -121,6 +121,12 @@ export interface StyleRef {
 	locale: string;
 	/** What the locators of the note's citations are read with. */
 	labels: LocatorLabels;
+	/**
+	 * Where the note's sources come from: Zotero, or the vault's library files.
+	 * It is no part of `key`, since the engines do not depend on it — only on
+	 * the style and the locale — and one engine renders notes from either.
+	 */
+	library: LibraryRef;
 }
 
 /** How many styles are kept running: enough for the notes open side by side. */
@@ -482,19 +488,85 @@ export function styleLocale(csl: string): string {
 	return match ? match[1] : "";
 }
 
-export class CitationRenderer {
+/**
+ * Where a note's sources come from.
+ *
+ * The empty string is Zotero, which is where they came from when there was
+ * nowhere else. Anything else names library files of the vault — their paths,
+ * joined by newlines, in the order the note named them — which is what a note
+ * with pandoc's `bibliography` property is read from, and all there is to read
+ * on a phone.
+ */
+export type LibraryRef = string;
+
+/** Zotero, as a library is named. */
+export const ZOTERO_LIBRARY: LibraryRef = "";
+
+/** What joins the paths in a ref; no vault path holds one. */
+const SEPARATOR = "\n";
+
+/** The paths a library ref names, or none for Zotero's. */
+export function libraryPaths(ref: LibraryRef): string[] {
+	return ref ? ref.split(SEPARATOR) : [];
+}
+
+/** The ref the paths make, in the order they were named. */
+export function libraryRefOf(paths: string[]): LibraryRef {
+	return paths.join(SEPARATOR);
+}
+
+/**
+ * The vault's library files, as the renderer needs them: read first, then read
+ * off. `src/vaultLibrary.ts` is what does it; the renderer is handed this so
+ * that it goes on knowing nothing about the vault.
+ */
+export interface FileLibraries {
+	/** Reads the files, so that what is in them can be had synchronously after. */
+	load(paths: string[]): Promise<void>;
+	/** What is in them, and whether every one of them was read. */
+	itemsOf(paths: string[]): { items: Map<string, CslItem>; complete: boolean };
+}
+
+/** What is known about the sources of one library. */
+interface SourceState {
 	/** CSL data by citation key, for everything asked about so far. */
-	private items = new Map<string, CslItem>();
-	/** The library each item in `items` was taken from, by citation key. */
-	private itemLibraries = new Map<string, number>();
-	/** Keys Better BibTeX has no item for. Asked once, then left alone. */
-	private unknown = new Set<string>();
-	/** The keys in `unknown` that were missed because Zotero did not answer. */
-	private unreached = new Set<string>();
+	items: Map<string, CslItem>;
+	/** The Zotero library each item was taken from; empty for a file's. */
+	itemLibraries: Map<string, number>;
+	/** Keys the library has no item for. Asked once, then left alone. */
+	unknown: Set<string>;
+	/** The keys in `unknown` that were missed because the library was not there. */
+	unreached: Set<string>;
 	/** The lookups under way, by each key they were started for. */
-	private lookups = new Map<string, Promise<void>>();
+	lookups: Map<string, Promise<void>>;
+}
+
+function emptySource(): SourceState {
+	return {
+		items: new Map(),
+		itemLibraries: new Map(),
+		unknown: new Set(),
+		unreached: new Set(),
+		lookups: new Map(),
+	};
+}
+
+export class CitationRenderer {
+	/** What is known of each library's sources, by the ref that names it. */
+	private sources = new Map<LibraryRef, SourceState>();
+	/**
+	 * The library the engines read items from while something is being
+	 * rendered. citeproc asks for an item in the middle of writing a citation
+	 * and cannot be handed anything with it, so the library is put here by
+	 * whatever is about to render, and every render entry point does it. Safe
+	 * because rendering is synchronous throughout: nothing else runs between
+	 * the setting and the writing.
+	 */
+	private current: SourceState = emptySource();
 	/** Zotero's libraries, in the order a key is looked for in them. */
 	private libraries: number[] | null = null;
+	/** Where a note that names no library of its own reads its sources from. */
+	private fallbackLibrary: LibraryRef = ZOTERO_LIBRARY;
 	/** The styles running, by `StyleRef.key`, the latest used last; `null` for one that would not. */
 	private engines = new Map<string, StyleEngines | null>();
 	/** Styles being built, so that two asking at once build one. */
@@ -508,7 +580,9 @@ export class CitationRenderer {
 		private port: number,
 		private styles: CitationStyle[],
 		private readStyle: (style: CitationStyle) => Promise<string>,
-		private zotero: ZoteroCitePrefs
+		private zotero: ZoteroCitePrefs,
+		/** The vault's library files, for the notes read from one. */
+		private files: FileLibraries | null = null
 	) {}
 
 	/** Forget everything: the port, the styles or the library have changed. */
@@ -516,14 +590,47 @@ export class CitationRenderer {
 		this.port = port;
 		this.styles = styles;
 		this.zotero = zotero;
-		this.items.clear();
-		this.itemLibraries.clear();
-		this.unknown.clear();
-		this.unreached.clear();
-		this.lookups.clear();
+		this.sources.clear();
+		this.current = emptySource();
 		this.libraries = null;
 		this.engines.clear();
 		this.building.clear();
+	}
+
+	/**
+	 * Where the notes that name no library of their own read from: the file the
+	 * settings name, or Zotero. Every `StyleRef` made after this says so.
+	 */
+	setFallbackLibrary(ref: LibraryRef): void {
+		this.fallbackLibrary = ref;
+	}
+
+	/** Forgets the sources read from the vault's files: one of them changed. */
+	forgetFiles(): void {
+		for (const ref of [...this.sources.keys()]) {
+			if (ref !== ZOTERO_LIBRARY) {
+				this.sources.delete(ref);
+			}
+		}
+	}
+
+	/**
+	 * Says which library citeproc is to read items from for what is about to be
+	 * written. Every render entry point calls this first: citeproc asks for its
+	 * items in the middle of writing, with no way to be handed them.
+	 */
+	reading(ref: LibraryRef): void {
+		this.current = this.source(ref);
+	}
+
+	/** What is known of a library's sources, made ready if it is new. */
+	private source(ref: LibraryRef): SourceState {
+		let state = this.sources.get(ref);
+		if (!state) {
+			state = emptySource();
+			this.sources.set(ref, state);
+		}
+		return state;
 	}
 
 	/**
@@ -536,99 +643,159 @@ export class CitationRenderer {
 	 * not, since it would send a request on every keystroke while Zotero is
 	 * closed.
 	 */
-	async load(citekeys: string[], retryUnreached = false): Promise<void> {
+	async load(
+		citekeys: string[],
+		retryUnreached = false,
+		ref: LibraryRef = ZOTERO_LIBRARY
+	): Promise<void> {
 		// A key already being looked up is waited for rather than asked about
 		// twice: the editor asks on every redraw, and a note asks for all of
 		// its keys at once.
+		const source = this.source(ref);
 		const underway = new Set<Promise<void>>();
 		const wanted: string[] = [];
 		for (const key of new Set(citekeys)) {
-			const lookup = this.lookups.get(key);
+			const lookup = source.lookups.get(key);
 			if (lookup) {
 				underway.add(lookup);
 			} else if (
-				!this.items.has(key) &&
-				(!this.unknown.has(key) ||
-					(retryUnreached && this.unreached.has(key)))
+				!source.items.has(key) &&
+				(!source.unknown.has(key) ||
+					(retryUnreached && source.unreached.has(key)))
 			) {
 				wanted.push(key);
 			}
 		}
 		if (wanted.length > 0) {
-			const lookup = this.lookUp(wanted).finally(() => {
+			const lookup = this.lookUp(wanted, ref).finally(() => {
 				for (const key of wanted) {
-					if (this.lookups.get(key) === lookup) {
-						this.lookups.delete(key);
+					if (source.lookups.get(key) === lookup) {
+						source.lookups.delete(key);
 					}
 				}
 			});
 			for (const key of wanted) {
-				this.lookups.set(key, lookup);
+				source.lookups.set(key, lookup);
 			}
 			underway.add(lookup);
 		}
 		await Promise.all(underway);
 	}
 
-	/** Asks Zotero for the keys and keeps what it says about each. */
-	private async lookUp(wanted: string[]): Promise<void> {
-		// Asked once and kept: a library is added in Zotero far less often
-		// than a note is read, and the refresh button asks again.
-		this.libraries ??= await fetchLibraries(this.port);
-		const { found, answered } = this.libraries
-			? await fetchItems(
-					this.port,
-					wanted,
-					this.libraries,
-					this.installedStyle()
-				)
-			: { found: [], answered: false };
+	/** Asks the note's library for the keys and keeps what it says about each. */
+	private async lookUp(wanted: string[], ref: LibraryRef): Promise<void> {
+		const source = this.source(ref);
+		const { found, answered } =
+			ref === ZOTERO_LIBRARY
+				? await this.fromZotero(wanted)
+				: await this.fromFiles(wanted, ref);
 		for (const { item, library } of found) {
 			if (typeof item.id === "string") {
-				this.items.set(item.id, item);
-				this.itemLibraries.set(item.id, library);
+				source.items.set(item.id, item);
+				if (library >= 0) {
+					source.itemLibraries.set(item.id, library);
+				}
 			}
 		}
-		if (!answered) {
-			// Read again once Zotero answers: a group may have been joined
-			// while it was closed.
-			this.libraries = null;
-		}
 		for (const key of wanted) {
-			if (this.items.has(key)) {
-				this.unknown.delete(key);
-				this.unreached.delete(key);
+			if (source.items.has(key)) {
+				source.unknown.delete(key);
+				source.unreached.delete(key);
 			} else {
-				// Better BibTeX does not know it: a key typed by hand, or one
-				// whose item has gone — or Zotero did not answer. Asking again
-				// on every keystroke would only be told the same thing.
-				this.unknown.add(key);
+				// The library does not know it: a key typed by hand, or one
+				// whose item has gone — or the library was not there to ask.
+				// Asking again on every keystroke would only be told the same.
+				source.unknown.add(key);
 				if (answered) {
-					this.unreached.delete(key);
+					source.unreached.delete(key);
 				} else {
-					this.unreached.add(key);
+					source.unreached.add(key);
 				}
 			}
 		}
 	}
 
-	/** Whether the key was missed because Zotero did not answer when asked. */
-	unreachable(citekey: string): boolean {
-		return this.unreached.has(citekey);
+	/** The keys as Zotero has them, through Better BibTeX. */
+	private async fromZotero(
+		wanted: string[]
+	): Promise<{ found: FoundItem[]; answered: boolean }> {
+		// Asked once and kept: a library is added in Zotero far less often
+		// than a note is read, and the refresh button asks again.
+		this.libraries ??= await fetchLibraries(this.port);
+		const answer = this.libraries
+			? await fetchItems(this.port, wanted, this.libraries, this.installedStyle())
+			: { found: [], answered: false };
+		if (!answer.answered) {
+			// Read again once Zotero answers: a group may have been joined
+			// while it was closed.
+			this.libraries = null;
+		}
+		return answer;
 	}
 
 	/**
-	 * Whether Zotero answered and has no item for the key — a typo, or a
-	 * source since deleted. A key not asked about yet is not missing, and
-	 * neither is one Zotero was not there to answer for.
+	 * The keys as the note's own library files have them. A file that could not
+	 * be read leaves its keys unanswered rather than missing, the way a closed
+	 * Zotero does: the file may be one a reference manager is writing over, and
+	 * the next pass will find it.
 	 */
-	missing(citekey: string): boolean {
-		return this.unknown.has(citekey) && !this.unreached.has(citekey);
+	private async fromFiles(
+		wanted: string[],
+		ref: LibraryRef
+	): Promise<{ found: FoundItem[]; answered: boolean }> {
+		const files = this.files;
+		if (!files) {
+			return { found: [], answered: false };
+		}
+		const paths = libraryPaths(ref);
+		await files.load(paths);
+		const { items, complete } = files.itemsOf(paths);
+		const found: FoundItem[] = [];
+		for (const key of wanted) {
+			const item = items.get(key);
+			if (item) {
+				found.push({ item, library: -1 });
+			}
+		}
+		return { found, answered: complete };
+	}
+
+	/** Whether the key was missed because the library did not answer when asked. */
+	unreachable(citekey: string, ref: LibraryRef = ZOTERO_LIBRARY): boolean {
+		return this.source(ref).unreached.has(citekey);
+	}
+
+	/**
+	 * Whether the library answered and has no item for the key — a typo, or a
+	 * source since deleted. A key not asked about yet is not missing, and
+	 * neither is one the library was not there to answer for.
+	 */
+	missing(citekey: string, ref: LibraryRef = ZOTERO_LIBRARY): boolean {
+		const source = this.source(ref);
+		return source.unknown.has(citekey) && !source.unreached.has(citekey);
 	}
 
 	/** Every source asked about and found so far, by citation key. */
-	knownItems(): ReadonlyMap<string, CslItem> {
-		return this.items;
+	knownItems(ref: LibraryRef = ZOTERO_LIBRARY): ReadonlyMap<string, CslItem> {
+		return this.source(ref).items;
+	}
+
+	/**
+	 * Every source a library holds, for offering one while a key is typed.
+	 *
+	 * A file library is read whole and is all in hand, so every source in it
+	 * can be offered — which is more than Zotero's own search is asked for, and
+	 * it needs nothing to be running. Zotero's is another matter: it is asked
+	 * about a query rather than read, so only what has been looked up already
+	 * is here, and `searchLibrary` is what finds the rest.
+	 */
+	async allItems(ref: LibraryRef): Promise<ReadonlyMap<string, CslItem>> {
+		if (ref === ZOTERO_LIBRARY || !this.files) {
+			return this.knownItems(ref);
+		}
+		const paths = libraryPaths(ref);
+		await this.files.load(paths);
+		return this.files.itemsOf(paths).items;
 	}
 
 	/**
@@ -670,13 +837,13 @@ export class CitationRenderer {
 	}
 
 	/** Whether every key in the group is one citeproc can be handed an item for. */
-	known(group: CitationGroup): boolean {
-		return group.citations.every((citation) => this.has(citation.id));
+	known(group: CitationGroup, ref: LibraryRef = ZOTERO_LIBRARY): boolean {
+		return group.citations.every((citation) => this.has(citation.id, ref));
 	}
 
-	/** Whether Better BibTeX has handed over an item for the key. */
-	has(citekey: string): boolean {
-		return this.items.has(citekey);
+	/** Whether the library has handed over an item for the key. */
+	has(citekey: string, ref: LibraryRef = ZOTERO_LIBRARY): boolean {
+		return this.source(ref).items.has(citekey);
 	}
 
 	/**
@@ -691,7 +858,7 @@ export class CitationRenderer {
 	 * that, since Zotero's `is` does not tell case apart.
 	 */
 	async itemLink(citekey: string): Promise<ItemLink> {
-		const library = this.itemLibraries.get(citekey);
+		const library = this.source(ZOTERO_LIBRARY).itemLibraries.get(citekey);
 		if (library === undefined) {
 			return { error: "not-found" };
 		}
@@ -729,7 +896,7 @@ export class CitationRenderer {
 	 * two apart.
 	 */
 	async itemPdfs(citekey: string): Promise<ItemPdfs> {
-		const library = this.itemLibraries.get(citekey);
+		const library = this.source(ZOTERO_LIBRARY).itemLibraries.get(citekey);
 		if (library === undefined) {
 			return { error: "not-found" };
 		}
@@ -751,8 +918,10 @@ export class CitationRenderer {
 	 * was closed at that moment misses every key there is.
 	 */
 	forgetUnknown(): void {
-		this.unknown.clear();
-		this.unreached.clear();
+		for (const source of this.sources.values()) {
+			source.unknown.clear();
+			source.unreached.clear();
+		}
 		// A key may be missing because its group was joined after the list
 		// of libraries was read.
 		this.libraries = null;
@@ -767,11 +936,12 @@ export class CitationRenderer {
 	 * finish at once, the editor would redraw, the key would still be missing,
 	 * and it would ask again forever.
 	 */
-	pending(citekeys: string[]): string[] {
+	pending(citekeys: string[], ref: LibraryRef = ZOTERO_LIBRARY): string[] {
+		const source = this.source(ref);
 		return [
 			...new Set(
 				citekeys.filter(
-					(key) => !this.items.has(key) && !this.unknown.has(key)
+					(key) => !source.items.has(key) && !source.unknown.has(key)
 				)
 			),
 		];
@@ -813,7 +983,13 @@ export class CitationRenderer {
 	zoteroStyle(styleId: string): StyleRef | null {
 		const style = styleId ? this.styleById(styleId) : undefined;
 		return style
-			? { key: styleId, style, locale: "", labels: ENGLISH_LABELS }
+			? {
+					key: styleId,
+					style,
+					locale: "",
+					labels: ENGLISH_LABELS,
+					library: this.fallbackLibrary,
+				}
 			: null;
 	}
 
@@ -823,7 +999,12 @@ export class CitationRenderer {
 	 * style's own terms for it. `csl` is the text of the style whose terms
 	 * count: the style's, or its parent's for a dependent one.
 	 */
-	pandocStyle(style: CitationStyle, locale: string, csl: string): StyleRef {
+	pandocStyle(
+		style: CitationStyle,
+		locale: string,
+		csl: string,
+		library: LibraryRef = this.fallbackLibrary
+	): StyleRef {
 		const key = `${style.path || style.id}\n${locale}`;
 		let labels = this.labels.get(key);
 		if (!labels) {
@@ -835,7 +1016,7 @@ export class CitationRenderer {
 			);
 			this.labels.set(key, labels);
 		}
-		return { key, style, locale, labels };
+		return { key, style, locale, labels, library };
 	}
 
 	private async buildEngine(ref: StyleRef): Promise<StyleEngines | null> {
@@ -878,7 +1059,9 @@ export class CitationRenderer {
 			retrieveLocale: (lang: string): string =>
 				LOCALES[carriedLocale(lang)] ?? LOCALES[FALLBACK_LOCALE],
 			retrieveItem: (id: string): unknown => {
-				const item = this.items.get(id);
+				// From whichever library the note being rendered reads; see
+				// `current`, which is set by every render entry point.
+				const item = this.current.items.get(id);
 				return item
 					? asZoteroCites(item, this.zotero.citePaperArticleURLs)
 					: { id, type: "document" };
@@ -984,7 +1167,7 @@ export class CitationRenderer {
 	 */
 	renderWith(ref: StyleRef, group: CitationGroup): RenderedCitation | null {
 		const engine = this.preparedEngines(ref);
-		return engine ? this.render(engine, group) : null;
+		return engine ? this.render(engine, group, ref.library) : null;
 	}
 
 	/**
@@ -1004,7 +1187,9 @@ export class CitationRenderer {
 		if (!engines) {
 			return null;
 		}
-		this.items.set(item.id, item);
+		const source = this.source(ZOTERO_LIBRARY);
+		source.items.set(item.id, item);
+		this.reading(ZOTERO_LIBRARY);
 		try {
 			return this.render(engines, {
 				from: 0,
@@ -1021,7 +1206,7 @@ export class CitationRenderer {
 				],
 			});
 		} finally {
-			this.items.delete(item.id);
+			source.items.delete(item.id);
 		}
 	}
 
@@ -1039,7 +1224,11 @@ export class CitationRenderer {
 	 * tooltips' number-less one: here the numbers belong, and so does the
 	 * markup.
 	 */
-	bibliographyOf(engines: StyleEngines): RenderedBibliography | null {
+	bibliographyOf(
+		engines: StyleEngines,
+		ref: LibraryRef = ZOTERO_LIBRARY
+	): RenderedBibliography | null {
+		this.reading(ref);
 		try {
 			const written = engines.citation.makeBibliography();
 			if (!written) {
@@ -1082,8 +1271,10 @@ export class CitationRenderer {
 	renderedCitation(
 		engines: StyleEngines,
 		ids: string[],
-		html: string
+		html: string,
+		ref: LibraryRef = ZOTERO_LIBRARY
 	): RenderedCitation | null {
+		this.reading(ref);
 		const trimmed = html.trim();
 		if (!trimmed) {
 			return null;
@@ -1113,9 +1304,11 @@ export class CitationRenderer {
 	 */
 	render(
 		engines: StyleEngines,
-		group: CitationGroup
+		group: CitationGroup,
+		ref: LibraryRef = ZOTERO_LIBRARY
 	): RenderedCitation | null {
-		if (!this.known(group)) {
+		this.reading(ref);
+		if (!this.known(group, ref)) {
 			return null;
 		}
 		try {
@@ -1131,7 +1324,8 @@ export class CitationRenderer {
 			return this.renderedCitation(
 				engines,
 				group.citations.map((citation) => citation.id),
-				html
+				html,
+				ref
 			);
 		} catch {
 			return null;

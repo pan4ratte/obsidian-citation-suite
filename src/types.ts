@@ -28,8 +28,12 @@ export interface Citation {
 	note?: string;
 }
 
+/** Where a style's file is: Zotero's styles folder, or the vault itself. */
+export type StyleSource = "zotero" | "vault";
+
 /**
- * One citation style Zotero has installed, as its CSL file declares itself.
+ * One citation style, as its CSL file declares itself: one Zotero has
+ * installed, or one kept in the vault — which is the only kind a phone has.
  */
 export interface CitationStyle {
 	/**
@@ -41,6 +45,12 @@ export interface CitationStyle {
 	title: string;
 	/** The CSL file it was read from, for citeproc to be given the whole of. */
 	path: string;
+	/**
+	 * Which file system `path` is in: Zotero's data folder, read with Node, or
+	 * the vault, read through Obsidian. A style is read by whichever of the two
+	 * it came from, and only the vault's can be read on a phone.
+	 */
+	source: StyleSource;
 }
 
 /**
@@ -89,10 +99,17 @@ export interface CitationSuiteSettings {
 	/** How long, in milliseconds, a citation is hovered before its tooltip shows. */
 	citationTooltipDelay: number;
 	/**
-	 * Preview a note that names pandoc's `csl` or `lang` in the style and the
-	 * language it names, as pandoc will export it (`src/noteStyles.ts`).
+	 * Preview a note that names pandoc's `csl`, `lang` or `bibliography` in the
+	 * style, the language and from the library it names, as pandoc will export
+	 * it (`src/noteStyles.ts`).
 	 */
 	noteStyleProperties: boolean;
+	/**
+	 * The library file a note's sources are read from when it names none of its
+	 * own: a `.bib` or a CSL JSON export, by its path in the vault. Empty — the
+	 * default — for Zotero, which is where they come from on the desktop.
+	 */
+	libraryFile: string;
 	/**
 	 * Mark a citation key Zotero has no source for, in every view of a note,
 	 * whether or not a style is chosen.
@@ -151,6 +168,8 @@ export const DEFAULT_SETTINGS: CitationSuiteSettings = {
 	citationTooltips: true,
 	citationTooltipDelay: DEFAULT_TOOLTIP_DELAY,
 	noteStyleProperties: true,
+	// Zotero, until the reader names a file: it is what the plugin was for.
+	libraryFile: "",
 	markMissingKeys: true,
 	citationSuggestions: true,
 	// The view a note is written in, which is where most citations are read.

@@ -30,7 +30,11 @@ In the plugin settings you can choose a citation style from your Zotero library 
 
 A tab in the right sidebar lists every source cited in the note — formatted in the citation style chosen for the preview, following its sorting, numbering and indentation. Above the bibliography is the number of sources, a search of the list and a way to copy the bibliography. Right-clicking an entry opens a context menu that lets you open your note about the source or its PDF, reveal the source in Zotero, copy a single entry or find every mention of the source in the note.
 
-### 4. Automatic footnotes
+### 4. Sources from a file in the vault, and working on a phone
+
+Sources can come from a `.bib` or CSL JSON file kept in the vault rather than from Zotero — the same way Pandoc takes them. The file is named in the settings, and a note can name one of its own in its `bibliography` property. Citation styles can live in the vault too: `.csl` files appear in the list of styles beside Zotero's own. That is what lets the plugin work on phones and tablets, and on the desktop with Zotero closed: the insert-citation command then offers the sources in the file to pick from.
+
+### 5. Automatic footnotes
 
 Optionally, every citation can be placed into a footnote automatically, and where the body of the footnote goes is up to you — after the current paragraph, at the end of the current section or at the end of the note. Footnote numbers are written in arabic or roman numerals, text of your own can be added before and after the number, and all of these settings can be applied either globally or to individual notes. The "Insert footnote without a citation" command creates an empty footnote with the chosen settings without opening the citation window, and the "Renumber footnotes in order" command renumbers every footnote in the note in order and sorts them correctly.
 
@@ -70,6 +74,8 @@ If you want to test beta-versions of the plugin or use previous versions, you ca
 
 The panel at the top of the plugin settings shows Zotero's status and whether the plugin is ready to work.
 
+Zotero is only needed on the desktop. Where there is none — on a phone or tablet, or simply with Zotero closed — name a `.bib` or CSL JSON file kept in the vault in the plugin settings, and sources will be read from it. A note can name a file of its own in its `bibliography` property: it is looked for beside the note first and then from the vault's root, and there can be several — where two hold the same key, the source in the last of them is the one cited, as Pandoc does it. Where Zotero cannot be reached, the "Insert citation" command opens a list of the sources in that file instead of Zotero's citation window; a page number or any other addition to the citation is then yours to type. Opening a PDF and showing a source in Zotero are not shown on mobile.
+
 
 ## 2. Commands
 
@@ -77,7 +83,7 @@ By default Obsidian assigns no hotkeys to the commands. To set them, go to *Sett
 
 | Command | What it does |
 | --- | --- |
-| **Insert citation** | Opens Zotero's citation window and inserts the citation in Pandoc format. Selected text is replaced by the citation. Zotero notes picked in the window are inserted as Markdown text. |
+| **Insert citation** | Opens Zotero's citation window and inserts the citation in Pandoc format. Selected text is replaced by the citation. Zotero notes picked in the window are inserted as Markdown text. Where Zotero cannot be reached — on a phone, or with the program closed — it opens a list of the sources in the note's bibliography file instead. |
 | **Insert footnote without a citation** | Inserts an empty footnote following your footnote settings. |
 | **Renumber footnotes in order** | Renumbers the footnotes in the order they appear in the note. One undo reverts it. |
 | **Footnote settings for the current note** | Sets footnote settings for this note only. The same window opens from the note's context menu. |

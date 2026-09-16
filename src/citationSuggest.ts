@@ -9,7 +9,7 @@ import {
 } from "obsidian";
 import { t } from "lang/helpers";
 import { citedKeys, proseOf } from "src/citation";
-import { CitationRenderer } from "src/render";
+import { CitationRenderer, LibraryRef, ZOTERO_LIBRARY } from "src/render";
 import {
 	keyInsertion,
 	keyTrigger,
@@ -52,6 +52,8 @@ export interface CitationSuggestContext {
 	renderer: CitationRenderer;
 	enabled(): boolean;
 	brackets(): boolean;
+	/** Where the note at the path reads its sources from. */
+	libraryFor(path: string | null): LibraryRef;
 }
 
 export class CitationSuggest extends EditorSuggest<SuggestedSource> {
@@ -59,6 +61,10 @@ export class CitationSuggest extends EditorSuggest<SuggestedSource> {
 	private answer: { query: string; sources: SuggestedSource[] } | null = null;
 	/** The keys the note cites, read once each time the list opens. */
 	private cited: string[] | null = null;
+	/** Where the note the list is open in reads its sources from. */
+	private library: LibraryRef = ZOTERO_LIBRARY;
+	/** Every source of a file library, which is read whole rather than searched. */
+	private fileSources: SuggestedSource[] = [];
 	/** Whether the list is on screen, as `open` and `close` last left it. */
 	private shown = false;
 	private listeners = new Set<() => void>();
@@ -164,6 +170,17 @@ export class CitationSuggest extends EditorSuggest<SuggestedSource> {
 	async getSuggestions(context: EditorSuggestContext): Promise<SuggestedSource[]> {
 		this.cited ??= citedKeys(context.editor.getValue());
 		const query = context.query;
+		this.library = this.host.libraryFor(context.file?.path ?? null);
+		if (this.library !== ZOTERO_LIBRARY) {
+			// A file library is read whole: everything in it can be offered,
+			// and there is nothing to ask Zotero about.
+			const items = await this.host.renderer.allItems(this.library);
+			this.fileSources = [...items].map(([citekey, item]) =>
+				suggestedSource(citekey, item)
+			);
+			return this.suggestionsFor(this.context?.query ?? query);
+		}
+		this.fileSources = [];
 		if (query.length >= LIBRARY_QUERY && !this.answers(query)) {
 			await sleep(TYPING_DELAY);
 			const current = this.context?.query ?? query;
@@ -198,7 +215,12 @@ export class CitationSuggest extends EditorSuggest<SuggestedSource> {
 	private suggestionsFor(query: string): SuggestedSource[] {
 		const cited = this.cited ?? [];
 		const sources = new Map<string, SuggestedSource>();
-		for (const [citekey, item] of this.host.renderer.knownItems()) {
+		for (const source of this.fileSources) {
+			if (query || cited.includes(source.citekey)) {
+				sources.set(source.citekey, source);
+			}
+		}
+		for (const [citekey, item] of this.host.renderer.knownItems(this.library)) {
 			if (query || cited.includes(citekey)) {
 				sources.set(citekey, suggestedSource(citekey, item));
 			}

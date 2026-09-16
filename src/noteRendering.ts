@@ -3,10 +3,12 @@ import { citationSignature, NoteCitation } from "src/noteCitations";
 import {
 	citationItem,
 	CitationRenderer,
+	LibraryRef,
 	RenderedBibliography,
 	RenderedCitation,
 	StyleEngines,
 	StyleRef,
+	ZOTERO_LIBRARY,
 } from "src/render";
 
 /**
@@ -86,6 +88,8 @@ interface NoteState {
 interface Task {
 	path: string;
 	engines: StyleEngines;
+	/** Where the note's sources come from, for when the task is written. */
+	library: LibraryRef;
 	citations: NoteCitation[];
 	input: NoteInput;
 	bibliography: boolean;
@@ -126,9 +130,10 @@ export class NoteRenderer {
 	}
 
 	/** Every key the citations name that has not been looked up yet. */
-	pendingKeys(citations: NoteCitation[]): string[] {
+	pendingKeys(citations: NoteCitation[], library: LibraryRef = ZOTERO_LIBRARY): string[] {
 		return this.renderer.pending(
-			citations.flatMap((group) => group.citations.map((citation) => citation.id))
+			citations.flatMap((group) => group.citations.map((citation) => citation.id)),
+			library
 		);
 	}
 
@@ -154,13 +159,13 @@ export class NoteRenderer {
 		if (!engines) {
 			return null;
 		}
-		const input = this.inputOf(engines, citations);
+		const input = this.inputOf(engines, citations, style.library);
 		const state = this.states.get(path);
 		if (state && state.engines === engines && state.key === input.key) {
 			return compose(citations, input, state.outputs);
 		}
 		if (ready) {
-			this.enqueue(path, engines, citations, input, false, true);
+			this.enqueue(path, engines, style.library, citations, input, false, true);
 			this.run(IN_FRAME);
 			const written = this.states.get(path);
 			if (written && written.engines === engines && written.key === input.key) {
@@ -216,13 +221,15 @@ export class NoteRenderer {
 		bibliography: boolean
 	): Promise<NoteState | null> {
 		await this.renderer.load(
-			citations.flatMap((group) => group.citations.map((citation) => citation.id))
+			citations.flatMap((group) => group.citations.map((citation) => citation.id)),
+			false,
+			style.library
 		);
 		const engines = await this.renderer.engineFor(style);
 		if (!engines) {
 			return null;
 		}
-		const input = this.inputOf(engines, citations);
+		const input = this.inputOf(engines, citations, style.library);
 		const state = this.states.get(path);
 		if (state && state.engines === engines && state.key === input.key) {
 			if (!bibliography || state.bibliography !== undefined) {
@@ -230,12 +237,21 @@ export class NoteRenderer {
 			}
 			if (this.held.get(engines.session) === input.key) {
 				// The engine still holds this note: the list can be read now.
-				state.bibliography = this.renderer.bibliographyOf(engines);
+				state.bibliography = this.renderer.bibliographyOf(engines, style.library);
 				return state;
 			}
 		}
 		return new Promise((resolve) => {
-			this.enqueue(path, engines, citations, input, bibliography, false, resolve);
+			this.enqueue(
+				path,
+				engines,
+				style.library,
+				citations,
+				input,
+				bibliography,
+				false,
+				resolve
+			);
 			this.schedule();
 		});
 	}
@@ -245,13 +261,20 @@ export class NoteRenderer {
 	 * source is in hand, each in the note it stands in when the style cites
 	 * in notes.
 	 */
-	private inputOf(engines: StyleEngines, citations: NoteCitation[]): NoteInput {
+	private inputOf(
+		engines: StyleEngines,
+		citations: NoteCitation[],
+		library: LibraryRef
+	): NoteInput {
 		const given: number[] = [];
 		const input: SessionCitation[] = [];
 		const signatures: string[] = [];
-		const keyParts: string[] = [];
+		// The library is part of the key: the same note read from another
+		// library is another note, and what was written for the one must not
+		// be handed out for the other.
+		const keyParts: string[] = [library];
 		citations.forEach((group, index) => {
-			if (!this.renderer.known(group)) {
+			if (!this.renderer.known(group, library)) {
 				return;
 			}
 			const noteIndex = engines.notes ? group.noteNumber : 0;
@@ -273,6 +296,7 @@ export class NoteRenderer {
 	private enqueue(
 		path: string,
 		engines: StyleEngines,
+		library: LibraryRef,
 		citations: NoteCitation[],
 		input: NoteInput,
 		bibliography: boolean,
@@ -287,7 +311,16 @@ export class NoteRenderer {
 			task.job = null;
 		}
 		if (!task) {
-			task = { path, engines, citations, input, bibliography, job: null, waiters: [] };
+			task = {
+				path,
+				engines,
+				library,
+				citations,
+				input,
+				bibliography,
+				job: null,
+				waiters: [],
+			};
 			const first = this.queue[0];
 			if (urgent && !first?.job) {
 				this.queue.unshift(task);
@@ -298,6 +331,7 @@ export class NoteRenderer {
 			}
 		}
 		task.citations = citations;
+		task.library = library;
 		task.bibliography ||= bibliography;
 		if (waiter) {
 			task.waiters.push(waiter);
@@ -347,7 +381,7 @@ export class NoteRenderer {
 	 * asked while the engine still holds it, and tells whoever is waiting.
 	 */
 	private finish(task: Task, failed: boolean): void {
-		const { engines, input, citations } = task;
+		const { engines, input, citations, library } = task;
 		const ids = (given: number): string[] =>
 			citations[input.given[given]].citations.map((citation) => citation.id);
 		let outputs: (RenderedCitation | null)[];
@@ -358,17 +392,19 @@ export class NoteRenderer {
 			this.held.delete(engines.session);
 			engines.session.reset();
 			outputs = input.given.map((index) =>
-				this.renderer.render(engines, citations[index])
+				this.renderer.render(engines, citations[index], library)
 			);
 			bibliography = task.bibliography ? null : undefined;
 		} else {
 			const job = task.job;
 			outputs = job
 				.outputs()
-				.map((html, given) => this.renderer.renderedCitation(engines, ids(given), html));
+				.map((html, given) =>
+					this.renderer.renderedCitation(engines, ids(given), html, library)
+				);
 			this.held.set(engines.session, input.key);
 			bibliography = task.bibliography
-				? this.renderer.bibliographyOf(engines)
+				? this.renderer.bibliographyOf(engines, library)
 				: undefined;
 		}
 		const previous = this.states.get(task.path);

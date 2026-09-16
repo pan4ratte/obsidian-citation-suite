@@ -139,6 +139,20 @@ function yearOf(date: unknown): string {
 	return /\d{4}/.exec(written)?.[0] ?? "";
 }
 
+/**
+ * A citation of one source, standing on its own, as the settings write one: in
+ * brackets when citations are written in brackets, and with the key braced
+ * where pandoc needs it braced. What the list after `@` writes is
+ * `keyInsertion`, which has a half-typed key to replace and may be standing
+ * inside a citation already; this is for citing where there is nothing yet.
+ */
+export function citationOf(citekey: string, brackets: boolean): string {
+	// `citationKeyToken` writes the `@` itself, and the braces around a key
+	// that needs them.
+	const key = citationKeyToken(citekey);
+	return brackets ? `[${key}]` : key;
+}
+
 /** A source as the list shows it, from its key and its CSL. */
 export function suggestedSource(
 	citekey: string,

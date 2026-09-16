@@ -47,6 +47,7 @@
 	},
 	"homepage": "https://github.com/pan4ratte/obsidian-citation-suite#readme",
 	"dependencies": {
+		"@retorquere/bibtex-parser": "^11.0.0",
 		"citeproc": "^2.4.63"
 	}
 }

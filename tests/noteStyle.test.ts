@@ -10,25 +10,47 @@ import {
 import { CitationStyle } from "src/types";
 
 const styles: CitationStyle[] = [
-	{ id: "http://www.zotero.org/styles/apa", title: "APA", path: "/z/apa.csl" },
-	{ id: "http://www.zotero.org/styles/ieee", title: "IEEE", path: "/z/ieee.csl" },
-	{ id: "2f7a0b3c-uuid", title: "Hand-written", path: "/z/mine.csl" },
+	{
+		id: "http://www.zotero.org/styles/apa",
+		title: "APA",
+		path: "/z/apa.csl",
+		source: "zotero",
+	},
+	{
+		id: "http://www.zotero.org/styles/ieee",
+		title: "IEEE",
+		path: "/z/ieee.csl",
+		source: "zotero",
+	},
+	{ id: "2f7a0b3c-uuid", title: "Hand-written", path: "/z/mine.csl", source: "zotero" },
 ];
+
+/** The properties of a note that names none of them. */
+const none = { csl: null, lang: null, bibliography: [] };
 
 describe("styleProperties", () => {
 	it("reads csl, citation-style for want of it, and lang", () => {
 		expect(styleProperties({ csl: " gost.csl ", lang: "ru-RU" })).toEqual({
+			...none,
 			csl: "gost.csl",
 			lang: "ru-RU",
 		});
-		expect(styleProperties({ "citation-style": "apa" })).toEqual({ csl: "apa", lang: null });
+		expect(styleProperties({ "citation-style": "apa" })).toEqual({ ...none, csl: "apa" });
 		expect(styleProperties({ csl: "a", "citation-style": "b" }).csl).toBe("a");
 	});
 
 	it("reads nothing that is not text", () => {
-		expect(styleProperties({ csl: ["apa"], lang: 7 })).toEqual({ csl: null, lang: null });
-		expect(styleProperties({ csl: "  " })).toEqual({ csl: null, lang: null });
-		expect(styleProperties(undefined)).toEqual({ csl: null, lang: null });
+		expect(styleProperties({ csl: ["apa"], lang: 7 })).toEqual(none);
+		expect(styleProperties({ csl: "  " })).toEqual(none);
+		expect(styleProperties(undefined)).toEqual(none);
+	});
+
+	it("reads one bibliography file, or the list of them pandoc takes", () => {
+		expect(styleProperties({ bibliography: "refs.bib" }).bibliography).toEqual(["refs.bib"]);
+		expect(
+			styleProperties({ bibliography: [" one.bib ", "two.json", 7] }).bibliography
+		).toEqual(["one.bib", "two.json"]);
+		expect(styleProperties({ bibliography: "" }).bibliography).toEqual([]);
 	});
 });
 

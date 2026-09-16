@@ -4,6 +4,7 @@ import {
 	MarkdownView,
 	Menu,
 	Notice,
+	Platform,
 	Plugin,
 	TFile,
 } from "obsidian";
@@ -26,12 +27,13 @@ import {
 	renumberFootnotes,
 } from "src/footnote";
 import { openFootnotePopover } from "src/footnotePopover";
+import { citedKeys } from "src/citation";
 import { citationExtension } from "src/live";
 import { applyLook, clearLook } from "src/look";
 import { MarkdownModal } from "src/markdownModal";
 import { NoteFootnoteModal } from "src/noteFootnoteModal";
 import { NoteRenderer } from "src/noteRendering";
-import { NoteStyles } from "src/noteStyles";
+import { NoteStyles, StyleFiles } from "src/noteStyles";
 import {
 	forgetNoteFootnotes,
 	moveNoteFootnotes,
@@ -40,9 +42,13 @@ import {
 } from "src/noteFootnotes";
 import { formatCitations } from "src/pandoc";
 import { CitationTooltip, renderCitations } from "src/reading";
-import { CitationRenderer } from "src/render";
+import { CitationRenderer, LibraryRef, ZOTERO_LIBRARY } from "src/render";
 import { CitationSuiteSettingTab } from "src/settings";
-import { installedStyles, readStyleFile, zoteroCitePrefs } from "src/styles";
+import { pickSource } from "src/sourceModal";
+import { citationOf, suggestedSource } from "src/suggestion";
+import { DEFAULT_CITE_PREFS, ZoteroCitePrefs } from "src/styles";
+import { readVaultStyle, vaultStyles } from "src/vaultStyles";
+import { VaultLibraries } from "src/vaultLibrary";
 import { asBlock, noteMarkdown } from "src/zoteroNote";
 import {
 	CitationStyle,
@@ -78,21 +84,40 @@ export default class CitationSuitePlugin extends Plugin {
 	 * price for that.
 	 */
 	styles: CitationStyle[] = [];
+	/**
+	 * The library files of the vault, for the notes whose sources are read
+	 * from one rather than from Zotero.
+	 */
+	libraries = new VaultLibraries(this.app);
 	/** Renders what the note says into what the style would say. */
 	renderer = new CitationRenderer(
 		DEFAULT_SETTINGS.port,
 		[],
-		readStyleFile,
-		{ locale: "", citePaperArticleURLs: false }
+		(style) => this.readStyle(style),
+		DEFAULT_CITE_PREFS,
+		this.libraries
 	);
 	/** Writes a note's citations together, for every view that shows them. */
 	notes = new NoteRenderer(this.renderer);
 	/** The style each note is previewed in: the settings', or its own pandoc `csl` and `lang`. */
 	noteStyles = new NoteStyles(this.app, {
 		renderer: this.renderer,
+		libraries: this.libraries,
+		readStyle: (style) => this.readStyle(style),
+		styleFiles: () => this.styleFiles,
 		styleId: () => this.settings.citationStyle,
 		readProperties: () => this.settings.noteStyleProperties,
+		settingsLibrary: () => this.settings.libraryFile,
 	});
+	/**
+	 * What the desktop can read off its disk: Zotero's styles and preferences,
+	 * and the style files pandoc keeps outside the vault. `null` on a phone,
+	 * where the module behind it is never loaded — it imports Node's `fs`,
+	 * which a phone has nothing to answer with.
+	 */
+	private desktop: typeof import("src/zoteroStyles") | null = null;
+	/** Where style files outside the vault are looked for; `null` on a phone. */
+	private styleFiles: StyleFiles | null = null;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -106,11 +131,32 @@ export default class CitationSuitePlugin extends Plugin {
 				applyLook(win.document.body, this.settings);
 			})
 		);
-		this.styles = await installedStyles();
-		this.renderer.reset(
-			this.settings.port,
-			this.styles,
-			await zoteroCitePrefs()
+		await this.loadDesktop();
+		this.styles = await this.allStyles();
+		this.renderer.reset(this.settings.port, this.styles, await this.citePrefs());
+		this.applyLibrary();
+		// A library file written over — by the reader, or by a reference
+		// manager exporting into the vault — is read again, and every note
+		// showing its sources is drawn again.
+		this.registerEvent(
+			this.app.vault.on("modify", (file) => this.libraries.changed(file.path))
+		);
+		this.registerEvent(
+			this.app.vault.on("delete", (file) => this.libraries.changed(file.path))
+		);
+		this.registerEvent(
+			this.app.vault.on("rename", (file, oldPath) => {
+				this.libraries.changed(oldPath);
+				this.libraries.changed(file.path);
+			})
+		);
+		this.register(
+			this.libraries.onChange(() => {
+				this.renderer.forgetFiles();
+				this.notes.clear();
+				this.redrawCitations();
+				this.refreshBibliographyPanes();
+			})
 		);
 		await this.renderer.prepare(this.settings.citationStyle);
 		this.addSettingTab(new CitationSuiteSettingTab(this.app, this));
@@ -123,6 +169,8 @@ export default class CitationSuitePlugin extends Plugin {
 			notes: this.notes,
 			tooltip: () => this.citationTooltip(),
 			markMissing: () => this.settings.markMissingKeys,
+			libraryFor: (path: string | null): LibraryRef =>
+				this.noteStyles.libraryOf(path),
 		};
 		const onStyleChange = (listener: (path: string) => void): (() => void) =>
 			this.noteStyles.onChange(listener);
@@ -167,6 +215,7 @@ export default class CitationSuitePlugin extends Plugin {
 			renderer: this.renderer,
 			enabled: () => this.settings.citationSuggestions,
 			brackets: () => this.settings.brackets,
+			libraryFor: (path) => this.noteStyles.libraryOf(path),
 		});
 		this.registerEditorSuggest(suggest);
 
@@ -189,6 +238,7 @@ export default class CitationSuitePlugin extends Plugin {
 
 		// The command IDs are persisted with whatever hotkey is bound to them,
 		// so they are fixed: a rename would silently unbind it.
+		//
 		this.addCommand({
 			id: "insert-citation",
 			name: t.COMMAND_INSERT_CITATION,
@@ -407,13 +457,28 @@ export default class CitationSuitePlugin extends Plugin {
 		editor: Editor,
 		ctx: MarkdownView | MarkdownFileInfo
 	): Promise<void> {
-		const status = await probeZotero(this.settings.port);
-		if (status === "unreachable") {
-			new Notice(t.NOTICE_ZOTERO_UNREACHABLE);
-			return;
-		}
-		if (status === "starting") {
-			new Notice(t.NOTICE_ZOTERO_STARTING);
+		// Zotero's window where there is a Zotero to open it: it is the one
+		// that cites with a page, a prefix and several sources at once, and it
+		// is what this command has always opened. Where there is none — on a
+		// phone, or with Zotero closed — the note's own library file is picked
+		// from instead, which is a citation and nothing around it.
+		const library = this.noteStyles.libraryOf(ctx.file?.path ?? null);
+		const status = Platform.isDesktopApp
+			? await probeZotero(this.settings.port)
+			: "unreachable";
+		if (status !== "ready") {
+			if (library !== ZOTERO_LIBRARY) {
+				await this.pickFromLibrary(editor, ctx, library);
+				return;
+			}
+			// Nothing to cite from: no Zotero answering, and no file named.
+			new Notice(
+				!Platform.isDesktopApp
+					? t.NOTICE_NO_LIBRARY
+					: status === "starting"
+						? t.NOTICE_ZOTERO_STARTING
+						: t.NOTICE_ZOTERO_UNREACHABLE
+			);
 			return;
 		}
 
@@ -439,6 +504,48 @@ export default class CitationSuitePlugin extends Plugin {
 
 		// A closed window with nothing chosen is not a failure and says
 		// nothing: the reader changed their mind.
+		await this.writePick(editor, ctx, pick);
+	}
+
+	/**
+	 * Cites a source from the note's own library file: the list of everything
+	 * in it, and the key of whatever is picked written where the cursor is.
+	 *
+	 * It is the citation and nothing around it — the window Zotero opens is
+	 * still the way to cite with a page or a prefix — and it goes in the way a
+	 * pick from that window does, footnote and all.
+	 */
+	private async pickFromLibrary(
+		editor: Editor,
+		ctx: MarkdownView | MarkdownFileInfo,
+		library: LibraryRef
+	): Promise<void> {
+		const items = await this.renderer.allItems(library);
+		if (items.size === 0) {
+			new Notice(t.NOTICE_LIBRARY_EMPTY);
+			return;
+		}
+		const sources = [...items].map(([citekey, item]) =>
+			suggestedSource(citekey, item)
+		);
+		const cited = citedKeys(editor.getValue());
+		const picked = await pickSource(this.app, sources, cited);
+		if (!picked) {
+			return;
+		}
+		const citation = citationOf(picked.citekey, this.settings.brackets);
+		await this.writePick(editor, ctx, { citation, notes: "" });
+	}
+
+	/**
+	 * Writes what was picked into the note: the citation where the cursor is
+	 * or in a footnote, then any Zotero notes, and the cursor last of all.
+	 */
+	private async writePick(
+		editor: Editor,
+		ctx: MarkdownView | MarkdownFileInfo,
+		pick: Pick
+	): Promise<void> {
 		let footnote: FootnoteEdit | null = null;
 		if (pick.citation) {
 			if (noteFootnoteSettings(this.settings, ctx.file?.path).footnotes) {
@@ -636,16 +743,77 @@ export default class CitationSuitePlugin extends Plugin {
 	async restyle(): Promise<void> {
 		this.notes.clear();
 		this.noteStyles.clear();
-		this.renderer.reset(
-			this.settings.port,
-			this.styles,
-			await zoteroCitePrefs()
-		);
+		this.libraries.clear();
+		this.styles = await this.allStyles();
+		this.renderer.reset(this.settings.port, this.styles, await this.citePrefs());
+		this.applyLibrary();
 		await this.renderer.prepare(this.settings.citationStyle);
 		this.redrawCitations();
-		for (const leaf of this.app.workspace.getLeavesOfType(
-			BIBLIOGRAPHY_VIEW
-		)) {
+		this.refreshBibliographyPanes();
+	}
+
+	/**
+	 * Loads what only a desktop can run: the module that reads Zotero's styles
+	 * and preferences off the disk. It imports Node's `fs`, `os` and `path`,
+	 * which a phone has nothing behind, so it is loaded here rather than at the
+	 * top of the file — and on a phone it is never loaded at all.
+	 */
+	private async loadDesktop(): Promise<void> {
+		if (!Platform.isDesktopApp) {
+			return;
+		}
+		try {
+			this.desktop = await import("src/zoteroStyles");
+			this.styleFiles = this.desktop.styleFiles(this.app);
+		} catch (error) {
+			// A desktop that will not load it is a desktop without Zotero's
+			// styles, which is the same as having none installed.
+			console.error("Citation Suite: the desktop styles could not be loaded", error);
+		}
+	}
+
+	/**
+	 * Every style to choose from: the ones Zotero has, on a desktop, and the
+	 * ones the vault holds, everywhere. A vault style of the same id as one of
+	 * Zotero's is listed as well — they are two files, and the note that names
+	 * one names it by path.
+	 */
+	private async allStyles(): Promise<CitationStyle[]> {
+		const installed = (await this.desktop?.installedStyles()) ?? [];
+		const inVault = await vaultStyles(this.app);
+		return [...installed, ...inVault].sort((a, b) => a.title.localeCompare(b.title));
+	}
+
+	/** What Zotero writes citations by, or the defaults where it cannot be read. */
+	private async citePrefs(): Promise<ZoteroCitePrefs> {
+		return (await this.desktop?.zoteroCitePrefs()) ?? DEFAULT_CITE_PREFS;
+	}
+
+	/** The whole of a style's file, read wherever that style's file is. */
+	private readStyle(style: CitationStyle): Promise<string> {
+		if (style.source === "vault") {
+			return readVaultStyle(this.app, style);
+		}
+		const desktop = this.desktop;
+		if (!desktop) {
+			return Promise.reject(new Error("no styles outside the vault on this device"));
+		}
+		return desktop.readStyleFile(style);
+	}
+
+	/**
+	 * Where the notes that name no library of their own read their sources
+	 * from: the file the settings name, found from the vault's root. A note is
+	 * answered for itself when it is rendered, since a name in the settings can
+	 * stand for a file beside the note as well.
+	 */
+	private applyLibrary(): void {
+		this.renderer.setFallbackLibrary(this.noteStyles.libraryOf(null));
+	}
+
+	/** Draws the bibliography pane again, in every window it is open in. */
+	private refreshBibliographyPanes(): void {
+		for (const leaf of this.app.workspace.getLeavesOfType(BIBLIOGRAPHY_VIEW)) {
 			const view = leaf.view;
 			if (view instanceof BibliographyView) {
 				void view.refresh();

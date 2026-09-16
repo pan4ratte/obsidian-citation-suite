@@ -26,6 +26,7 @@ describe("parseStyle", () => {
 			id: "http://www.zotero.org/styles/apa",
 			title: "APA Style 7th edition",
 			path: "",
+			source: "zotero",
 		});
 	});
 

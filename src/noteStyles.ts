@@ -1,21 +1,26 @@
-import { App, FileSystemAdapter, TFile } from "obsidian";
-import { homedir, platform } from "os";
-import { dirname, isAbsolute, join } from "path";
+import { App, TFile } from "obsidian";
 import {
 	carriedLocale,
 	CitationRenderer,
+	LibraryRef,
+	libraryRefOf,
 	parentId,
 	StyleRef,
 	styleLocale,
+	ZOTERO_LIBRARY,
 } from "src/render";
+import { VaultLibraries } from "src/vaultLibrary";
 import {
 	cslCandidates,
+	cslFileName,
 	isStyleUrl,
 	StyleProperties,
 	styleForUrl,
 	styleProperties,
+	vaultCandidates,
 } from "src/noteStyle";
-import { parseStyle, readHead, readStyleFile } from "src/styles";
+import { parseStyle } from "src/styles";
+import { vaultStyle } from "src/vaultStyles";
 import { CitationStyle } from "src/types";
 
 /**
@@ -53,22 +58,38 @@ export interface NoteStyle {
 /** What the resolver is handed by the plugin. */
 export interface NoteStylesContext {
 	renderer: CitationRenderer;
+	/** The vault's library files, for a note that reads its sources from one. */
+	libraries: VaultLibraries;
+	/** The whole of a style's file, read wherever that style's file is. */
+	readStyle(style: CitationStyle): Promise<string>;
+	/** Where style files outside the vault are looked for; `null` on a phone. */
+	styleFiles(): StyleFiles | null;
 	/** The style chosen in the settings, or empty for no preview. */
 	styleId(): string;
-	/** Whether notes' `csl` and `lang` are read at all. */
+	/** Whether notes' `csl`, `lang` and `bibliography` are read at all. */
 	readProperties(): boolean;
+	/** The library file the settings name, for a note that names none. */
+	settingsLibrary(): string;
 }
 
-/** pandoc's user data directories: the ones it reads `csl/` from. */
-function pandocDataDirs(): string[] {
-	const home = homedir();
-	if (platform() === "win32") {
-		return [join(process.env.APPDATA ?? join(home, "AppData", "Roaming"), "pandoc")];
-	}
-	return [
-		join(process.env.XDG_DATA_HOME ?? join(home, ".local", "share"), "pandoc"),
-		join(home, ".pandoc"),
-	];
+/**
+ * What a desktop can do that a phone cannot: look for a style file outside the
+ * vault, where pandoc keeps the ones the reader installed. `src/main.ts` hands
+ * this over only where there is a file system to hand it for, and everything
+ * here goes without it on a phone — where a style outside the vault is a style
+ * that is not there at all.
+ */
+export interface StyleFiles {
+	/** The folders pandoc runs in, which is where it reads a relative `csl` from. */
+	folders: (notePath: string) => string[];
+	/** pandoc's user data directories: the ones it reads `csl/` from. */
+	dataDirs: () => string[];
+	/** The head of a style file, or nothing when it cannot be read. */
+	readHead: (path: string) => Promise<string | null>;
+	// Written as properties rather than methods: they are handed on as values,
+	// and a method handed on is a method parted from its object.
+	join: (...parts: string[]) => string;
+	isAbsolute: (path: string) => boolean;
 }
 
 export class NoteStyles {
@@ -112,7 +133,7 @@ export class NoteStyles {
 	/** The note's properties as they stand, or none when they are not read. */
 	private properties(path: string): StyleProperties {
 		if (!this.context.readProperties()) {
-			return { csl: null, lang: null };
+			return { csl: null, lang: null, bibliography: [] };
 		}
 		return this.frontmatterProperties(path);
 	}
@@ -136,7 +157,7 @@ export class NoteStyles {
 	async pandocLocale(path: string | null): Promise<string | null> {
 		const properties = path
 			? this.frontmatterProperties(path)
-			: { csl: null, lang: null };
+			: { csl: null, lang: null, bibliography: [] };
 		let wanted = properties.lang ?? "";
 		if (!wanted && properties.csl && path) {
 			const style = await this.findStyle(properties.csl, path);
@@ -155,11 +176,34 @@ export class NoteStyles {
 		style: CitationStyle
 	): Promise<{ rules: string; language: string }> {
 		const read = async (source: CitationStyle): Promise<string> =>
-			readStyleFile(source).catch(() => "");
+			this.context.readStyle(source).catch(() => "");
 		const csl = await read(style);
 		const parent = this.context.renderer.styleById(parentId(csl));
 		const rules = parent ? await read(parent) : csl;
 		return { rules, language: styleLocale(csl) || styleLocale(rules) };
+	}
+
+	/**
+	 * Where a note's sources come from: the library files its `bibliography`
+	 * names, or the one the settings name, or Zotero. Worked out as it is asked
+	 * for, since it is only the note's properties and a look in the vault — no
+	 * reading, and nothing to wait for.
+	 *
+	 * A name that stands for no file in the vault is left out. A note naming
+	 * only names like that reads from nothing rather than falling back to
+	 * Zotero: it says where its sources are, and the honest answer is that they
+	 * are not there.
+	 */
+	libraryOf(path: string | null): LibraryRef {
+		const named = path ? this.properties(path).bibliography : [];
+		if (named.length > 0) {
+			return libraryRefOf(this.context.libraries.paths(named, path));
+		}
+		const settings = this.context.settingsLibrary();
+		if (!settings) {
+			return ZOTERO_LIBRARY;
+		}
+		return libraryRefOf(this.context.libraries.paths([settings], path));
 	}
 
 	/** Everything an answer is worked out from, as one string. */
@@ -181,7 +225,9 @@ export class NoteStyles {
 		this.seen.set(path, signature);
 		const properties = this.properties(path);
 		if (!properties.csl && !properties.lang) {
-			return this.plain();
+			// Its library, which it may still name, is no part of working the
+			// style out: `plain` reads it as it stands.
+			return this.plain(path);
 		}
 		const known = this.resolved.get(path);
 		if (known && known.signature === signature) {
@@ -218,9 +264,10 @@ export class NoteStyles {
 	}
 
 	/** A note previewed as Zotero writes it, in the settings' style. */
-	private plain(): NoteStyle {
+	private plain(path: string | null = null): NoteStyle {
+		const ref = this.context.renderer.zoteroStyle(this.context.styleId());
 		return {
-			ref: this.context.renderer.zoteroStyle(this.context.styleId()),
+			ref: ref ? { ...ref, library: this.libraryOf(path) } : null,
 			properties: null,
 			found: null,
 			missingCsl: null,
@@ -232,11 +279,11 @@ export class NoteStyles {
 		const { renderer } = this.context;
 		const settings = renderer.zoteroStyle(this.context.styleId());
 		if (!properties.csl && !properties.lang) {
-			return this.plain();
+			return this.plain(path);
 		}
 		if (!settings) {
 			// No preview at all, whatever the note names.
-			return { ...this.plain(), properties };
+			return { ...this.plain(path), properties };
 		}
 
 		let found: CitationStyle | null = null;
@@ -251,7 +298,12 @@ export class NoteStyles {
 		const wanted = properties.lang || language || "en-US";
 		const locale = carriedLocale(wanted);
 		return {
-			ref: renderer.pandocStyle(style, locale || "en-US", rules),
+			ref: renderer.pandocStyle(
+				style,
+				locale || "en-US",
+				rules,
+				this.libraryOf(path)
+			),
 			properties,
 			found,
 			missingCsl: properties.csl && !found ? properties.csl : null,
@@ -269,11 +321,31 @@ export class NoteStyles {
 		if (isStyleUrl(csl)) {
 			return styleForUrl(csl, renderer.knownStyles());
 		}
-		const adapter = this.app.vault.adapter;
-		const vault = adapter instanceof FileSystemAdapter ? adapter.getBasePath() : "";
-		const folders = vault ? [join(vault, dirname(notePath)), vault] : [];
-		for (const candidate of cslCandidates(csl, folders, pandocDataDirs(), join, isAbsolute)) {
-			const head = await readHead(candidate);
+		// The vault first, which is where pandoc reads a note's own `csl` from
+		// — beside the note, then from the root — and the only place a phone
+		// has to look.
+		const wanted = cslFileName(csl);
+		for (const candidate of vaultCandidates(wanted, notePath)) {
+			const file = this.app.vault.getFileByPath(candidate);
+			const style = file ? await vaultStyle(this.app, file) : null;
+			if (style) {
+				return style;
+			}
+		}
+		// Then the `csl` folder of pandoc's own data directory, which is
+		// outside the vault and so is a desktop's alone.
+		const files = this.context.styleFiles();
+		if (!files) {
+			return null;
+		}
+		for (const candidate of cslCandidates(
+			csl,
+			files.folders(notePath),
+			files.dataDirs(),
+			files.join,
+			files.isAbsolute
+		)) {
+			const head = await files.readHead(candidate);
 			const style = head ? parseStyle(head, candidate) : null;
 			if (style) {
 				return style;

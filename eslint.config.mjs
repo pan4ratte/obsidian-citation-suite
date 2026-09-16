@@ -82,6 +82,24 @@ export default defineConfig([
 		},
 	},
 
+	// The one module that reads the disk, and the tests, which run in Node.
+	//
+	// `src/zoteroStyles.ts` imports `fs`, `os` and `path` at its top, and the
+	// rule asks for a dynamic import guarded by the platform. That guard is
+	// there — `src/main.ts` imports this whole module with `await import()`
+	// behind `Platform.isDesktopApp`, so a phone never loads it and never
+	// reaches an import inside it — but the rule reads the module rather than
+	// what loads it, and cannot see it.
+	{
+		files: ["src/zoteroStyles.ts", "tests/**/*.ts"],
+		languageOptions: {
+			globals: globals.node,
+		},
+		rules: {
+			"obsidianmd/no-nodejs-modules": "off",
+		},
+	},
+
 	// Build tooling runs in Node, outside the plugin sandbox. The configs are
 	// not part of the program tsconfig describes, so the type-checked rules
 	// have nothing to read for them and error out rather than report; they are

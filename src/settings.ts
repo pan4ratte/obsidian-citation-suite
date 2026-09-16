@@ -2,6 +2,7 @@ import {
 	App,
 	ExtraButtonComponent,
 	Notice,
+	Platform,
 	PluginSettingTab,
 	Setting,
 	SettingDefinitionControl,
@@ -134,11 +135,13 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 		if (
 			key === "citationStyle" ||
 			key === "port" ||
-			key === "noteStyleProperties"
+			key === "noteStyleProperties" ||
+			key === "libraryFile"
 		) {
 			// Each changes what the citations already on screen should look
-			// like — the style, the library behind them, or whether a note's
-			// own style is read — and none redraws them on its own.
+			// like — the style, the library behind them, whether a note's own
+			// style is read, or which file the sources come from — and none
+			// redraws them on its own.
 			await this.plugin.restyle();
 		}
 		if (REDRAW_KEYS.has(key)) {
@@ -456,15 +459,24 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 	}
 
 	getSettingDefinitions(): SettingDefinitionItem[] {
+		// Zotero runs on a desktop and is reached over a local port, neither of
+		// which a phone has. What is about Zotero is left out there rather than
+		// shown as something that will not work: the reader's sources come from
+		// a file of the vault instead.
+		const zotero = Platform.isDesktopApp;
 		return [
 			// The status card stands in a group of its own whose card styles.css
 			// blanks: it is a card of its own, and putting it inside the first
 			// section's card would make it read as a setting of that section.
-			{
-				type: "group",
-				cls: "citation-suite-settings-group",
-				items: [this.statusSetting()],
-			},
+			...(zotero
+				? [
+						{
+							type: "group" as const,
+							cls: "citation-suite-settings-group",
+							items: [this.statusSetting()],
+						},
+					]
+				: []),
 			// Every setting below is a control 1.13 draws itself, so these
 			// groups keep the card Obsidian gives them. `citation-suite-settings-rows`
 			// is what styles.css corrects the row layout through — see the
@@ -514,6 +526,15 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 						name: t.SETTING_SUGGEST_NAME,
 						desc: t.SETTING_SUGGEST_DESC,
 						control: { type: "toggle", key: "citationSuggestions" },
+					},
+					{
+						name: t.SETTING_LIBRARY_NAME,
+						desc: t.SETTING_LIBRARY_DESC,
+						control: {
+							type: "text",
+							key: "libraryFile",
+							placeholder: t.SETTING_LIBRARY_PLACEHOLDER,
+						},
 					},
 				],
 			},
@@ -574,19 +595,26 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 					this.resetNoteFootnotesSetting(),
 				],
 			},
-			{
-				type: "group",
-				cls: "citation-suite-settings-rows",
-				heading: t.SECTION_CONNECTION,
-				items: [
-					this.portSetting(),
-					{
-						name: t.SETTING_MINIMIZE_NAME,
-						desc: t.SETTING_MINIMIZE_DESC,
-						control: { type: "toggle", key: "minimizeZotero" },
-					},
-				],
-			},
+			...(zotero
+				? [
+						{
+							type: "group" as const,
+							cls: "citation-suite-settings-rows",
+							heading: t.SECTION_CONNECTION,
+							items: [
+								this.portSetting(),
+								{
+									name: t.SETTING_MINIMIZE_NAME,
+									desc: t.SETTING_MINIMIZE_DESC,
+									control: {
+										type: "toggle" as const,
+										key: "minimizeZotero",
+									},
+								},
+							],
+						},
+					]
+				: []),
 		];
 	}
 }

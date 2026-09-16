@@ -33,7 +33,7 @@ export default {
 	// ─── Settings ────────────────────────────────────────────────────────────
 	SECTION_CITATION: "Citation format",
 	SETTING_STYLE_NAME: "Choose a citation display style",
-	SETTING_STYLE_DESC: "Citations stay in Pandoc format, but for easier reading you can choose a citation style from your Zotero library to preview them in. The preview does not affect how the note is exported.",
+	SETTING_STYLE_DESC: "Citations stay in Pandoc format, but for easier reading you can choose a citation style to preview them in — from your Zotero library, or from a .csl file in the vault. The preview does not affect how the note is exported.",
 	SETTING_STYLE_PANDOC: "Do not style the preview",
 	SETTING_TOOLTIPS_NAME: "Show the source's bibliography entry on hover",
 	SETTING_TOOLTIPS_DESC: "Hovering over a citation will show its formatted bibliography entry.",
@@ -41,10 +41,13 @@ export default {
 	SETTING_TOOLTIP_DELAY_DESC: "Adjust how soon the source's bibliography entry appears in the tooltip.",
 	SETTING_NOTE_STYLE_NAME: "Style the citation preview in the style and language from the note's properties",
 	SETTING_NOTE_STYLE_DESC: "When the csl, citation-style or lang properties are filled in, the preview will be styled according to them.",
-	SETTING_MARK_MISSING_NAME: "Mark citation keys Zotero does not have",
-	SETTING_MARK_MISSING_DESC: "The key of a source not found in your Zotero library will be underlined with a wavy line.",
+	SETTING_MARK_MISSING_NAME: "Mark citation keys the library does not have",
+	SETTING_MARK_MISSING_DESC: "The key of a source not found in the library — in Zotero, or in the file you named — will be underlined with a wavy line.",
 	SETTING_BRACKETS_NAME: "Put citations in square brackets",
 	SETTING_BRACKETS_DESC: "Citations are inserted as [@doe2020, p. 33] for a correct export with Pandoc.",
+	SETTING_LIBRARY_NAME: "Bibliography file in the vault",
+	SETTING_LIBRARY_DESC: "Give the path to a .bib or CSL JSON file and sources will be read from it rather than from Zotero. Leave it empty to ask Zotero. A note can name a file of its own in its bibliography property, as it would for Pandoc.",
+	SETTING_LIBRARY_PLACEHOLDER: "For instance, refs.bib",
 	SETTING_SUGGEST_NAME: "Offer autocomplete while a citation key is typed",
 	SETTING_SUGGEST_DESC: "Typing the at sign opens a list of sources, filtered by various fields, that lets you pick a source without opening Zotero's citation window.",
 
@@ -91,6 +94,13 @@ export default {
 	SUGGEST_NAVIGATE: "Move through the list",
 	SUGGEST_INSERT: "Insert the key",
 	SUGGEST_DISMISS: "Close",
+
+	// The window for picking a source from the bibliography file, where Zotero
+	// cannot be reached.
+	SOURCE_MODAL_PLACEHOLDER: "Search by key, title, author or year",
+	SOURCE_MODAL_EMPTY: "No source matches",
+	NOTICE_NO_LIBRARY: "Zotero cannot be reached. Name a bibliography file in the plugin settings, or in the note's bibliography property.",
+	NOTICE_LIBRARY_EMPTY: "The bibliography file has no sources.",
 
 	// ─── Note footnote settings ──────────────────────────────────────────────
 	NOTE_FOOTNOTES_TITLE: "Footnote settings for this note",

@@ -5,6 +5,7 @@ import {
 	MarkdownView,
 	Menu,
 	Notice,
+	Platform,
 	sanitizeHTMLToDom,
 	SearchComponent,
 	setIcon,
@@ -18,7 +19,12 @@ import { literatureNote } from "src/literatureNote";
 import { noteCitations } from "src/noteCitations";
 import { NoteRenderer } from "src/noteRendering";
 import { NoteStyle } from "src/noteStyles";
-import { CitationRenderer, RenderedBibliography } from "src/render";
+import {
+	CitationRenderer,
+	LibraryRef,
+	RenderedBibliography,
+	ZOTERO_LIBRARY,
+} from "src/render";
 import { matchesTerms, queryTerms } from "src/search";
 import { spinner, Spinner } from "src/spinner";
 import { formattedBibliography } from "src/zoteroCite";
@@ -195,6 +201,8 @@ function blankRange(text: string, { from, to }: { from: number; to: number }): s
 export class BibliographyView extends ItemView {
 	/** The note whose bibliography is shown, or `null` when there is none. */
 	private file: TFile | null = null;
+	/** Where the latest pass read the note's sources from, for a retry to ask again. */
+	private library: LibraryRef = ZOTERO_LIBRARY;
 	/**
 	 * The text the latest pass read the note's keys from, or `null` before
 	 * one has. A pass can read a note's view before the note has been loaded
@@ -434,10 +442,12 @@ export class BibliographyView extends ItemView {
 			return;
 		}
 
-		const unanswered = keys.filter((key) => renderer.unreachable(key));
-		await renderer.load(keys, true);
+		const library = style.library;
+		this.library = library;
+		const unanswered = keys.filter((key) => renderer.unreachable(key, library));
+		await renderer.load(keys, true, library);
 		const engines = await renderer.engineFor(style);
-		if (unanswered.some((key) => renderer.has(key))) {
+		if (unanswered.some((key) => renderer.has(key, library))) {
 			this.context.redrawCitations();
 		}
 		if (pass !== this.pass) {
@@ -448,11 +458,11 @@ export class BibliographyView extends ItemView {
 			return;
 		}
 
-		const missing = keys.filter((key) => !renderer.has(key));
-		// A key Zotero was not there to be asked about is not missing from
-		// it, and is not listed as though it were.
-		const unreached = missing.some((key) => renderer.unreachable(key));
-		const notFound = missing.filter((key) => !renderer.unreachable(key));
+		const missing = keys.filter((key) => !renderer.has(key, library));
+		// A key the library was not there to be asked about is not missing
+		// from it, and is not listed as though it were.
+		const unreached = missing.some((key) => renderer.unreachable(key, library));
+		const notFound = missing.filter((key) => !renderer.unreachable(key, library));
 		// Written with the note's citations, so that its numbers and its
 		// 2020a and 2020b are the ones the citations show.
 		const bibliography =
@@ -499,16 +509,17 @@ export class BibliographyView extends ItemView {
 
 	private async retry(pass: number, keys: string[]): Promise<void> {
 		const renderer = this.context.renderer;
-		const unanswered = keys.filter((key) => renderer.unreachable(key));
-		await renderer.load(keys, true);
+		const library = this.library;
+		const unanswered = keys.filter((key) => renderer.unreachable(key, library));
+		await renderer.load(keys, true, library);
 		if (pass !== this.pass) {
 			return;
 		}
-		if (keys.some((key) => renderer.unreachable(key))) {
+		if (keys.some((key) => renderer.unreachable(key, library))) {
 			this.scheduleRetry(pass, keys);
 			return;
 		}
-		if (unanswered.some((key) => renderer.has(key))) {
+		if (unanswered.some((key) => renderer.has(key, library))) {
 			this.context.redrawCitations();
 		}
 		await this.refresh();
@@ -918,20 +929,24 @@ export class BibliographyView extends ItemView {
 					.onClick((clicked) => void this.openNote(note, clicked))
 			);
 		}
-		const where = { x: event.clientX, y: event.clientY };
-		menu.addItem((item) =>
-			item
-				.setTitle(t.BIBLIOGRAPHY_OPEN_PDF)
-				.setIcon("book-open")
-				.onClick(() => void this.openPdf(keys[0], where))
-		);
-		menu.addItem((item) =>
-			item
-				.setTitle(t.BIBLIOGRAPHY_REVEAL)
-				.setIcon("arrow-up-right")
-				.onClick(() => void this.revealInZotero(keys[0]))
-		);
-		menu.addSeparator();
+		// Both of these hand the source over to Zotero — its reader, and its
+		// window — and there is no Zotero on a phone to hand it to.
+		if (Platform.isDesktopApp) {
+			const where = { x: event.clientX, y: event.clientY };
+			menu.addItem((item) =>
+				item
+					.setTitle(t.BIBLIOGRAPHY_OPEN_PDF)
+					.setIcon("book-open")
+					.onClick(() => void this.openPdf(keys[0], where))
+			);
+			menu.addItem((item) =>
+				item
+					.setTitle(t.BIBLIOGRAPHY_REVEAL)
+					.setIcon("arrow-up-right")
+					.onClick(() => void this.revealInZotero(keys[0]))
+			);
+			menu.addSeparator();
+		}
 		menu.addItem((item) =>
 			item
 				.setTitle(t.BIBLIOGRAPHY_COPY_ENTRY)

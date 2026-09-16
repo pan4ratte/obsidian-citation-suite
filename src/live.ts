@@ -14,7 +14,12 @@ import { ENGLISH_LABELS, keyMentions, LocatorLabels } from "src/citation";
 import { matchCitations, NoteCitation, noteCitations } from "src/noteCitations";
 import { NoteRenderer } from "src/noteRendering";
 import { CitationTooltip, citationEl, MISSING_CLASS } from "src/reading";
-import { CitationRenderer, RenderedCitation, StyleRef } from "src/render";
+import {
+	CitationRenderer,
+	LibraryRef,
+	RenderedCitation,
+	StyleRef,
+} from "src/render";
 
 /**
  * Showing citations in their style while the note is being written.
@@ -57,8 +62,14 @@ export interface LiveContext {
 	styleFor(path: string | null): StyleRef | null | undefined;
 	/** Calls back with a note's path when its style changed; answers the unsubscribe. */
 	onStyleChange(listener: (path: string) => void): () => void;
+	/**
+	 * Where the note at the path reads its sources from. Asked for on its own
+	 * because a note whose keys are marked is read from its library whether or
+	 * not it is previewed in a style.
+	 */
+	libraryFor(path: string | null): LibraryRef;
 	tooltip(): CitationTooltip;
-	/** Whether keys Zotero has no source for are marked. */
+	/** Whether keys the library has no source for are marked. */
 	markMissing(): boolean;
 }
 
@@ -202,6 +213,7 @@ export function citationExtension(context: LiveContext) {
 				const style = view.state.field(editorLivePreviewField, false)
 					? context.styleFor(this.path())
 					: null;
+				const library = context.libraryFor(this.path());
 				const mark = context.markMissing();
 				if (!style && !mark) {
 					return builder.finish();
@@ -225,9 +237,9 @@ export function citationExtension(context: LiveContext) {
 				const settled = citations.filter(
 					(citation) => !beingEdited(view, citation.from, citation.to)
 				);
-				const pending = context.notes.pendingKeys(settled);
+				const pending = context.notes.pendingKeys(settled, library);
 				if (pending.length > 0) {
-					this.fetch(view, pending);
+					this.fetch(view, pending, library);
 				}
 
 				const rendered = style
@@ -282,7 +294,7 @@ export function citationExtension(context: LiveContext) {
 					}
 					const local = { ...citation, from: 0, to: source.length };
 					for (const mention of keyMentions(source, local)) {
-						if (context.renderer.missing(mention.id)) {
+						if (context.renderer.missing(mention.id, library)) {
 							builder.add(
 								citation.from + mention.from,
 								citation.from + mention.to,
@@ -357,8 +369,8 @@ export function citationExtension(context: LiveContext) {
 			 * Nothing is drawn from here: the effect brings `build` round again
 			 * with the answer already in the renderer's hands.
 			 */
-			private fetch(view: EditorView, citekeys: string[]): void {
-				void context.renderer.load(citekeys).then(() => {
+			private fetch(view: EditorView, citekeys: string[], library: LibraryRef): void {
+				void context.renderer.load(citekeys, false, library).then(() => {
 					view.dispatch({ effects: REDRAW.of(null) });
 				});
 			}

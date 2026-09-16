@@ -17,7 +17,12 @@ import {
 	noteCitations,
 } from "src/noteCitations";
 import { NoteRenderer } from "src/noteRendering";
-import { CitationRenderer, RenderedCitation, StyleRef } from "src/render";
+import {
+	CitationRenderer,
+	LibraryRef,
+	RenderedCitation,
+	StyleRef,
+} from "src/render";
 
 /**
  * Showing citations in their style in reading view.
@@ -135,6 +140,12 @@ export interface ReadingContext {
 	notes: NoteRenderer;
 	/** The style the note at the path is rendered in, or `null` for none. */
 	styleFor(path: string): Promise<StyleRef | null>;
+	/**
+	 * Where the note at the path reads its sources from — asked for on its own,
+	 * since a note whose keys are marked is read from its library whether or
+	 * not it is previewed in a style.
+	 */
+	libraryFor(path: string | null): LibraryRef;
 	tooltip(): CitationTooltip;
 	/** Whether keys Zotero has no source for are marked. */
 	markMissing(): boolean;
@@ -157,7 +168,8 @@ interface CitingNode {
 function decorateNode(
 	{ node, groups }: CitingNode,
 	rendered: Map<CitationGroup, RenderedCitation | null>,
-	context: ReadingContext
+	context: ReadingContext,
+	library: LibraryRef
 ): void {
 	const text = node.nodeValue ?? "";
 	const tooltip = context.tooltip();
@@ -184,7 +196,7 @@ function decorateNode(
 			continue;
 		}
 		for (const mention of keyMentions(text, group)) {
-			if (context.renderer.missing(mention.id)) {
+			if (context.renderer.missing(mention.id, library)) {
 				upTo(mention.from);
 				fragment.appendChild(
 					missingKeyEl(text.slice(mention.from, mention.to), tooltip)
@@ -262,8 +274,11 @@ export async function renderCitations(
 
 	// One request for everything this block cites, before anything is drawn:
 	// citeproc is handed its items synchronously or not at all.
+	const library = context.libraryFor(ctx.sourcePath);
 	await context.renderer.load(
-		groups.flatMap((group) => group.citations.map((citation) => citation.id))
+		groups.flatMap((group) => group.citations.map((citation) => citation.id)),
+		false,
+		library
 	);
 
 	const rendered = new Map<CitationGroup, RenderedCitation | null>();
@@ -271,7 +286,7 @@ export async function renderCitations(
 		await renderInNote(el, ctx, context, style, nodes, rendered);
 	}
 	for (const entry of nodes) {
-		decorateNode(entry, rendered, context);
+		decorateNode(entry, rendered, context, library);
 	}
 }
 
@@ -297,7 +312,10 @@ async function renderInNote(
 	if (text === null || !note) {
 		const engines = await context.renderer.engineFor(style);
 		for (const group of nodes.flatMap((entry) => entry.groups)) {
-			rendered.set(group, engines ? context.renderer.render(engines, group) : null);
+			rendered.set(
+				group,
+				engines ? context.renderer.render(engines, group, style.library) : null
+			);
 		}
 		return;
 	}

@@ -18,27 +18,48 @@ import { CitationStyle } from "src/types";
  *   the style Zotero has under that URL, which is what Zotero's style ids are.
  * - **`lang`** is the language, and it wins over the language a style names.
  *   Without it pandoc writes in the style's own language, or in `en-US`.
+ * - **`bibliography`** names the file the sources are read from, or several of
+ *   them. Where two files hold the same citation key, pandoc cites the one in
+ *   the last of them, and so does the preview.
  */
 
-/** The two properties, as the note gives them, or `null` for one it does not. */
+/** The properties, as the note gives them, or `null` for one it does not. */
 export interface StyleProperties {
 	csl: string | null;
 	lang: string | null;
+	/** The files `bibliography` names, in the order it names them; empty for none. */
+	bibliography: string[];
 }
 
 function text(value: unknown): string | null {
 	return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-/** The note's `csl` (or `citation-style`) and `lang`, from its front matter. */
+/**
+ * The files a `bibliography` names. pandoc takes one file or a list of them,
+ * and Obsidian writes a list as an array; a value that is neither names none.
+ */
+function files(value: unknown): string[] {
+	if (Array.isArray(value)) {
+		return value.map(text).filter((name): name is string => name !== null);
+	}
+	const one = text(value);
+	return one ? [one] : [];
+}
+
+/**
+ * The note's `csl` (or `citation-style`), `lang` and `bibliography`, from its
+ * front matter.
+ */
 export function styleProperties(frontmatter: unknown): StyleProperties {
 	if (!frontmatter || typeof frontmatter !== "object") {
-		return { csl: null, lang: null };
+		return { csl: null, lang: null, bibliography: [] };
 	}
 	const properties = frontmatter as Record<string, unknown>;
 	return {
 		csl: text(properties.csl) ?? text(properties["citation-style"]),
 		lang: text(properties.lang),
+		bibliography: files(properties.bibliography),
 	};
 }
 
@@ -88,6 +109,28 @@ export function styleForUrl(url: string, styles: CitationStyle[]): CitationStyle
 				isStyleUrl(style.id) && shortName(style.id) === name
 		) ?? null
 	);
+}
+
+/**
+ * Where a file a note names is looked for in the vault, in order: beside the
+ * note, as pandoc reads a relative path from the note's own folder, and then
+ * from the vault's root. A name that starts at the root — `/refs.bib` — or one
+ * written with `./` is read for what it is.
+ *
+ * Vault paths are the vault's own: `/` throughout, and no drive or leading
+ * slash, which is what `getFileByPath` takes. A path outside the vault is not
+ * looked for at all: on a phone there is nothing outside it to look in.
+ */
+export function vaultCandidates(name: string, notePath: string | null): string[] {
+	const wanted = name.trim().replace(/\\/g, "/").replace(/^\.\//, "");
+	if (wanted.startsWith("/")) {
+		return [wanted.slice(1)];
+	}
+	const folder = notePath?.includes("/")
+		? notePath.slice(0, notePath.lastIndexOf("/"))
+		: "";
+	const beside = folder ? `${folder}/${wanted}` : wanted;
+	return beside === wanted ? [wanted] : [beside, wanted];
 }
 
 /**

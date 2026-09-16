@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	citationOf,
 	insideBrackets,
 	keyInsertion,
 	keyTrigger,
@@ -97,6 +98,19 @@ describe("keyInsertion", () => {
 
 	it("braces a key pandoc would cut short", () => {
 		expect(pick("[@we|]", "weird key!")).toBe("[@{weird key!}|]");
+	});
+});
+
+describe("citationOf", () => {
+	it("writes a citation of the source as the settings write one", () => {
+		expect(citationOf("doe2020", true)).toBe("[@doe2020]");
+		expect(citationOf("doe2020", false)).toBe("@doe2020");
+	});
+
+	it("braces a key pandoc would not read whole", () => {
+		// The key holds what ends a key for pandoc, so it is written in
+		// braces, as `citationKeyToken` writes one.
+		expect(citationOf("doe2020,a", true)).toBe("[@{doe2020,a}]");
 	});
 });
 
