@@ -42,6 +42,58 @@ export function parseStyle(
 }
 
 /**
+ * What marks a stored choice as a file of the vault rather than a style id.
+ * No style id starts with it: Zotero's are `http://…` URLs and bare UUIDs.
+ */
+const VAULT_CHOICE = "vault:";
+
+/**
+ * What the settings write down when a style is chosen in them.
+ *
+ * An id alone will not do. The vault can hold a copy of a style Zotero also
+ * has — the same file, put there so a phone has it — and then two entries of
+ * the picker carry one id, and an id cannot say which of the two the reader
+ * clicked. A style of the vault is written down by its path instead, marked as
+ * a path; Zotero's are written down by id, as they always were, so a setting
+ * written before this still reads.
+ */
+export function styleChoice(style: CitationStyle): string {
+	return style.source === "vault" ? VAULT_CHOICE + style.path : style.id;
+}
+
+/** The vault path a choice names, or `null` for a choice that names an id. */
+export function choiceVaultPath(choice: string): string | null {
+	return choice.startsWith(VAULT_CHOICE)
+		? choice.slice(VAULT_CHOICE.length)
+		: null;
+}
+
+/**
+ * The style a written-down choice stands for, or `undefined` for one that
+ * stands for nothing: a vault file since deleted, or a style uninstalled from
+ * Zotero.
+ *
+ * An id is looked for among Zotero's styles first and the vault's second. Both
+ * only ever happens for a setting written before the path was written down
+ * with it, and Zotero's is the one that was being offered then.
+ */
+export function chosenStyle(
+	styles: CitationStyle[],
+	choice: string
+): CitationStyle | undefined {
+	const path = choiceVaultPath(choice);
+	if (path !== null) {
+		return styles.find(
+			(style) => style.source === "vault" && style.path === path
+		);
+	}
+	return (
+		styles.find((style) => style.source === "zotero" && style.id === choice) ??
+		styles.find((style) => style.id === choice)
+	);
+}
+
+/**
  * The elements that write a numbered style's number: `citation-number` printed
  * as text or as a number, with the affixes that frame it — `[1]`, `1.` — which
  * are attributes of the same element and go with it. A CSL `<text>` or

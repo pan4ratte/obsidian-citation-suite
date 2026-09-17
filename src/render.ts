@@ -10,7 +10,7 @@ import {
 import { CitationSession } from "src/citationSession";
 import { labelWriter, localeLabels } from "src/localeTerms";
 import { LabelWriter } from "src/pandoc";
-import { withoutCitationNumbers, ZoteroCitePrefs } from "src/styles";
+import { chosenStyle, withoutCitationNumbers, ZoteroCitePrefs } from "src/styles";
 import { tooltipEntry } from "src/typography";
 import { CitationStyle } from "src/types";
 import {
@@ -970,7 +970,11 @@ export class CitationRenderer {
 		return this.styles;
 	}
 
-	/** The style Zotero has under the id, or `undefined`. */
+	/**
+	 * The style under the id, or `undefined`. Zotero's are the ones asked for
+	 * this way: it is how a dependent style names its parent. What the settings
+	 * chose is found by `zoteroStyle` instead, from what they wrote down.
+	 */
 	styleById(id: string): CitationStyle | undefined {
 		return this.styles.find((candidate) => candidate.id === id);
 	}
@@ -978,13 +982,18 @@ export class CitationRenderer {
 	/**
 	 * The style chosen in the settings, run as Zotero runs it: in Zotero's
 	 * language unless the style names its own, with locators read in English.
-	 * `null` for no style, or one Zotero no longer has.
+	 * `null` for no style, or one that is no longer there to run — uninstalled
+	 * from Zotero, or deleted from the vault.
+	 *
+	 * `choice` is what the settings wrote down, which names one style file and
+	 * not merely an id; see `styleChoice`. It is the engine's key as well, so
+	 * two files declaring one id are two engines rather than one.
 	 */
-	zoteroStyle(styleId: string): StyleRef | null {
-		const style = styleId ? this.styleById(styleId) : undefined;
+	zoteroStyle(choice: string): StyleRef | null {
+		const style = choice ? chosenStyle(this.styles, choice) : undefined;
 		return style
 			? {
-					key: styleId,
+					key: choice,
 					style,
 					locale: "",
 					labels: ENGLISH_LABELS,
@@ -1152,8 +1161,8 @@ export class CitationRenderer {
 	 * the first one is wanted; this is what the plugin calls when the setting
 	 * changes.
 	 */
-	async prepare(styleId: string): Promise<void> {
-		const ref = this.zoteroStyle(styleId);
+	async prepare(choice: string): Promise<void> {
+		const ref = this.zoteroStyle(choice);
 		if (ref) {
 			await this.engineFor(ref);
 		}
@@ -1179,10 +1188,10 @@ export class CitationRenderer {
 	 * must not outlive the preview as a source a note could seem to cite.
 	 */
 	async sample(
-		styleId: string,
+		choice: string,
 		item: CslItem
 	): Promise<RenderedCitation | null> {
-		const ref = this.zoteroStyle(styleId);
+		const ref = this.zoteroStyle(choice);
 		const engines = ref ? await this.engineFor(ref) : null;
 		if (!engines) {
 			return null;

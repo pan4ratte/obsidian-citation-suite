@@ -1,26 +1,51 @@
 import { debounce } from "obsidian";
-import { t } from "lang/helpers";
 
 /** One entry of the list: what is stored when it is chosen, and what is read. */
-export interface StyleChoice {
+export interface PickerChoice {
 	id: string;
 	title: string;
+	/**
+	 * A caption drawn above this entry, with a rule running off it: this entry
+	 * and the ones after it are a group of their own, and the caption says
+	 * what the group is. What the groups are is the settings tab's to say; the
+	 * list only draws the caption it is given.
+	 */
+	group?: string;
 }
 
 /**
- * How long the arrow keys have to rest before the style they landed on is
- * saved. Choosing a style rebuilds the renderer and redraws every open note,
- * which is fine once and wasteful a dozen times while the reader walks down the
- * list to the style they want.
+ * How long the arrow keys have to rest before the entry they landed on is
+ * saved. Choosing rebuilds the renderer and redraws every open note, which is
+ * fine once and wasteful a dozen times while the reader walks down the list to
+ * the entry they want.
  */
 const KEY_SETTLE_MS = 300;
 
+/** What a list is drawn from. */
+export interface PickerOptions {
+	/** What the list is, for a screen reader to announce it by. */
+	label: string;
+	choices: PickerChoice[];
+	/** The `id` of the entry marked when the list is drawn. */
+	chosen: string;
+	onChoose: (id: string) => void;
+	/**
+	 * What is written under the list when the only entry in it is the one that
+	 * is not a choice at all — no styles installed, say — since a list of one
+	 * explains nothing on its own. A list that is never drawn empty, because
+	 * its whole section is left out when there is nothing to choose, leaves
+	 * this out.
+	 */
+	empty?: string;
+}
+
 /**
- * The list the citation style is chosen from, drawn in the settings tab itself
- * and laid out the way Zotero's "Document preferences" window lists styles:
- * every style in one scrolling box, the chosen one marked.
+ * A list chosen from in the settings tab itself, laid out the way Zotero's
+ * "Document preferences" window lists styles: every entry in one scrolling
+ * box, the chosen one marked. The citation style is chosen from one, and the
+ * bibliography the notes read from another.
  *
- * A dropdown held the same list before, and it did not hold it well. Zotero
+ * A dropdown held the styles before, and it did not hold them well. Zotero
  * ships a dozen styles and a reader installs more, their titles run to the
  * width of a sentence, and a native dropdown shows a handful at a time in a
  * menu as wide as the longest of them. A list that scrolls shows many at once,
@@ -34,19 +59,17 @@ const KEY_SETTLE_MS = 300;
  * Returns what the settings row calls when it is torn down: a choice still
  * waiting out the key delay is saved then rather than lost.
  */
-export function renderStylePicker(
+export function renderPicker(
 	parent: HTMLElement,
-	choices: StyleChoice[],
-	chosen: string,
-	onChoose: (id: string) => void
+	{ label, choices, chosen, onChoose, empty }: PickerOptions
 ): () => void {
-	const picker = parent.createDiv({ cls: "citation-suite-style-picker" });
+	const picker = parent.createDiv({ cls: "citation-suite-picker" });
 	const list = picker.createDiv({
-		cls: "citation-suite-style-picker-list",
+		cls: "citation-suite-picker-list",
 		attr: {
 			role: "listbox",
 			tabindex: "0",
-			"aria-label": t.SETTING_STYLE_NAME,
+			"aria-label": label,
 		},
 	});
 
@@ -98,8 +121,16 @@ export function renderStylePicker(
 	};
 
 	for (const choice of choices) {
+		if (choice.group) {
+			// The caption is the rule's name rather than an entry of the list,
+			// so the text inside it is not read out a second time.
+			list.createDiv({
+				cls: "citation-suite-picker-group",
+				attr: { role: "separator", "aria-label": choice.group },
+			}).createSpan({ text: choice.group });
+		}
 		const row = list.createDiv({
-			cls: "citation-suite-style-picker-item",
+			cls: "citation-suite-picker-item",
 			text: choice.title,
 			attr: { role: "option", "aria-selected": "false" },
 		});
@@ -134,13 +165,12 @@ export function renderStylePicker(
 		}
 	});
 
-	// Only the entry that is not a style is in the list: Zotero was not found
-	// where it was looked for, and an explanation reads better than a list of
-	// one.
-	if (choices.length <= 1) {
+	// Only the entry that is not a choice is in the list, and an explanation
+	// reads better than a list of one.
+	if (empty && choices.length <= 1) {
 		picker.createDiv({
-			cls: "citation-suite-style-picker-empty",
-			text: t.STYLE_PICKER_EMPTY,
+			cls: "citation-suite-picker-empty",
+			text: empty,
 		});
 	}
 

@@ -78,8 +78,11 @@ export interface CitationSuiteSettings {
 	/** Wrap a parenthetical citation in `[ ]`, which is what pandoc reads as one. */
 	brackets: boolean;
 	/**
-	 * The `id` of the style Zotero renders the citation in, or the empty string
-	 * — the default — for a pandoc citation written by the plugin itself.
+	 * The style the citation is rendered in, as the settings write it down:
+	 * the `id` of one Zotero has, `vault:` and its path for one of the vault's,
+	 * or the empty string — the default — for a pandoc citation written by the
+	 * plugin itself. `styleChoice` in `src/styles.ts` writes it, `chosenStyle`
+	 * reads it, and it says which file was chosen where an id alone would not.
 	 */
 	citationStyle: string;
 	/**

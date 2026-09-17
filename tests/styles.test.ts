@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { parseStyle, withoutCitationNumbers } from "src/styles";
+import {
+	choiceVaultPath,
+	chosenStyle,
+	parseStyle,
+	styleChoice,
+	withoutCitationNumbers,
+} from "src/styles";
+import { CitationStyle } from "src/types";
 
 /** The head of a CSL file, which is all the reader of one looks at. */
 function csl(info: string): string {
@@ -108,5 +115,55 @@ describe("withoutCitationNumbers", () => {
 				'<bibliography et-al-min="7" second-field-align="flush" hanging-indent="true">'
 			)
 		).toBe('<bibliography et-al-min="7" hanging-indent="true">');
+	});
+});
+
+describe("styleChoice and chosenStyle", () => {
+	const APA = "http://www.zotero.org/styles/apa";
+	const zotero: CitationStyle = {
+		id: APA,
+		title: "APA (Zotero)",
+		path: "/home/reader/Zotero/styles/apa.csl",
+		source: "zotero",
+	};
+	// The same style, exported into the vault so that a phone has it: one id
+	// between the two, which is why a choice is more than an id.
+	const inVault: CitationStyle = {
+		id: APA,
+		title: "APA (vault)",
+		path: "styles/apa.csl",
+		source: "vault",
+	};
+	const styles = [zotero, inVault];
+
+	it("writes a Zotero style down by its id", () => {
+		expect(styleChoice(zotero)).toBe(APA);
+		expect(choiceVaultPath(styleChoice(zotero))).toBeNull();
+	});
+
+	it("writes a vault style down by its path", () => {
+		expect(styleChoice(inVault)).toBe("vault:styles/apa.csl");
+		expect(choiceVaultPath(styleChoice(inVault))).toBe("styles/apa.csl");
+	});
+
+	it("gives back the one that was chosen where both declare one id", () => {
+		expect(chosenStyle(styles, styleChoice(zotero))).toBe(zotero);
+		expect(chosenStyle(styles, styleChoice(inVault))).toBe(inVault);
+	});
+
+	it("tells two vault copies of one style apart", () => {
+		const copy: CitationStyle = { ...inVault, path: "archive/apa.csl" };
+		expect(chosenStyle([inVault, copy], styleChoice(copy))).toBe(copy);
+	});
+
+	it("reads a setting written before the path was written down with it", () => {
+		expect(chosenStyle(styles, APA)).toBe(zotero);
+		expect(chosenStyle([inVault], APA)).toBe(inVault);
+	});
+
+	it("knows nothing for a style that is no longer there", () => {
+		expect(chosenStyle(styles, "vault:styles/gone.csl")).toBeUndefined();
+		expect(chosenStyle([inVault], "http://www.zotero.org/styles/ieee"))
+			.toBeUndefined();
 	});
 });

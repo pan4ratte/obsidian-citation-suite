@@ -1,7 +1,7 @@
 import { App } from "obsidian";
 import { describe, expect, it } from "vitest";
 import { vaultCandidates } from "src/noteStyle";
-import { VaultLibraries } from "src/vaultLibrary";
+import { VaultLibraries, vaultLibraryFiles } from "src/vaultLibrary";
 
 /** One file of the fake vault. */
 interface FakeFile {
@@ -25,6 +25,7 @@ function vaultOf(files: Record<string, string>): {
 	const app = {
 		vault: {
 			getFileByPath: (path: string): FakeFile | null => held.get(path) ?? null,
+			getFiles: (): FakeFile[] => [...held.values()],
 			cachedRead: (file: FakeFile): Promise<string> => Promise.resolve(file.text),
 		},
 	} as unknown as App;
@@ -167,5 +168,41 @@ describe("a library file that changed", () => {
 		expect(libraries.itemsOf(["refs.bib"]).items.get("a")).toMatchObject({
 			title: "As it was",
 		});
+	});
+});
+
+describe("vaultLibraryFiles", () => {
+	it("finds the vault's .bib files by their extension, by path", () => {
+		// By the collator, as the styles are listed: `a.bibtex` before
+		// `Sources/`, which is not what comparing the strings would give.
+		const { app } = vaultOf({
+			"Sources/refs.bib": bib("doe2020", "A paper"),
+			"a.bibtex": bib("kuhn1962", "Another"),
+			"Note.md": "# not a library",
+		});
+		return expect(vaultLibraryFiles(app)).resolves.toEqual([
+			"a.bibtex",
+			"Sources/refs.bib",
+		]);
+	});
+
+	it("takes a .json file that is a CSL JSON export", () => {
+		const { app } = vaultOf({
+			"refs.json": '[{"id": "doe2020", "title": "A paper"}]',
+			"empty.json": "  [ ]  ",
+		});
+		return expect(vaultLibraryFiles(app)).resolves.toEqual([
+			"empty.json",
+			"refs.json",
+		]);
+	});
+
+	it("leaves the other things a vault keeps under .json alone", () => {
+		const { app } = vaultOf({
+			"Canvas.json": '{"nodes": [], "edges": []}',
+			"data.json": '["a", "b"]',
+			"broken.json": "{ not json at all",
+		});
+		return expect(vaultLibraryFiles(app)).resolves.toEqual([]);
 	});
 });

@@ -32,7 +32,7 @@ A tab in the right sidebar lists every source cited in the note — formatted in
 
 ### 4. Citing from a file in the vault, and mobile support
 
-Sources can come not only from Zotero, but also from a `.bib` or CSL JSON file kept in the vault. The shared file is set in the plugin settings, and each individual note can have a file of its own, set in its `bibliography` property. Citation styles can be kept in the vault as well: `.csl` files appear in the list of styles beside Zotero's own. Thanks to this the plugin supports mobile devices, and on the desktop it can be used even without Zotero.
+Sources can come not only from Zotero, but also from a `.bib` or CSL JSON file kept in the vault. The shared file is chosen in the plugin settings, from the list of files found in the vault, and each individual note can have a file of its own, set in its `bibliography` property. Citation styles can be kept in the vault as well: `.csl` files appear in the list of styles, in a group of their own under Zotero's. Thanks to this the plugin supports mobile devices, and on the desktop it can be used even without Zotero.
 
 ### 5. Automatic footnotes
 

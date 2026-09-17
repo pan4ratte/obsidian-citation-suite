@@ -6,8 +6,8 @@
 ### New features
 
 * **Works on phones and tablets.** The plugin no longer needs a desktop: sources come from a bibliography file in the vault, and styles from `.csl` files kept there too. Opening a PDF and showing a source in Zotero are not shown on mobile.
-* **A bibliography file in the vault.** Name a `.bib` or CSL JSON file in the settings and sources will be read from it rather than from Zotero — which works on the desktop too, with Zotero closed. A note can name a file of its own in its `bibliography` property, as it would for Pandoc, several files included. A `.bib` is read the way Pandoc reads one: the same source types, the same dates, the same names.
-* **Citation styles from the vault.** A `.csl` file kept in the vault appears in the list of styles beside Zotero's own. The style a note names in its `csl` property is looked for beside the note first and then from the vault's root — where Pandoc looks for it.
+* **A bibliography file in the vault.** Choose a `.bib` or CSL JSON file in the settings — the plugin finds them in the vault itself — and sources will be read from it rather than from Zotero, which works on the desktop too, with Zotero closed. A note can name a file of its own in its `bibliography` property, as it would for Pandoc, several files included. A `.bib` is read the way Pandoc reads one: the same source types, the same dates, the same names.
+* **Citation styles from the vault.** A `.csl` file kept in the vault appears in the list of styles, in a group of its own under Zotero's. The style a note names in its `csl` property is looked for beside the note first and then from the vault's root — where Pandoc looks for it.
 * **Picking a source without Zotero.** Where Zotero cannot be reached — on a phone, or with the program closed — the "Insert citation" command opens a list of the sources in the note's bibliography file, searchable by key, title, author and year. The citation goes in as it would from Zotero's window, footnote included where that is turned on.
 * **Suggestions while typing a key work without Zotero.** When a note reads its sources from a file, typing `@` offers every source in that file.
 

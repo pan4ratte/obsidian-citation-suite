@@ -64,8 +64,8 @@ export interface NoteStylesContext {
 	readStyle(style: CitationStyle): Promise<string>;
 	/** Where style files outside the vault are looked for; `null` on a phone. */
 	styleFiles(): StyleFiles | null;
-	/** The style chosen in the settings, or empty for no preview. */
-	styleId(): string;
+	/** The style chosen in the settings, as written down, or empty for no preview. */
+	styleChoice(): string;
 	/** The library file the settings name, for a note that names none. */
 	settingsLibrary(): string;
 }
@@ -198,7 +198,7 @@ export class NoteStyles {
 	/** Everything an answer is worked out from, as one string. */
 	private signature(path: string): string {
 		const { csl, lang } = this.properties(path);
-		return [this.context.styleId(), csl ?? "", lang ?? ""].join("\n");
+		return [this.context.styleChoice(), csl ?? "", lang ?? ""].join("\n");
 	}
 
 	/**
@@ -254,7 +254,7 @@ export class NoteStyles {
 
 	/** A note previewed as Zotero writes it, in the settings' style. */
 	private plain(path: string | null = null): NoteStyle {
-		const ref = this.context.renderer.zoteroStyle(this.context.styleId());
+		const ref = this.context.renderer.zoteroStyle(this.context.styleChoice());
 		return {
 			ref: ref ? { ...ref, library: this.libraryOf(path) } : null,
 			properties: null,
@@ -266,7 +266,7 @@ export class NoteStyles {
 
 	private async work(path: string, properties: StyleProperties): Promise<NoteStyle> {
 		const { renderer } = this.context;
-		const settings = renderer.zoteroStyle(this.context.styleId());
+		const settings = renderer.zoteroStyle(this.context.styleChoice());
 		if (!properties.csl && !properties.lang) {
 			return this.plain(path);
 		}

@@ -337,36 +337,46 @@
    Settings tab — citation style
    ────────────────────────────────────────────────────────────────────────── */
 
-/* The row the style list stands in. Its name and description sit where any
-   row's do, and the list wraps onto a line of its own under them, across the
-   whole width of the card. The row has no control, so the empty control block
+/* A row a list stands in — the style's, the bibliography's. Its name and
+   description sit where any row's do, and the list wraps onto a line of its
+   own under them, across the whole width of the card. The row has no control, so the empty control block
    is not drawn: it would otherwise hold a gap beside the description. Four
    classes, to outrank the group's own row rule; the control is reached through
    the same four, so that it is no weaker than the rule the toggle rows' control
    is sized by. */
-.setting-group.citation-suite-settings-rows .setting-item.citation-suite-style-setting {
+.setting-group.citation-suite-settings-rows .setting-item.citation-suite-picker-setting {
 	flex-wrap: wrap;
 }
 
 .setting-group.citation-suite-settings-rows
-	.setting-item.citation-suite-style-setting
+	.setting-item.citation-suite-picker-setting
 	> .setting-item-control {
 	display: none;
 }
 
+/* The preview's row: the same full-width row as a list's, and its stock name
+   and description are not drawn, since the preview has a title bar of its own.
+   The margin the preview carries is dropped with them, below. */
+.setting-group.citation-suite-settings-rows
+	.setting-item.citation-suite-preview-setting
+	> .setting-item-info {
+	display: none;
+}
+
 /* Laid out after the style list in Zotero's "Document preferences" window: one
-   bordered box of every style, with the chosen one marked. */
-.citation-suite-style-picker {
+   bordered box of every entry, with the chosen one marked. */
+.citation-suite-picker {
 	flex: 1 0 100%;
 	margin-top: var(--size-4-3);
 }
 
-/* Tall enough to show about ten titles at once, and scrolled past that.
-   `position: relative` makes the box the rows' offset parent, which is what
-   src/stylePicker.ts scrolls it by. */
-.citation-suite-style-picker-list {
+/* As tall as what is in it, up to about ten titles, and scrolled past that: a
+   vault holding one library file gets a box of one row rather than an empty
+   box ten rows tall. `position: relative` makes the box the rows' offset
+   parent, which is what src/picker.ts scrolls it by. */
+.citation-suite-picker-list {
 	position: relative;
-	height: min(360px, 50vh);
+	max-height: min(360px, 50vh);
 	overflow-y: auto;
 	padding: var(--size-4-1);
 	border: 1px solid var(--background-modifier-border);
@@ -374,12 +384,12 @@
 	background-color: var(--background-primary);
 }
 
-.citation-suite-style-picker-list:focus-visible {
+.citation-suite-picker-list:focus-visible {
 	outline: none;
 	box-shadow: 0 0 0 3px var(--background-modifier-border-focus);
 }
 
-.citation-suite-style-picker-item {
+.citation-suite-picker-item {
 	padding: var(--size-4-2) var(--size-4-3);
 	border-radius: var(--radius-s);
 	font-size: var(--font-ui-small);
@@ -390,20 +400,42 @@
 }
 
 @media (hover: hover) {
-	.citation-suite-style-picker-item:hover {
+	.citation-suite-picker-item:hover {
 		background-color: var(--background-modifier-hover);
 	}
 }
 
 /* The chosen entry, in the accent colour, the way Zotero marks it. It keeps
    that colour under the pointer rather than taking the hover's. */
-.citation-suite-style-picker-item.is-selected,
-.citation-suite-style-picker-item.is-selected:hover {
+.citation-suite-picker-item.is-selected,
+.citation-suite-picker-item.is-selected:hover {
 	background-color: var(--interactive-accent);
 	color: var(--text-on-accent);
 }
 
-.citation-suite-style-picker-empty {
+/* What sets the vault's styles apart from Zotero's: what they are, and a rule
+   running off it to the end of the list. The margin is the same on all four
+   sides: it insets the caption to where the titles start, and leaves as much
+   space under the rule as over it, so the rule stands between the two groups
+   rather than on top of the vault's. */
+.citation-suite-picker-group {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	margin: var(--size-4-3);
+	font-size: var(--font-ui-smaller);
+	line-height: var(--line-height-tight);
+	color: var(--text-muted);
+}
+
+.citation-suite-picker-group::after {
+	content: "";
+	flex: 1;
+	height: 1px;
+	background-color: var(--background-modifier-border);
+}
+
+.citation-suite-picker-empty {
 	margin-top: var(--size-4-2);
 	font-size: var(--font-ui-smaller);
 	line-height: var(--line-height-normal);
@@ -423,6 +455,12 @@
 	border-radius: var(--radius-m);
 	background-color: var(--background-primary);
 	overflow: hidden;
+}
+
+/* In a row of its own there is nothing above it to stand clear of, and the
+   row's own padding is the space it needs. */
+.citation-suite-preview-setting > .citation-suite-style-preview {
+	margin-top: 0;
 }
 
 .citation-suite-style-preview-bar {
@@ -1392,9 +1430,13 @@ body.citation-suite-citation-italic .citation-suite-citation em {
 	color: var(--text-warning);
 }
 
+/* Both stand under the entries, and both are set well clear of them: what the
+   pane has to say about the keys it could not list is not the last entry of
+   the list, and reads as one when it sits right under it. */
+.citation-suite-bibliography-missing,
 .citation-suite-bibliography-unreachable {
-	margin-top: var(--size-4-4);
-	padding-top: var(--size-4-3);
+	margin-top: var(--size-4-6);
+	padding-top: var(--size-4-4);
 	border-top: 1px solid var(--background-modifier-border);
 }
 

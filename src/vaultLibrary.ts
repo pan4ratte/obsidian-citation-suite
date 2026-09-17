@@ -31,6 +31,59 @@ export interface LibraryItems {
 /** Nothing read, for a note that names no library at all. */
 const NOTHING: LibraryItems = { items: new Map(), errors: [], complete: true };
 
+/**
+ * How much of a `.json` file is looked at to tell a CSL JSON export from the
+ * other things a vault keeps under that extension.
+ */
+const JSON_HEAD = 4096;
+
+/**
+ * Whether the head of a `.json` file reads as a CSL JSON export: an array,
+ * whose first item carries the `id` that is the citation key. A vault holds
+ * `.json` files that are nothing of the kind — a canvas, a plugin's data — and
+ * listing those as libraries to choose from would be listing noise.
+ */
+function looksLikeCslJson(head: string): boolean {
+	const start = head.replace(/^\s+/, "");
+	if (!start.startsWith("[")) {
+		return false;
+	}
+	// An empty array is a library with nothing in it, which is still one.
+	return /^\[\s*\]/.test(start) || /^\[\s*\{[\s\S]*?"id"\s*:/.test(start);
+}
+
+/**
+ * Every library file the vault holds, by path, as the settings list them for
+ * the reader to choose one.
+ *
+ * A `.bib` is a library by its extension and nothing else has to be read; a
+ * `.json` is read far enough to see whether it is a CSL JSON export, since the
+ * extension alone says almost nothing. `cachedRead` is what keeps that from
+ * costing anything the second time, and reading the file is what the renderer
+ * will do with it anyway.
+ */
+export async function vaultLibraryFiles(app: App): Promise<string[]> {
+	const candidates = app.vault
+		.getFiles()
+		.filter((file) => libraryFormat(file.path) !== null);
+	const found = await Promise.all(
+		candidates.map(async (file) => {
+			if (libraryFormat(file.path) !== "csl-json") {
+				return file.path;
+			}
+			try {
+				const text = await app.vault.cachedRead(file);
+				return looksLikeCslJson(text.slice(0, JSON_HEAD)) ? file.path : null;
+			} catch {
+				return null;
+			}
+		})
+	);
+	return found
+		.filter((path): path is string => path !== null)
+		.sort((a, b) => a.localeCompare(b));
+}
+
 export class VaultLibraries {
 	/** What each file held when it was last read, by its path in the vault. */
 	private read = new Map<string, { mtime: number; contents: LibraryContents }>();

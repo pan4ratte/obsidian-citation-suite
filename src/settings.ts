@@ -17,12 +17,15 @@ import {
 	isValidLabelText,
 } from "src/footnote";
 import { renderStylePreview, StylePreview } from "src/preview";
-import { renderStylePicker, StyleChoice } from "src/stylePicker";
+import { PickerChoice, renderPicker } from "src/picker";
 import { ZoteroCheck } from "src/cayw";
+import { choiceVaultPath, styleChoice } from "src/styles";
+import { vaultLibraryFiles } from "src/vaultLibrary";
 import { ConfirmModal } from "src/confirmModal";
 import { renderStatusCard, StatusCard } from "src/statusCard";
 import {
 	asIndexable,
+	CitationStyle,
 	DEFAULT_SETTINGS,
 	DEFAULT_TOOLTIP_DELAY,
 } from "src/types";
@@ -102,6 +105,11 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 	private preview: StylePreview | null = null;
 	/** The status card at the head of the tab, while the tab is drawn. */
 	private statusCard: StatusCard | null = null;
+	/**
+	 * The vault's library files, by path, as the last look for them found
+	 * them. Looked for again every time the tab is opened.
+	 */
+	private libraryFiles: string[] = [];
 	/**
 	 * What Zotero said the last time the card asked, kept for as long as the
 	 * tab is open: `update()` draws the card again whenever a row's
@@ -327,62 +335,119 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 	/**
 	 * What the style picker offers: not rendering at all first, because that is
 	 * the default and the only entry that is not a style, then every style
-	 * Zotero has, by title.
+	 * Zotero has, by title, and last — under a rule — the styles the vault
+	 * holds.
 	 *
-	 * A style that was chosen and has since been uninstalled from Zotero is
-	 * kept in the list under its bare id. It reads badly, which is the point:
-	 * the alternative is a picker that quietly shows the reader a setting they
+	 * The two come from two places and are found two ways: Zotero's are
+	 * installed, and the vault's are `.csl` files the reader put there, which
+	 * are the only ones a phone has. Listing them in one run by title mixed
+	 * them together, and nothing in a title says which is which; the rule is
+	 * what says it.
+	 *
+	 * What an entry is chosen by is `styleChoice`, not the style's bare id: the
+	 * vault can hold a copy of a style Zotero also has, and then the two
+	 * entries carry one id between them and the reader's click has to say
+	 * which of the two files they meant.
+	 *
+	 * A style that was chosen and has since gone — uninstalled from Zotero, or
+	 * deleted from the vault — is kept in the list under what was written down
+	 * for it, above the rule. It reads badly, which is the point: the
+	 * alternative is a picker that quietly shows the reader a setting they
 	 * never chose.
 	 */
-	private styleChoices(): StyleChoice[] {
-		const choices: StyleChoice[] = [
+	private styleChoices(): PickerChoice[] {
+		const { styles } = this.plugin;
+		const entry = (style: CitationStyle): PickerChoice => ({
+			id: styleChoice(style),
+			title: style.title,
+		});
+		const choices: PickerChoice[] = [
 			{ id: "", title: t.SETTING_STYLE_PANDOC },
-			...this.plugin.styles.map(({ id, title }) => ({ id, title })),
+			...styles.filter((style) => style.source === "zotero").map(entry),
 		];
 		const chosen = this.plugin.settings.citationStyle;
-		if (chosen && !choices.some((choice) => choice.id === chosen)) {
-			choices.push({ id: chosen, title: chosen });
+		if (chosen && !styles.some((style) => styleChoice(style) === chosen)) {
+			// A vault style is written down by path, and the path is what says
+			// which file is gone; a Zotero style has only its id to show.
+			choices.push({ id: chosen, title: choiceVaultPath(chosen) ?? chosen });
 		}
+		// The caption goes above the first of the vault's, so a vault with no
+		// styles in it draws none.
+		choices.push(
+			...styles
+				.filter((style) => style.source === "vault")
+				.map((style, at) => ({
+					...entry(style),
+					group: at === 0 ? t.STYLE_PICKER_VAULT : undefined,
+				}))
+		);
 		return choices;
 	}
 
 	/**
 	 * The citation style row: its name and description as any setting has
 	 * them, and under them, across the whole width of the row, the list the
-	 * style is chosen from and the preview of what it makes of a citation. The
-	 * row's control block is left empty, and styles.css hides it.
+	 * style is chosen from. The row's control block is left empty, and
+	 * styles.css hides it.
 	 *
 	 * A choice goes through `setControlValue`, the same path a control's change
 	 * takes, so saving and redrawing the citations happen in one place
 	 * whichever way a setting was changed.
 	 *
-	 * `update()` runs a render again on the row it already drew, so a list and
-	 * a preview left from the last run are removed before the new ones go in.
+	 * `update()` runs a render again on the row it already drew, so a list left
+	 * from the last run is removed before the new one goes in.
 	 */
 	private styleSetting(): SettingDefinitionRender {
 		return {
 			name: t.SETTING_STYLE_NAME,
 			desc: t.SETTING_STYLE_DESC,
 			render: (setting: Setting) => {
-				setting.settingEl.addClass("citation-suite-style-setting");
+				setting.settingEl.addClass("citation-suite-picker-setting");
 				setting.settingEl
-					.querySelectorAll(
-						":scope > .citation-suite-style-picker, :scope > .citation-suite-style-preview"
-					)
+					.querySelectorAll(":scope > .citation-suite-picker")
 					.forEach((el) => el.remove());
-				const closePicker = renderStylePicker(
-					setting.settingEl,
-					this.styleChoices(),
-					this.plugin.settings.citationStyle,
-					(id) => void this.setControlValue("citationStyle", id)
-				);
+				return renderPicker(setting.settingEl, {
+					label: t.SETTING_STYLE_NAME,
+					choices: this.styleChoices(),
+					chosen: this.plugin.settings.citationStyle,
+					onChoose: (id) =>
+						void this.setControlValue("citationStyle", id),
+					empty: t.STYLE_PICKER_EMPTY,
+				});
+			},
+		};
+	}
+
+	/**
+	 * The sample citation, in a row of its own under both lists. It answers for
+	 * the two of them — the style it is written in, and the bibliography the
+	 * source comes from — so it stands under the second rather than between
+	 * them.
+	 *
+	 * The row's own name and description are not drawn: the preview carries a
+	 * title bar of its own, and a heading over a heading says nothing twice.
+	 * There is nothing in it to search the settings for either, hence
+	 * `searchable: false`.
+	 *
+	 * `update()` runs a render again on the row it already drew, so a preview
+	 * left from the last run is removed before the new one goes in.
+	 */
+	private previewSetting(): SettingDefinitionRender {
+		return {
+			name: t.PREVIEW_TITLE,
+			searchable: false,
+			render: (setting: Setting) => {
+				setting.settingEl.addClass("citation-suite-picker-setting");
+				setting.settingEl.addClass("citation-suite-preview-setting");
+				setting.settingEl
+					.querySelectorAll(":scope > .citation-suite-style-preview")
+					.forEach((el) => el.remove());
 				const preview = renderStylePreview(
 					setting.settingEl,
 					this.plugin
 				);
 				this.preview = preview;
 				return () => {
-					closePicker();
 					preview.destroy();
 					if (this.preview === preview) {
 						this.preview = null;
@@ -390,6 +455,86 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 				};
 			},
 		};
+	}
+
+	/**
+	 * What the bibliography list offers: Zotero first, because that is where
+	 * the sources come from unless the reader says otherwise, and then every
+	 * `.bib` and CSL JSON file the vault holds, by path.
+	 *
+	 * A file that was chosen and has since been renamed or deleted is kept in
+	 * the list under the path that was written down, for the same reason a
+	 * missing style is: a picker that quietly moved the reader back to Zotero
+	 * would be showing them a setting they never chose.
+	 */
+	private libraryChoices(): PickerChoice[] {
+		const choices: PickerChoice[] = [
+			// A phone has no Zotero to ask, so the entry that stands for
+			// asking it says what it really comes to there: no bibliography.
+			{
+				id: "",
+				title: Platform.isDesktopApp
+					? t.SETTING_LIBRARY_ZOTERO
+					: t.SETTING_LIBRARY_NONE,
+			},
+			...this.libraryFiles.map((path, at) => ({
+				id: path,
+				title: path,
+				group: at === 0 ? t.LIBRARY_PICKER_VAULT : undefined,
+			})),
+		];
+		const chosen = this.plugin.settings.libraryFile;
+		if (chosen && !this.libraryFiles.includes(chosen)) {
+			choices.push({ id: chosen, title: chosen });
+		}
+		return choices;
+	}
+
+	/**
+	 * The bibliography row, under the style's and drawn the same way: the list
+	 * of what the notes can read their sources from, across the whole width of
+	 * the row.
+	 *
+	 * The files are looked for when the tab is opened rather than kept, since a
+	 * `.bib` exported into the vault while Obsidian was running should be
+	 * there to choose without reopening it; see `getSettingDefinitions`.
+	 */
+	private librarySetting(): SettingDefinitionRender {
+		return {
+			name: t.SETTING_LIBRARY_NAME,
+			desc: t.SETTING_LIBRARY_DESC,
+			render: (setting: Setting) => {
+				setting.settingEl.addClass("citation-suite-picker-setting");
+				setting.settingEl
+					.querySelectorAll(":scope > .citation-suite-picker")
+					.forEach((el) => el.remove());
+				return renderPicker(setting.settingEl, {
+					label: t.SETTING_LIBRARY_NAME,
+					choices: this.libraryChoices(),
+					chosen: this.plugin.settings.libraryFile,
+					onChoose: (path) =>
+						void this.setControlValue("libraryFile", path),
+				});
+			},
+		};
+	}
+
+	/**
+	 * Looks for the vault's library files again, and draws the tab again if
+	 * what it holds has changed. Called from `getSettingDefinitions`, which
+	 * Obsidian calls whenever the tab is opened — and again from the `update()`
+	 * this makes, which is why it ends there: the second pass finds the same
+	 * files and asks for nothing.
+	 */
+	private async refreshLibraryFiles(): Promise<void> {
+		const found = await vaultLibraryFiles(this.app);
+		const same =
+			found.length === this.libraryFiles.length &&
+			found.every((path, at) => path === this.libraryFiles[at]);
+		if (!same) {
+			this.libraryFiles = found;
+			this.update();
+		}
 	}
 
 	/**
@@ -453,11 +598,24 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 	}
 
 	getSettingDefinitions(): SettingDefinitionItem[] {
+		// Obsidian asks for the rows every time the tab is opened, which is
+		// when a library file put into the vault since the last time is looked
+		// for. The rows are drawn from what the last look found; a look that
+		// finds something else draws them again.
+		void this.refreshLibraryFiles();
 		// Zotero runs on a desktop and is reached over a local port, neither of
 		// which a phone has. What is about Zotero is left out there rather than
 		// shown as something that will not work: the reader's sources come from
 		// a file of the vault instead.
 		const zotero = Platform.isDesktopApp;
+		// The bibliography section is drawn only when there is something in it
+		// to choose: a vault with no library file in it has nothing to say
+		// here, and the sources come from Zotero as they always did. A file
+		// chosen and since renamed or deleted keeps the section drawn, so that
+		// the reader can see what became of their setting and put it right.
+		const bibliographies =
+			this.libraryFiles.length > 0 ||
+			this.plugin.settings.libraryFile !== "";
 		return [
 			// The status card stands in a group of its own whose card styles.css
 			// blanks: it is a card of its own, and putting it inside the first
@@ -471,6 +629,19 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 						},
 					]
 				: []),
+			// Where the sources come from stands above how they are written:
+			// the style is chosen for sources the reader has, and on a phone
+			// the file is what there is to choose at all.
+			...(bibliographies
+				? [
+						{
+							type: "group" as const,
+							cls: "citation-suite-settings-rows",
+							heading: t.SECTION_BIBLIOGRAPHY,
+							items: [this.librarySetting()],
+						},
+					]
+				: []),
 			// Every setting below is a control 1.13 draws itself, so these
 			// groups keep the card Obsidian gives them. `citation-suite-settings-rows`
 			// is what styles.css corrects the row layout through — see the
@@ -481,6 +652,7 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 				heading: t.SECTION_CITATION,
 				items: [
 					this.styleSetting(),
+					this.previewSetting(),
 					{
 						name: t.SETTING_TOOLTIPS_NAME,
 						desc: t.SETTING_TOOLTIPS_DESC,
@@ -515,15 +687,6 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 						name: t.SETTING_SUGGEST_NAME,
 						desc: t.SETTING_SUGGEST_DESC,
 						control: { type: "toggle", key: "citationSuggestions" },
-					},
-					{
-						name: t.SETTING_LIBRARY_NAME,
-						desc: t.SETTING_LIBRARY_DESC,
-						control: {
-							type: "text",
-							key: "libraryFile",
-							placeholder: t.SETTING_LIBRARY_PLACEHOLDER,
-						},
 					},
 				],
 			},
