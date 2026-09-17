@@ -1,9 +1,9 @@
 # Changelog
 
 
-## 1.3.0
+## 2.0.0
 
-### A major update: mobile support, and citation style and bibliography files from the vault
+### Major update: mobile devices support, as well as citation style and bibliography files from the vault
 
 * **Mobile support.** Phones and tablets are now fully supported, thanks to the plugin scanning the vault for bibliography files (`.bib` or CSL JSON) and citation style files (`.csl`) on its own.
 * **Bibliographies from files in the vault.** The plugin scans the vault, and where it finds bibliography files it offers them in its settings to choose from. This is what lets it be used not only on mobile devices, but on the desktop without Zotero. A note can name a bibliography of its own in its `bibliography` property (Pandoc's format), several files at once included. A note's own setting takes priority.
