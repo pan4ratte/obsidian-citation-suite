@@ -66,8 +66,6 @@ export interface NoteStylesContext {
 	styleFiles(): StyleFiles | null;
 	/** The style chosen in the settings, or empty for no preview. */
 	styleId(): string;
-	/** Whether notes' `csl`, `lang` and `bibliography` are read at all. */
-	readProperties(): boolean;
 	/** The library file the settings name, for a note that names none. */
 	settingsLibrary(): string;
 }
@@ -130,16 +128,8 @@ export class NoteStyles {
 		}
 	}
 
-	/** The note's properties as they stand, or none when they are not read. */
+	/** The note's `csl`, `lang` and `bibliography`, as its front matter has them. */
 	private properties(path: string): StyleProperties {
-		if (!this.context.readProperties()) {
-			return { csl: null, lang: null, bibliography: [] };
-		}
-		return this.frontmatterProperties(path);
-	}
-
-	/** The note's properties as they stand, read or not for the preview. */
-	private frontmatterProperties(path: string): StyleProperties {
 		const file = this.app.vault.getFileByPath(path);
 		const frontmatter = file
 			? this.app.metadataCache.getFileCache(file)?.frontmatter
@@ -150,13 +140,12 @@ export class NoteStyles {
 	/**
 	 * The carried locale pandoc reads the note's locators in, for writing
 	 * them: the note's `lang`, or else the language of the style its `csl`
-	 * names, or else `en-US` — whatever the settings say about the preview,
-	 * since the export does not ask them. `null` for a language the plugin
-	 * carries no locale for.
+	 * names, or else `en-US`. `null` for a language the plugin carries no
+	 * locale for.
 	 */
 	async pandocLocale(path: string | null): Promise<string | null> {
 		const properties = path
-			? this.frontmatterProperties(path)
+			? this.properties(path)
 			: { csl: null, lang: null, bibliography: [] };
 		let wanted = properties.lang ?? "";
 		if (!wanted && properties.csl && path) {

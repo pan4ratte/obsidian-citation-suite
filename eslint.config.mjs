@@ -79,22 +79,32 @@ export default defineConfig([
 		rules: {
 			// Tests reach for Zotero-shaped fixtures, not the plugin's UI.
 			"obsidianmd/ui/sentence-case": "off",
+			// They run in Node, where the window the rule points at is what
+			// has to be stood in for.
+			"obsidianmd/no-global-this": "off",
 		},
 	},
 
 	// The one module that reads the disk, and the tests, which run in Node.
 	//
-	// `src/zoteroStyles.ts` imports `fs`, `os` and `path` at its top, and the
-	// rule asks for a dynamic import guarded by the platform. That guard is
-	// there — `src/main.ts` imports this whole module with `await import()`
-	// behind `Platform.isDesktopApp`, so a phone never loads it and never
-	// reaches an import inside it — but the rule reads the module rather than
-	// what loads it, and cannot see it.
+	// `src/zoteroStyles.ts` reaches for `fs`, `os` and `path`, which it does
+	// with `require` behind `Platform.isDesktopApp` rather than by importing
+	// them: the rule, and Obsidian's plugin review with it, reads the module
+	// rather than what loads it, and a static import there is reported however
+	// the module is loaded. It needs Node's globals all the same — `require`,
+	// `process` and `Buffer` — and so do the tests, which run in Node and read
+	// the plugin's own files off the disk to check them.
 	{
 		files: ["src/zoteroStyles.ts", "tests/**/*.ts"],
 		languageOptions: {
 			globals: globals.node,
 		},
+	},
+
+	// The tests are not shipped and never run on a phone, so what they import
+	// is their own business.
+	{
+		files: ["tests/**/*.ts"],
 		rules: {
 			"obsidianmd/no-nodejs-modules": "off",
 		},

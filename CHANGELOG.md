@@ -13,7 +13,10 @@
 
 ### UI/UX enhancements and bug fixes
 
+* The setting "Style the citation preview in the style and language from the note's properties" is gone: the `csl`, `citation-style` and `lang` properties are always followed now, as Pandoc follows them.
 * The search and copy buttons on the "Bibliography" tab now answer a press: the search icon leans as the search field opens and shuts, and a tick takes the place of the copy icon for a moment once the list has been copied.
+* The messages about sources that were not found now name the note's own library: for a note reading its sources from a file in the vault, the bibliography pane and the tooltip over a key speak of the file rather than of Zotero and Better BibTeX.
+* Fixed a bug that left the bibliography of a note reading its sources from a file in the vault a list of empty entries when a note reading from Zotero had been drawn before it.
 * Fixed a bug that sometimes kept citations in footnote text from showing in Live Preview: a blank space was left in their place, and a citation only appeared after it was clicked.
 * Fixed a bug that made a citation broken into parts by a line break cause an editor error.
 

@@ -355,6 +355,14 @@ export class NoteRenderer {
 			let done: boolean;
 			let failed = false;
 			try {
+				// citeproc asks for each source while the job steps, and
+				// `reading` is the only way it can be told which library to
+				// ask. The queue holds notes that read from different ones and
+				// works through them a slice at a time, so the task in hand
+				// says where it reads from rather than leaving citeproc to the
+				// library of whatever was rendered last — which would register
+				// every source of this note as one nothing is known about.
+				this.renderer.reading(task.library);
 				if (!task.job) {
 					// Whatever note the engine held, it is about to hold this one.
 					this.held.delete(task.engines.session);

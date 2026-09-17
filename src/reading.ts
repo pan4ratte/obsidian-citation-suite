@@ -22,6 +22,7 @@ import {
 	LibraryRef,
 	RenderedCitation,
 	StyleRef,
+	ZOTERO_LIBRARY,
 } from "src/render";
 
 /**
@@ -125,12 +126,20 @@ export function citationEl(
 }
 
 /**
- * A key Zotero has no source for, as an element to stand where the key does,
- * saying so on hover. Live preview marks keys with the same class and tooltip.
+ * A key the note's library has no source for, as an element to stand where the
+ * key does, saying so on hover — of Zotero or of the file the note reads from,
+ * whichever it was asking. Live preview marks keys with the same class and
+ * tooltip.
  */
-function missingKeyEl(text: string, tooltip: CitationTooltip): HTMLElement {
+function missingKeyEl(
+	text: string,
+	tooltip: CitationTooltip,
+	library: LibraryRef
+): HTMLElement {
 	const span = createSpan({ cls: MISSING_CLASS, text });
-	setTooltip(span, t.CITATION_KEY_MISSING, { delay: tooltip.delay });
+	const label =
+		library === ZOTERO_LIBRARY ? t.CITATION_KEY_MISSING : t.CITATION_KEY_MISSING_FILE;
+	setTooltip(span, label, { delay: tooltip.delay });
 	return span;
 }
 
@@ -199,7 +208,7 @@ function decorateNode(
 			if (context.renderer.missing(mention.id, library)) {
 				upTo(mention.from);
 				fragment.appendChild(
-					missingKeyEl(text.slice(mention.from, mention.to), tooltip)
+					missingKeyEl(text.slice(mention.from, mention.to), tooltip, library)
 				);
 				at = mention.to;
 				replaced = true;

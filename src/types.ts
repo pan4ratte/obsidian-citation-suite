@@ -99,12 +99,6 @@ export interface CitationSuiteSettings {
 	/** How long, in milliseconds, a citation is hovered before its tooltip shows. */
 	citationTooltipDelay: number;
 	/**
-	 * Preview a note that names pandoc's `csl`, `lang` or `bibliography` in the
-	 * style, the language and from the library it names, as pandoc will export
-	 * it (`src/noteStyles.ts`).
-	 */
-	noteStyleProperties: boolean;
-	/**
 	 * The library file a note's sources are read from when it names none of its
 	 * own: a `.bib` or a CSL JSON export, by its path in the vault. Empty — the
 	 * default — for Zotero, which is where they come from on the desktop.
@@ -167,7 +161,6 @@ export const DEFAULT_SETTINGS: CitationSuiteSettings = {
 	citationItalic: false,
 	citationTooltips: true,
 	citationTooltipDelay: DEFAULT_TOOLTIP_DELAY,
-	noteStyleProperties: true,
 	// Zotero, until the reader names a file: it is what the plugin was for.
 	libraryFile: "",
 	markMissingKeys: true,

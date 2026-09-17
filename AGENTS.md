@@ -326,8 +326,8 @@ says so.
 A note that names `csl` (or `citation-style`) or `lang` in its front matter is
 previewed — citations, tooltips and the pane — as pandoc will export it; a note
 that names neither is previewed as before, in the settings' style the way
-Zotero writes it. "Do not style the preview" still turns everything off, and
-`noteStyleProperties` (on by default) turns the reading of properties off.
+Zotero writes it. The properties are always read — there is no setting for it —
+and "Do not style the preview" still turns everything off.
 Every rule below was read off pandoc 3.11 itself, not the manual:
 
 - **`csl`**: `.csl` is added to a name with no extension; a relative file is

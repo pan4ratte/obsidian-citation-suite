@@ -76,19 +76,19 @@ describe("the styles a vault holds", () => {
 
 /**
  * The plugin loads on a phone only as long as nothing on the path to loading
- * it imports Node. One module is allowed to, and `src/main.ts` loads that one
- * with a dynamic import behind `Platform.isDesktopApp`; a static import of
- * Node anywhere else would be loaded with the plugin and throw on a phone
- * before anything could catch it.
+ * it imports Node. No module imports Node at all: `src/zoteroStyles.ts`, the
+ * one that reads the disk, requires what it needs behind
+ * `Platform.isDesktopApp` and is itself loaded behind the same guard. A static
+ * import anywhere in `src/` would be evaluated with the module that holds it —
+ * and reported by Obsidian's plugin review, which reads the source.
  */
 describe("what the mobile build may import", () => {
-	const DESKTOP_ONLY = "zoteroStyles.ts";
 	const NODE = /^\s*import\s[^;]*?from\s+"(node:)?(fs|fs\/promises|os|path|child_process|http|https|net|electron)"/m;
 
-	it("imports Node in the desktop module alone", () => {
+	it("imports Node nowhere", () => {
 		const dir = join(__dirname, "..", "src");
 		const offenders = readdirSync(dir)
-			.filter((name) => name.endsWith(".ts") && name !== DESKTOP_ONLY)
+			.filter((name) => name.endsWith(".ts"))
 			.filter((name) => NODE.test(readFileSync(join(dir, name), "utf8")));
 		expect(offenders).toEqual([]);
 	});

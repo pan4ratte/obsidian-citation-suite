@@ -1,7 +1,4 @@
-import { open, readdir, readFile } from "fs/promises";
-import { homedir, platform } from "os";
-import { dirname, isAbsolute, join } from "path";
-import { App, FileSystemAdapter } from "obsidian";
+import { App, FileSystemAdapter, Platform } from "obsidian";
 import type { StyleFiles } from "src/noteStyles";
 import { parseStyle, ZoteroCitePrefs } from "src/styles";
 import { CitationStyle } from "src/types";
@@ -23,6 +20,59 @@ import { CitationStyle } from "src/types";
  * Zotero's preferences at their defaults. Nothing here is on the path of
  * writing a citation — it runs once, to fill a dropdown.
  */
+
+/**
+ * Node's modules, taken at the moment one is first needed rather than imported
+ * at the top of the file.
+ *
+ * An import at the top is evaluated by the act of loading the module, which is
+ * why the whole of this one is loaded behind `Platform.isDesktopApp` — and the
+ * guard is repeated here because the guard elsewhere cannot be seen from here:
+ * what reads this file, a reader or Obsidian's plugin review, sees a file that
+ * reaches for Node and nothing of what decides whether it is loaded.
+ */
+type NodeFs = typeof import("fs/promises");
+type NodeOs = typeof import("os");
+type NodePath = typeof import("path");
+
+/** One of Node's modules, on a desktop. On a phone there is nothing to answer with. */
+function nodeModule<T>(name: string): T {
+	if (!Platform.isDesktopApp) {
+		throw new Error(`Citation Suite: ${name} is desktop-only`);
+	}
+	// eslint-disable-next-line @typescript-eslint/no-require-imports -- an import is what has to be avoided: it would be evaluated on a phone, which has none of these modules
+	return require(name) as T;
+}
+
+let fsModule: NodeFs | null = null;
+let osModule: NodeOs | null = null;
+let pathModule: NodePath | null = null;
+
+/** `fs/promises`, `os` and `path`: required once, then kept. */
+const fs = (): NodeFs => (fsModule ??= nodeModule<NodeFs>("fs/promises"));
+const os = (): NodeOs => (osModule ??= nodeModule<NodeOs>("os"));
+const path = (): NodePath => (pathModule ??= nodeModule<NodePath>("path"));
+
+// The five the rest of the file reads as though they had been imported.
+function join(...parts: string[]): string {
+	return path().join(...parts);
+}
+
+function dirname(of: string): string {
+	return path().dirname(of);
+}
+
+function isAbsolute(of: string): boolean {
+	return path().isAbsolute(of);
+}
+
+function homedir(): string {
+	return os().homedir();
+}
+
+function platform(): string {
+	return os().platform();
+}
 
 /**
  * How much of a style file is read. A CSL file opens with its `<info>` block,
@@ -60,7 +110,7 @@ function profileRoot(): string {
 async function readProfilePrefs(): Promise<string> {
 	let profiles;
 	try {
-		profiles = await readdir(join(profileRoot(), "Profiles"), {
+		profiles = await fs().readdir(join(profileRoot(), "Profiles"), {
 			withFileTypes: true,
 		});
 	} catch {
@@ -72,7 +122,7 @@ async function readProfilePrefs(): Promise<string> {
 			continue;
 		}
 		try {
-			return await readFile(
+			return await fs().readFile(
 				join(profileRoot(), "Profiles", profile.name, "prefs.js"),
 				"utf8"
 			);
@@ -114,7 +164,7 @@ export async function zoteroDataDir(): Promise<string> {
 
 /** The whole of a style's file, which is what citeproc has to be given. */
 export async function readStyleFile(style: CitationStyle): Promise<string> {
-	return readFile(style.path, "utf8");
+	return fs().readFile(style.path, "utf8");
 }
 
 /** A `true`/`false` preference, or nothing when Zotero has not written it. */
@@ -159,10 +209,10 @@ function localeFromPrefs(prefs: string): string {
 }
 
 /** The head of one style file, or nothing if it cannot be read. */
-export async function readHead(path: string): Promise<string | null> {
+export async function readHead(filePath: string): Promise<string | null> {
 	let file;
 	try {
-		file = await open(path);
+		file = await fs().open(filePath);
 	} catch {
 		return null;
 	}
@@ -187,7 +237,7 @@ export async function installedStyles(): Promise<CitationStyle[]> {
 	const dir = join(await zoteroDataDir(), "styles");
 	let names: string[];
 	try {
-		names = await readdir(dir);
+		names = await fs().readdir(dir);
 	} catch {
 		return [];
 	}

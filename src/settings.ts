@@ -132,16 +132,10 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 			// The card was answering for the port the settings pointed at.
 			this.statusCard?.refresh();
 		}
-		if (
-			key === "citationStyle" ||
-			key === "port" ||
-			key === "noteStyleProperties" ||
-			key === "libraryFile"
-		) {
+		if (key === "citationStyle" || key === "port" || key === "libraryFile") {
 			// Each changes what the citations already on screen should look
-			// like — the style, the library behind them, whether a note's own
-			// style is read, or which file the sources come from — and none
-			// redraws them on its own.
+			// like — the style, the library behind them, or which file the
+			// sources come from — and none redraws them on its own.
 			await this.plugin.restyle();
 		}
 		if (REDRAW_KEYS.has(key)) {
@@ -487,11 +481,6 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 				heading: t.SECTION_CITATION,
 				items: [
 					this.styleSetting(),
-					{
-						name: t.SETTING_NOTE_STYLE_NAME,
-						desc: t.SETTING_NOTE_STYLE_DESC,
-						control: { type: "toggle", key: "noteStyleProperties" },
-					},
 					{
 						name: t.SETTING_TOOLTIPS_NAME,
 						desc: t.SETTING_TOOLTIPS_DESC,

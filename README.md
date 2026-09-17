@@ -30,9 +30,9 @@ In the plugin settings you can choose a citation style from your Zotero library 
 
 A tab in the right sidebar lists every source cited in the note — formatted in the citation style chosen for the preview, following its sorting, numbering and indentation. Above the bibliography is the number of sources, a search of the list and a way to copy the bibliography. Right-clicking an entry opens a context menu that lets you open your note about the source or its PDF, reveal the source in Zotero, copy a single entry or find every mention of the source in the note.
 
-### 4. Sources from a file in the vault, and working on a phone
+### 4. Citing from a file in the vault, and mobile support
 
-Sources can come from a `.bib` or CSL JSON file kept in the vault rather than from Zotero — the same way Pandoc takes them. The file is named in the settings, and a note can name one of its own in its `bibliography` property. Citation styles can live in the vault too: `.csl` files appear in the list of styles beside Zotero's own. That is what lets the plugin work on phones and tablets, and on the desktop with Zotero closed: the insert-citation command then offers the sources in the file to pick from.
+Sources can come not only from Zotero, but also from a `.bib` or CSL JSON file kept in the vault. The shared file is set in the plugin settings, and each individual note can have a file of its own, set in its `bibliography` property. Citation styles can be kept in the vault as well: `.csl` files appear in the list of styles beside Zotero's own. Thanks to this the plugin supports mobile devices, and on the desktop it can be used even without Zotero.
 
 ### 5. Automatic footnotes
 

@@ -106,7 +106,6 @@ export default class CitationSuitePlugin extends Plugin {
 		readStyle: (style) => this.readStyle(style),
 		styleFiles: () => this.styleFiles,
 		styleId: () => this.settings.citationStyle,
-		readProperties: () => this.settings.noteStyleProperties,
 		settingsLibrary: () => this.settings.libraryFile,
 	});
 	/**

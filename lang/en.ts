@@ -39,8 +39,6 @@ export default {
 	SETTING_TOOLTIPS_DESC: "Hovering over a citation will show its formatted bibliography entry.",
 	SETTING_TOOLTIP_DELAY_NAME: "Tooltip delay",
 	SETTING_TOOLTIP_DELAY_DESC: "Adjust how soon the source's bibliography entry appears in the tooltip.",
-	SETTING_NOTE_STYLE_NAME: "Style the citation preview in the style and language from the note's properties",
-	SETTING_NOTE_STYLE_DESC: "When the csl, citation-style or lang properties are filled in, the preview will be styled according to them.",
 	SETTING_MARK_MISSING_NAME: "Mark citation keys the library does not have",
 	SETTING_MARK_MISSING_DESC: "The key of a source not found in the library — in Zotero, or in the file you named — will be underlined with a wavy line.",
 	SETTING_BRACKETS_NAME: "Put citations in square brackets",
@@ -90,6 +88,7 @@ export default {
 
 	// ─── Citations in a note ─────────────────────────────────────────────────
 	CITATION_KEY_MISSING: "Zotero has no source with this citation key",
+	CITATION_KEY_MISSING_FILE: "The bibliography file has no source with this citation key",
 	// The hints under the list of sources offered while a key is typed.
 	SUGGEST_NAVIGATE: "Move through the list",
 	SUGGEST_INSERT: "Insert the key",
@@ -167,8 +166,12 @@ export default {
 	BIBLIOGRAPHY_LOCALE_NOT_CARRIED: "The preview does not support this language, so citations are styled in the default language:",
 	BIBLIOGRAPHY_MISSING: "Sources not found in Zotero",
 	BIBLIOGRAPHY_MISSING_DESC: "Better BibTeX has no items for these citation keys. If you have already added the sources to Zotero, refresh the bibliography.",
+	BIBLIOGRAPHY_MISSING_FILE: "Sources not found in the bibliography file",
+	BIBLIOGRAPHY_MISSING_FILE_DESC: "The note's bibliography file has no sources for these citation keys. If you have already added them to the file, refresh the bibliography.",
 	BIBLIOGRAPHY_UNREACHABLE: "Zotero is not responding",
 	BIBLIOGRAPHY_UNREACHABLE_DESC: "Could not get the note's sources. Make sure Zotero is running, Better BibTeX is installed in it and the port in the settings matches its own. The bibliography will update as soon as Zotero responds.",
+	BIBLIOGRAPHY_UNREACHABLE_FILE: "The bibliography file could not be read",
+	BIBLIOGRAPHY_UNREACHABLE_FILE_DESC: "Could not read the file the note takes its sources from. Check that the file is where the note names it and that it is a .bib or CSL JSON file. The bibliography will update as soon as the file can be read.",
 	// The menu of an entry in the list.
 	BIBLIOGRAPHY_OPEN_NOTE: "Open literature note",
 	BIBLIOGRAPHY_OPEN_PDF: "Open PDF",

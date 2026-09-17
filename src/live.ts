@@ -19,6 +19,7 @@ import {
 	LibraryRef,
 	RenderedCitation,
 	StyleRef,
+	ZOTERO_LIBRARY,
 } from "src/render";
 
 /**
@@ -250,7 +251,11 @@ export function citationExtension(context: LiveContext) {
 					class: MISSING_CLASS,
 					// Obsidian shows a tooltip for any element with a label.
 					attributes: {
-						"aria-label": t.CITATION_KEY_MISSING,
+						// The note's own library is what has no source for it.
+						"aria-label":
+							library === ZOTERO_LIBRARY
+								? t.CITATION_KEY_MISSING
+								: t.CITATION_KEY_MISSING_FILE,
 						"data-tooltip-delay": String(tooltip.delay),
 					},
 				});

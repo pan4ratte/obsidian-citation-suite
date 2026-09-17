@@ -802,8 +802,18 @@ export class BibliographyView extends ItemView {
 	}
 
 	/**
-	 * Says Zotero did not answer when the note's sources were asked for, in
-	 * place of listing them as not found. Not searched: it holds no source.
+	 * Whether the note reads its sources from a file in the vault rather than
+	 * from Zotero, which is what the pane says when it has none of them: a note
+	 * reading from a file was never asking Zotero for anything.
+	 */
+	private get readsFile(): boolean {
+		return this.library !== ZOTERO_LIBRARY;
+	}
+
+	/**
+	 * Says the note's library did not answer when its sources were asked for,
+	 * in place of listing them as not found: Zotero closed, or a file that
+	 * could not be read. Not searched: it holds no source.
 	 */
 	private drawUnreachable(): void {
 		const section = this.bodyEl.createDiv({
@@ -811,26 +821,32 @@ export class BibliographyView extends ItemView {
 		});
 		section.createDiv({
 			cls: "citation-suite-bibliography-missing-title",
-			text: t.BIBLIOGRAPHY_UNREACHABLE,
+			text: this.readsFile
+				? t.BIBLIOGRAPHY_UNREACHABLE_FILE
+				: t.BIBLIOGRAPHY_UNREACHABLE,
 		});
 		section.createDiv({
 			cls: "citation-suite-bibliography-missing-desc",
-			text: t.BIBLIOGRAPHY_UNREACHABLE_DESC,
+			text: this.readsFile
+				? t.BIBLIOGRAPHY_UNREACHABLE_FILE_DESC
+				: t.BIBLIOGRAPHY_UNREACHABLE_DESC,
 		});
 	}
 
-	/** The keys the note cites that Zotero had no item for. */
+	/** The keys the note cites that its library had no source for. */
 	private drawMissing(keys: string[]): void {
 		const section = this.bodyEl.createDiv({
 			cls: "citation-suite-bibliography-missing",
 		});
 		section.createDiv({
 			cls: "citation-suite-bibliography-missing-title",
-			text: t.BIBLIOGRAPHY_MISSING,
+			text: this.readsFile ? t.BIBLIOGRAPHY_MISSING_FILE : t.BIBLIOGRAPHY_MISSING,
 		});
 		section.createDiv({
 			cls: "citation-suite-bibliography-missing-desc",
-			text: t.BIBLIOGRAPHY_MISSING_DESC,
+			text: this.readsFile
+				? t.BIBLIOGRAPHY_MISSING_FILE_DESC
+				: t.BIBLIOGRAPHY_MISSING_DESC,
 		});
 		const list = section.createDiv({
 			cls: "citation-suite-bibliography-missing-keys",
