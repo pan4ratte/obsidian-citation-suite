@@ -96,6 +96,19 @@
 	align-items: center;
 }
 
+/* On a narrow screen that correction would do the opposite of what it is for.
+   Obsidian turns the row into a column there — `@container (max-width: 400px)`
+   in its own app.css — and `center` then centres across the row's width rather
+   than down its height, which leaves everything in it adrift of the card's
+   edges. Stretching is what a column wants: the name and description set their
+   own `align-self`, and the control block is already given the full width. */
+@container (max-width: 400px) {
+	.setting-group.citation-suite-settings-rows
+		.setting-item:not(.setting-item-heading) {
+		align-items: stretch;
+	}
+}
+
 /* Second: Obsidian gives the control block the same `flex: 1 1 auto` as the
    name and description beside it, so a switch a few dozen pixels wide sits in
    a container claiming an even share of the row — half of it on a wide pane —
@@ -364,10 +377,26 @@
 }
 
 /* Laid out after the style list in Zotero's "Document preferences" window: one
-   bordered box of every entry, with the chosen one marked. */
+   bordered box of every entry, with the chosen one marked.
+
+   The width is said outright as well as through the flex basis. On a narrow
+   screen Obsidian turns the row into a column — `@container (max-width: 400px)`
+   in its own app.css — and a basis of 100% is a height there, not a width, so
+   the box would be only as wide as its longest title and stand inset from the
+   card. */
 .citation-suite-picker {
 	flex: 1 0 100%;
+	width: 100%;
 	margin-top: var(--size-4-3);
+}
+
+/* The column the row becomes brings a row gap of its own (`row-gap` on
+   `.setting-item`), and the margin that stands in for one beside it would then
+   be counted twice. */
+@container (max-width: 400px) {
+	.citation-suite-picker {
+		margin-top: 0;
+	}
 }
 
 /* As tall as what is in it, up to about ten titles, and scrolled past that: a
@@ -450,6 +479,7 @@
    bar with a title and the look's buttons, and a sentence under it. */
 .citation-suite-style-preview {
 	flex: 1 0 100%;
+	width: 100%;
 	margin-top: var(--size-4-3);
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--radius-m);

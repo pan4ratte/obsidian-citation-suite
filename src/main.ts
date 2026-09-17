@@ -4,7 +4,6 @@ import {
 	MarkdownView,
 	Menu,
 	Notice,
-	Platform,
 	Plugin,
 	TFile,
 } from "obsidian";
@@ -28,6 +27,7 @@ import {
 } from "src/footnote";
 import { openFootnotePopover } from "src/footnotePopover";
 import { citedKeys } from "src/citation";
+import { onDesktop } from "src/desktop";
 import { citationExtension } from "src/live";
 import { applyLook, clearLook } from "src/look";
 import { MarkdownModal } from "src/markdownModal";
@@ -471,13 +471,13 @@ export default class CitationSuitePlugin extends Plugin {
 			await this.pickFromLibrary(editor, ctx, library);
 			return;
 		}
-		const status = Platform.isDesktopApp
+		const status = onDesktop()
 			? await probeZotero(this.settings.port)
 			: "unreachable";
 		if (status !== "ready") {
 			// Nothing to cite from: no Zotero answering, and no file chosen.
 			new Notice(
-				!Platform.isDesktopApp
+				!onDesktop()
 					? t.NOTICE_NO_LIBRARY
 					: status === "starting"
 						? t.NOTICE_ZOTERO_STARTING
@@ -799,7 +799,7 @@ export default class CitationSuitePlugin extends Plugin {
 	 * top of the file — and on a phone it is never loaded at all.
 	 */
 	private async loadDesktop(): Promise<void> {
-		if (!Platform.isDesktopApp) {
+		if (!onDesktop()) {
 			return;
 		}
 		try {
@@ -819,14 +819,49 @@ export default class CitationSuitePlugin extends Plugin {
 	 * one names it by path.
 	 */
 	private async allStyles(): Promise<CitationStyle[]> {
-		const installed = (await this.desktop?.installedStyles()) ?? [];
+		const installed = await this.fromDesktop(
+			(desktop) => desktop.installedStyles(),
+			[] as CitationStyle[]
+		);
 		const inVault = await vaultStyles(this.app);
 		return [...installed, ...inVault].sort((a, b) => a.title.localeCompare(b.title));
 	}
 
 	/** What Zotero writes citations by, or the defaults where it cannot be read. */
 	private async citePrefs(): Promise<ZoteroCitePrefs> {
-		return (await this.desktop?.zoteroCitePrefs()) ?? DEFAULT_CITE_PREFS;
+		return this.fromDesktop(
+			(desktop) => desktop.zoteroCitePrefs(),
+			DEFAULT_CITE_PREFS
+		);
+	}
+
+	/**
+	 * What only the desktop half can answer, or the answer a phone makes do
+	 * with where it cannot.
+	 *
+	 * It reads a disk, and a disk fails: Zotero's folder may not be where it
+	 * is looked for, or may not be readable, and under Obsidian's mobile
+	 * emulation the Node modules it is written against are not there at all.
+	 * None of that is a reason for the plugin not to load. What it costs is
+	 * Zotero's styles and preferences — which is what a phone does without
+	 * anyway, and what `loadDesktop` failing already costs.
+	 */
+	private async fromDesktop<T>(
+		work: (desktop: typeof import("src/zoteroStyles")) => Promise<T>,
+		fallback: T
+	): Promise<T> {
+		if (!this.desktop) {
+			return fallback;
+		}
+		try {
+			return await work(this.desktop);
+		} catch (error) {
+			console.error(
+				"Citation Suite: Zotero's own files could not be read",
+				error
+			);
+			return fallback;
+		}
 	}
 
 	/** The whole of a style's file, read wherever that style's file is. */

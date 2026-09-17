@@ -66,6 +66,8 @@ If you want to test beta-versions of the plugin or use previous versions, you ca
 
 ## 1. Requirements
 
+### For citing and previewing through Zotero:
+
 1. Install Zotero: [https://www.zotero.org/download/](https://www.zotero.org/download/).
 
 2. Install the Better BibTeX extension in Zotero — it gives sources their citation keys: [https://retorque.re/zotero-better-bibtex/installation/](https://retorque.re/zotero-better-bibtex/installation/).
@@ -74,7 +76,15 @@ If you want to test beta-versions of the plugin or use previous versions, you ca
 
 The panel at the top of the plugin settings shows Zotero's status and whether the plugin is ready to work.
 
-Zotero is only needed on the desktop. Where there is none — on a phone or tablet, or simply with Zotero closed — choose a `.bib` or CSL JSON file kept in the vault in the plugin settings, and sources will be read from it. A note can name a file of its own in its `bibliography` property: it is looked for beside the note first and then from the vault's root, and there can be several — where two hold the same key, the source in the last of them is the one cited, as Pandoc does it. For a note that reads its sources from a file, the "Insert citation" command opens a list of that file's sources instead of Zotero's citation window, even with Zotero running; the page is typed in that same window: the source picked stays in the field and the page is typed after it, as it is in Zotero's citation window. Enter fixes the page to the source, another source can then be added to the same citation, and the next Enter writes the citation into the note. A prefix and a suffix are still Zotero's window alone. Opening a PDF and showing a source in Zotero are not shown on mobile.
+### For citing and previewing without Zotero, with files kept in the vault:
+
+The plugin works on mobile devices, where Zotero cannot be had, by using bibliographies and citation styles kept in the vault. The same holds on the desktop, so Zotero is not required there either.
+
+1. Files of the right kind are found in the vault on their own. So, to cite and preview your literature, put your `.bib`, CSL JSON or `.csl` files anywhere in the vault.
+
+2. In the plugin settings, choose one of the bibliography files found. If a note fills in its `bibliography` property, the file named there takes priority. The citation window will then be the plugin's own dialog — with a similar interface and much the same working — rather than Zotero's.
+
+3. In the plugin settings, the style files found in the vault are shown at the end of the list of available citation styles. Choose one of them to have the citation preview work without reaching for the files in Zotero's library.
 
 
 ## 2. Commands

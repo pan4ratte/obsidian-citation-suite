@@ -1,5 +1,6 @@
-import { App, FileSystemAdapter, Platform } from "obsidian";
+import { App, FileSystemAdapter } from "obsidian";
 import type { StyleFiles } from "src/noteStyles";
+import { onDesktop } from "src/desktop";
 import { parseStyle, ZoteroCitePrefs } from "src/styles";
 import { CitationStyle } from "src/types";
 
@@ -26,7 +27,7 @@ import { CitationStyle } from "src/types";
  * at the top of the file.
  *
  * An import at the top is evaluated by the act of loading the module, which is
- * why the whole of this one is loaded behind `Platform.isDesktopApp` — and the
+ * why the whole of this one is loaded behind `onDesktop()` — and the
  * guard is repeated here because the guard elsewhere cannot be seen from here:
  * what reads this file, a reader or Obsidian's plugin review, sees a file that
  * reaches for Node and nothing of what decides whether it is loaded.
@@ -37,11 +38,19 @@ type NodePath = typeof import("path");
 
 /** One of Node's modules, on a desktop. On a phone there is nothing to answer with. */
 function nodeModule<T>(name: string): T {
-	if (!Platform.isDesktopApp) {
+	if (!onDesktop()) {
 		throw new Error(`Citation Suite: ${name} is desktop-only`);
 	}
 	// eslint-disable-next-line @typescript-eslint/no-require-imports -- an import is what has to be avoided: it would be evaluated on a phone, which has none of these modules
-	return require(name) as T;
+	const module = require(name) as T | null;
+	// Obsidian answers `null` for a Node package rather than throwing wherever
+	// it has decided a plugin may not have one. Reading a function off that is
+	// the error a reader sees ("Cannot read properties of null"), so it is
+	// refused here, where what went wrong can still be said.
+	if (!module) {
+		throw new Error(`Citation Suite: ${name} could not be loaded`);
+	}
+	return module;
 }
 
 let fsModule: NodeFs | null = null;

@@ -5,7 +5,6 @@ import {
 	MarkdownView,
 	Menu,
 	Notice,
-	Platform,
 	sanitizeHTMLToDom,
 	SearchComponent,
 	setIcon,
@@ -14,6 +13,7 @@ import {
 	WorkspaceLeaf,
 } from "obsidian";
 import { t } from "lang/helpers";
+import { onDesktop } from "src/desktop";
 import { citedKeys, mentionsOf } from "src/citation";
 import { literatureNote } from "src/literatureNote";
 import { noteCitations } from "src/noteCitations";
@@ -947,7 +947,7 @@ export class BibliographyView extends ItemView {
 		}
 		// Both of these hand the source over to Zotero — its reader, and its
 		// window — and there is no Zotero on a phone to hand it to.
-		if (Platform.isDesktopApp) {
+		if (onDesktop()) {
 			const where = { x: event.clientX, y: event.clientY };
 			menu.addItem((item) =>
 				item

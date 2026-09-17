@@ -1,7 +1,9 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { App } from "obsidian";
-import { describe, expect, it } from "vitest";
+import { App, Platform } from "obsidian";
+import { afterEach, describe, expect, it } from "vitest";
+import { onDesktop } from "src/desktop";
+import { installedStyles } from "src/zoteroStyles";
 import { vaultStyle, vaultStyles } from "src/vaultStyles";
 
 /** A CSL file that declares itself to be the style named. */
@@ -91,5 +93,41 @@ describe("what the mobile build may import", () => {
 			.filter((name) => name.endsWith(".ts"))
 			.filter((name) => NODE.test(readFileSync(join(dir, name), "utf8")));
 		expect(offenders).toEqual([]);
+	});
+});
+
+/**
+ * The other half of the same guarantee: the guard those Node requires sit
+ * behind. `Platform.isDesktopApp` alone is not it — see `src/desktop.ts`.
+ */
+describe("what counts as a desktop", () => {
+	const was = { ...Platform };
+	afterEach(() => Object.assign(Platform, was));
+
+	it("is a desktop app that is not standing in for a phone", () => {
+		Object.assign(Platform, { isDesktopApp: true, isMobile: false });
+		expect(onDesktop()).toBe(true);
+	});
+
+	it("is not Obsidian's mobile emulation, which keeps `isDesktopApp`", () => {
+		// Emulation sets `isMobile` and leaves `isDesktopApp` as it was, while
+		// the `require` a plugin is given starts answering `null`. Reading the
+		// first flag alone is what loaded the Node half under emulation and
+		// took `homedir` off `null`.
+		Object.assign(Platform, { isDesktopApp: true, isMobile: true });
+		expect(onDesktop()).toBe(false);
+	});
+
+	it("is not a phone", () => {
+		Object.assign(Platform, { isDesktopApp: false, isMobile: true });
+		expect(onDesktop()).toBe(false);
+	});
+
+	it("keeps the desktop module off the disk where it does not hold", async () => {
+		// It is loaded behind the same guard and so should never be called
+		// there at all; if it is, it refuses rather than reading a function
+		// off the `null` Obsidian answers a Node package with.
+		Object.assign(Platform, { isDesktopApp: true, isMobile: true });
+		await expect(installedStyles()).rejects.toThrow(/desktop-only/);
 	});
 });

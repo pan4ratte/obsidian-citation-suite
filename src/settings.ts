@@ -2,7 +2,6 @@ import {
 	App,
 	ExtraButtonComponent,
 	Notice,
-	Platform,
 	PluginSettingTab,
 	Setting,
 	SettingDefinitionControl,
@@ -10,6 +9,7 @@ import {
 	SettingDefinitionRender,
 } from "obsidian";
 import { lang, t } from "lang/helpers";
+import { onDesktop } from "src/desktop";
 import CitationSuitePlugin from "src/main";
 import {
 	FootnoteNumbering,
@@ -473,7 +473,7 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 			// asking it says what it really comes to there: no bibliography.
 			{
 				id: "",
-				title: Platform.isDesktopApp
+				title: onDesktop()
 					? t.SETTING_LIBRARY_ZOTERO
 					: t.SETTING_LIBRARY_NONE,
 			},
@@ -607,7 +607,7 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 		// which a phone has. What is about Zotero is left out there rather than
 		// shown as something that will not work: the reader's sources come from
 		// a file of the vault instead.
-		const zotero = Platform.isDesktopApp;
+		const zotero = onDesktop();
 		// The bibliography section is drawn only when there is something in it
 		// to choose: a vault with no library file in it has nothing to say
 		// here, and the sources come from Zotero as they always did. A file

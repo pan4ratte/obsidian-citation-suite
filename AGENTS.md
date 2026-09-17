@@ -5,16 +5,24 @@
 | Command | What it does |
 |---------|-------------|
 | `npm run dev` | esbuild watch mode (no typecheck) |
-| `npm test` | Vitest — 257 tests, all passing |
+| `npm test` | Vitest — 315 tests, all passing |
 | `npm run lint` / `npm run lint:fix` | ESLint (`lint:ts`) and Stylelint (`lint:css`) with the official Obsidian rulesets |
 | `npm run build` | `tsc -noEmit -skipLibCheck && node esbuild.config.mjs production` |
 
 ## What this plugin is
 
-A hotkey opens Zotero's own citation window and writes what was picked into the
-note as a pandoc citation. There is no bibliography in the vault, no library
-index, no cache: the pick is a single HTTP request to Zotero and the answer is
-the citation.
+A hotkey opens a citation window and writes what was picked into the note as a
+pandoc citation, and the note's citations are previewed in a citation style.
+
+Where the sources come from is the note's own business, and there are two
+answers. **Zotero**, which is what the plugin was for: the pick is a single
+HTTP request to Zotero's own window, there is no library index and no cache.
+**A file of the vault** — a `.bib` or a CSL JSON export — which is read through
+Obsidian and held, and which is what makes the plugin work on a phone, and on a
+desktop with Zotero closed. Styles are the same shape: Zotero's installed ones,
+read off the disk, and `.csl` files kept in the vault. See "Libraries and
+styles of the vault" below; `Platform.isDesktopApp` is what decides whether
+any of the Zotero half is even loaded.
 
 ## The CAYW contract
 
@@ -147,6 +155,103 @@ once:
   23–139 items in 0.2–0.7 s.
 - **`user.groups`** answers with every library as `{ id: libraryID, name }`.
   The renderer keeps that list until `reset()` or `forgetUnknown()`.
+
+## Libraries and styles of the vault
+
+The other half of where a citation comes from, and the half that works on a
+phone. Nothing here asks Zotero anything.
+
+**The platform split.** `src/zoteroStyles.ts` is the one module that reaches
+for Node — `fs/promises`, `os`, `path`, and by `require()` rather than by
+import, so that loading the module does not load them — and `src/main.ts`
+loads that module with `await import()` behind `onDesktop()`. Everything else
+reads through Obsidian's vault API and runs everywhere.
+`tests/vaultStyles.test.ts` guards both halves: that no `src/` file imports
+Node at all, and what `onDesktop()` answers.
+
+**`onDesktop()`, not `Platform.isDesktopApp`** (`src/desktop.ts`). Obsidian's
+mobile emulation — the way a phone is tried out on a desktop — sets `isMobile`
+and clears `isDesktop` but **leaves `isDesktopApp` true**, while the `require`
+a plugin is given starts answering `null` for every Node package and logging
+"Attempting to load NodeJS package". Read out of 1.13.7's bundle:
+
+    !rd.isMobile && localStorage.getItem("EmulateMobile") &&
+        (rd.isMobile = !0, rd.isDesktop = !1, …)
+
+So a gate on `isDesktopApp` alone loads the Node half under emulation and then
+reads `homedir` off `null` — which took the whole plugin down with "Cannot read
+properties of null". Every Zotero gate goes through `onDesktop()`, which is
+`isDesktopApp && !isMobile`, and `nodeModule()` refuses a `null` module rather
+than handing it on. Nothing that only the desktop can answer may throw into
+`onload` either: `fromDesktop()` in `main.ts` degrades to no styles and default
+preferences, since a style list is no reason for the plugin not to load.
+
+The built bundle can be checked against both shapes by loading `main.js` with
+`require` answering `null` for everything but `obsidian` and `@codemirror/*`,
+once with emulation's flags and once with a phone's, and asserting that nothing
+asked for a Node package.
+
+**Which library a note reads.** `NoteStyles.libraryOf(path)` answers with a
+`LibraryRef`: the empty string for Zotero, otherwise the vault paths of the
+note's library files joined by newlines. It is the note's own `bibliography`
+property first — pandoc's, several files allowed, the last of them winning a
+shared key — and the settings' file otherwise. A settings path that resolves to
+nothing falls back to Zotero rather than to an empty library, which is what
+keeps a renamed file from silently emptying every note.
+
+`src/vaultLibrary.ts` finds, reads and holds those files, and re-reads one
+whose modification time moved, telling whoever shows its sources. It also
+answers `vaultLibraryFiles(app)`, the list the settings offer: `.bib` and
+`.bibtex` by extension alone, and a `.json` only if its head reads as a CSL
+JSON array — a vault keeps canvases and plugin data under that extension too,
+and those are not bibliographies.
+
+**The renderer keeps items per library** (`LibraryRef` is part of `StyleRef`
+and of `NoteInput.key`), and citeproc asks for items synchronously, so every
+render entry point sets the current library with `reading(ref)` first. A new
+entry point that does not is a note rendered from another note's sources.
+
+**Styles.** `CitationStyle.source` says which file system a style's `path` is
+in: `zotero` for the installed ones, `vault` for a `.csl` file of the vault,
+and `readStyle()` in `main.ts` sends each to the reader that can read it. The
+two can declare one id — the same style, exported into the vault for a phone —
+so the settings write down `styleChoice(style)` rather than the id, and
+`chosenStyle()` prefers a Zotero style for a bare id, which is what a setting
+written before the path was written down with it meant.
+
+**Which window the citation comes from** is the note's library, not whether
+Zotero is answering: a note reading from a file is cited from that file with
+Zotero running, since a key picked in Zotero's window is a key that file may
+not have. `insertCitation` resolves the library before it probes anything.
+
+### The file library's citation window
+
+`src/sourceModal.ts`, a `SuggestModal` worked into the shape of Zotero's
+citation window. One field does everything: a source is searched for and
+chosen, becomes a pill in the field, and the field takes its page; Enter folds
+the page into the pill and hands the field back to searching, so the next Enter
+writes the citation and anything typed instead adds another source. The list
+holds the sources while searching and, once there are pills, one row carrying
+the citation as it stands — which is the row Enter lands on, and the row that
+ends the window. `main.ts` hands the window two closures built on
+`formatCitations`, one for the group and one for a pill, so what the row shows
+is what the note gets.
+
+Three things about `SuggestModal`, read out of Obsidian 1.13.7's own bundle
+rather than guessed. They are what the window is built around:
+
+- **`selectSuggestion` closes the window before it says what was chosen**:
+  `this.close(), this.isOpen = false, this.onChooseSuggestion(…)`, all in one
+  turn. So `onClose` cannot read a pick that a field was waiting for — the
+  window did exactly that once, and nothing was ever written into a note.
+  Overriding `selectSuggestion` is what keeps the window open for the pages,
+  and the empty answer waits a microtask so a pick still coming wins.
+- **The chooser registers ArrowUp/Down, PageUp/Down, Home/End, Ctrl+P/N and
+  Enter** on the modal's scope, and Escape closes. Enter therefore works
+  wherever the focus is. Backspace is not among them, which is what leaves it
+  free to take a pill off.
+- **`updateSuggestions()` is not in the API**; `inputEl.trigger("input")` is
+  how the list is redrawn, which is what Obsidian's own suggesters do.
 
 ## Rendering as Zotero renders
 
@@ -404,6 +509,10 @@ on by default.
   `;` or `(`, followed by key characters of any alphabet — not after a letter
   (an address) or `[[`. Then `proseOf` over the text up to the cursor must
   leave the `@` standing, so code, comments and front matter do not trigger.
+- **A file library is read whole**, so a note reading from one is offered
+  everything in it (`renderer.allItems`) and filtered here, with nothing to
+  ask and nothing to wait for. The rest of this point is Zotero's half, which
+  is what the list does when the note's library is Zotero's.
 - **No library copy.** Below 3 characters only `renderer.knownItems()` — every
   source looked up since Obsidian started — is offered, the note's own
   (`citedKeys`, read once per opening) first; with nothing typed, only the
@@ -857,15 +966,31 @@ settings search, and asks the tab to store the value. Keep it that way; a
 `render` definition for any of them would mean hand-drawing something the API
 already draws, and `render` does not auto-save.
 
-The one exception is the **citation style**. It is chosen from a list drawn in
-the tab itself, `src/stylePicker.ts`, laid out after the style list in Zotero's
-"Document preferences" window — one scrolling box of every style, the chosen one
-marked — and no control type draws that. So the row is a `render` definition:
-its name and description are Obsidian's, the list wraps onto a line of its own
-under them, and the empty control block is hidden. A choice goes through
-`setControlValue`, so saving and restyling still happen in the one place a
-control's change goes. A click saves at once; the arrow keys save once they
-stop, so walking down the list does not restyle every open note on each step.
+The exceptions are the **two lists**, both drawn by `src/picker.ts` — laid out
+after the style list in Zotero's "Document preferences" window, one scrolling
+box of every entry with the chosen one marked, which no control type draws. So
+each row is a `render` definition: its name and description are Obsidian's, the
+list wraps onto a line of its own under them, and the empty control block is
+hidden. A choice goes through `setControlValue`, so saving and restyling still
+happen in the one place a control's change goes. A click saves at once; the
+arrow keys save once they stop, so walking down the list does not restyle every
+open note on each step. The box is as tall as what is in it, up to about ten
+rows.
+
+- The **citation style**, in "Citation format". Zotero's styles first, then the
+  vault's under a captioned rule (`PickerChoice.group`). What is written down
+  is `styleChoice(style)` — an id for one of Zotero's, `vault:` and a path for
+  one of the vault's — not the bare id, since the two lists can hold one id
+  between them; `chosenStyle()` reads it back. See "Libraries and styles of the
+  vault".
+- The **bibliography**, in a section of its own above "Citation format": the
+  Zotero library first — named "No bibliography chosen" on a phone, where there
+  is no Zotero to ask — then every `.bib` and CSL JSON file the vault holds.
+  The section is left out of the definitions altogether when the vault holds
+  none and none is chosen, since there would be nothing in it to choose.
+  `getSettingDefinitions()` starts the scan for those files, which Obsidian
+  runs on every open of the tab, and the scan calls `update()` only when what
+  it found has changed — otherwise it would draw the tab forever.
 
 The **note footnote reset** row is also a `render`, for its destructive
 button; see "A note's own footnote settings" under Footnotes.
@@ -884,7 +1009,8 @@ tooltip is Obsidian's own wording for that button, «Восстановить з
 `setControlValue`. If a later Obsidian gives `number` a reset button, go back
 to the control.
 
-Under the list is the **style preview**, `src/preview.ts`: a sentence citing a
+Under both lists, in a row of its own whose name and description are not drawn,
+is the **style preview**, `src/preview.ts`: a sentence citing a
 sample source (`src/sample.ts` — Kuhn's *Structure of Scientific Revolutions*,
 in the edition a reader of the interface language would cite) under a bar of
 icon buttons for the citation look. Every option is a button of its own in
@@ -1062,6 +1188,7 @@ was renamed with it, from `pan4ratte/obsidian-zoterik` to
 src/
   main.ts           — Plugin class, 7 commands, note menus, the bibliography view, settings load/save
   cayw.ts           — the Better BibTeX CAYW client: probe, Zotero check, pick, parse
+  sourceModal.ts    — the citation window for a file library: pills, pages, a group
   pandoc.ts         — citations → pandoc syntax (pure; no Obsidian, no network)
   footnote.ts       — a citation as a footnote: label, numbering, placement (pure)
   noteFootnotes.ts  — a note's own footnote settings: in force, read, moved, dropped (pure)
@@ -1075,6 +1202,12 @@ src/
   live.ts           — live preview: styled citations and missing-key marks
   reading.ts        — reading view: the same, block by block
   suggestion.ts     — key suggestions: trigger, insertion, ranking (pure)
+  bibtex.ts         — a `.bib` read the way pandoc reads one (pure)
+  libraryFile.ts    — a library file's format and its sources, by format (pure)
+  vaultLibrary.ts   — the vault's library files: found, read, re-read when they change
+  styles.ts         — a CSL file's id and title, and what a chosen style means (pure)
+  vaultStyles.ts    — the `.csl` files of the vault, read through Obsidian
+  zoteroStyles.ts   — the styles and preferences on Zotero's disk; the one Node importer
   literatureNote.ts — the note kept about a source, found by name or front matter (pure)
   noteStyle.ts      — a note's `csl` and `lang`, and where pandoc finds the style (pure)
   noteStyles.ts     — the style each note is previewed in, resolved and kept
@@ -1085,14 +1218,16 @@ src/
   search.ts         — the pane's filter: words, normalisation, matching (pure)
   settings.ts       — the declarative settings tab
   statusCard.ts     — the card at the head of the settings: status, notices, documents
-  stylePicker.ts    — the Zotero-like list the citation style is chosen from
+  picker.ts         — the Zotero-like list a style or a bibliography is chosen from
   preview.ts        — the style preview and its bar of look buttons
   sample.ts         — the source the preview cites
   look.ts           — the citation colour and underline, as body classes
   markdownModal.ts  — the changelog or the user guide, rendered as markdown
   userGuide.ts      — the guide section cut out of a README (pure)
   zoteroNote.ts     — a picked Zotero note as Markdown at the cursor
-  types.ts          — Citation, CitationForm, settings + defaults
+  typography.ts     — the small text rules the rendered citations are held to (pure)
+  spinner.ts        — the wait a pane shows while it has nothing to show
+  types.ts          — Citation, CitationStyle, settings + defaults
 lang/
   ru.ts             — every user-facing string; the original
   en.ts             — the same keys, in the same order, translated from ru.ts
@@ -1109,6 +1244,14 @@ tests/
   literatureNote.test.ts — which note is a source's, and which of several
   noteStyle.test.ts — properties, file names, URLs matched to Zotero's styles, lookup order
   localeTerms.test.ts — locators read as pandoc 3.11 read them, per language and style
+  bibtex.test.ts    — a `.bib` mapped as pandoc maps one, rule by rule
+  libraryFile.test.ts — both formats, and what a file that is neither comes to
+  vaultLibrary.test.ts — finding the vault's library files, and re-reading them
+  vaultStyles.test.ts — the vault's styles, and the guard that only `zoteroStyles.ts` imports Node
+  styles.test.ts    — a style's id and title, and which file a written-down choice means
+  render.test.ts    — engines, items per library, tooltips and the bibliography
+  citation.test.ts, noteRendering.test.ts, search.test.ts, look.test.ts,
+  typography.test.ts, userGuide.test.ts, zoteroCite.test.ts, zoteroNote.test.ts
   fixtures/         — IEEE's English locale block, for the style-terms test
   mocks/obsidian.ts — stands in for the module at import time
 styles.css          — the status card, the settings rows, the document window
