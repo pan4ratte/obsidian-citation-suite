@@ -102,6 +102,14 @@ export default {
 	// Окно выбора источника из файла библиографии, когда Zotero недоступен.
 	SOURCE_MODAL_PLACEHOLDER: "Поиск по ключу, названию, автору или году",
 	SOURCE_MODAL_EMPTY: "Подходящих источников нет",
+	// Окно выбора источника работает как окно цитирования Zotero: сначала
+	// выбирается источник, потом в том же поле указывается страница.
+	SOURCE_MODAL_CHOOSE: "Выбрать источник",
+	SOURCE_MODAL_INSERT: "Вставить ссылку",
+	SOURCE_MODAL_KEEP: "Добавить в ссылку",
+	SOURCE_MODAL_REMOVE: "Убрать источник",
+	SOURCE_MODAL_LOCATOR_LABEL: "Страница",
+	SOURCE_MODAL_LOCATOR_PLACEHOLDER: "Страница или диапазон — например, 33 или 33–35",
 	NOTICE_NO_LIBRARY: "Zotero недоступен. Выберите файл библиографии в настройках плагина или укажите его в свойстве bibliography заметки.",
 	NOTICE_LIBRARY_EMPTY: "В файле библиографии нет источников.",
 

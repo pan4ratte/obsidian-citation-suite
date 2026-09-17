@@ -44,13 +44,14 @@ import { formatCitations } from "src/pandoc";
 import { CitationTooltip, renderCitations } from "src/reading";
 import { CitationRenderer, LibraryRef, ZOTERO_LIBRARY } from "src/render";
 import { CitationSuiteSettingTab } from "src/settings";
-import { pickSource } from "src/sourceModal";
-import { citationOf, suggestedSource } from "src/suggestion";
+import { PickedSource, pickSource } from "src/sourceModal";
+import { suggestedSource } from "src/suggestion";
 import { DEFAULT_CITE_PREFS, ZoteroCitePrefs } from "src/styles";
 import { readVaultStyle, vaultStyles } from "src/vaultStyles";
 import { VaultLibraries } from "src/vaultLibrary";
 import { asBlock, noteMarkdown } from "src/zoteroNote";
 import {
+	Citation,
 	CitationStyle,
 	DEFAULT_SETTINGS,
 	CitationSuiteSettings,
@@ -456,21 +457,25 @@ export default class CitationSuitePlugin extends Plugin {
 		editor: Editor,
 		ctx: MarkdownView | MarkdownFileInfo
 	): Promise<void> {
-		// Zotero's window where there is a Zotero to open it: it is the one
-		// that cites with a page, a prefix and several sources at once, and it
-		// is what this command has always opened. Where there is none — on a
-		// phone, or with Zotero closed — the note's own library file is picked
-		// from instead, which is a citation and nothing around it.
+		// What the note reads its sources from decides which window opens. A
+		// note whose library is a file of the vault is cited from that file,
+		// Zotero running or not: the reader chose that library, and Zotero's
+		// window would offer them sources their note cannot resolve — a key
+		// picked there is a key the file has never heard of.
+		//
+		// Everything else is Zotero's window, which is what this command has
+		// always opened: it is the one that cites with a page, a prefix and
+		// several sources at once.
 		const library = this.noteStyles.libraryOf(ctx.file?.path ?? null);
+		if (library !== ZOTERO_LIBRARY) {
+			await this.pickFromLibrary(editor, ctx, library);
+			return;
+		}
 		const status = Platform.isDesktopApp
 			? await probeZotero(this.settings.port)
 			: "unreachable";
 		if (status !== "ready") {
-			if (library !== ZOTERO_LIBRARY) {
-				await this.pickFromLibrary(editor, ctx, library);
-				return;
-			}
-			// Nothing to cite from: no Zotero answering, and no file named.
+			// Nothing to cite from: no Zotero answering, and no file chosen.
 			new Notice(
 				!Platform.isDesktopApp
 					? t.NOTICE_NO_LIBRARY
@@ -508,11 +513,14 @@ export default class CitationSuitePlugin extends Plugin {
 
 	/**
 	 * Cites a source from the note's own library file: the list of everything
-	 * in it, and the key of whatever is picked written where the cursor is.
+	 * in it, and whatever is picked written where the cursor is, with the page
+	 * typed beside it.
 	 *
-	 * It is the citation and nothing around it — the window Zotero opens is
-	 * still the way to cite with a page or a prefix — and it goes in the way a
-	 * pick from that window does, footnote and all.
+	 * The citation is written the way a pick from Zotero's window is — by
+	 * `formatCitations`, with the locator labelled in the words pandoc reads
+	 * in the note's language — so the two windows put the same text into a
+	 * note. A prefix, a suffix and several sources at once are still Zotero's
+	 * window alone.
 	 */
 	private async pickFromLibrary(
 		editor: Editor,
@@ -528,12 +536,45 @@ export default class CitationSuitePlugin extends Plugin {
 			suggestedSource(citekey, item)
 		);
 		const cited = citedKeys(editor.getValue());
-		const picked = await pickSource(this.app, sources, cited);
-		if (!picked) {
+		// Locators are written in the words pandoc will read them in, which is
+		// the note's language — the same rule Zotero's window is held to. The
+		// window writes the citation with this too, in the row that inserts
+		// it, so what the reader is shown is what the note gets.
+		const locale = await this.noteStyles.pandocLocale(ctx.file?.path ?? null);
+		const labels = this.renderer.labelWriter(locale);
+		// `page` is the label of a locator typed there, as it is the one
+		// Zotero's window fills in for a locator typed without one of its own.
+		const cite = (picked: PickedSource): Citation => ({
+			id: 0,
+			citationKey: picked.source.citekey,
+			locator: picked.locator,
+			label: picked.locator ? "page" : "",
+			prefix: "",
+			suffix: "",
+			suppressAuthor: false,
+		});
+		const citation = (group: PickedSource[]): string =>
+			formatCitations(group.map(cite), {
+				brackets: this.settings.brackets,
+				labels,
+			});
+		// A pill stands for one source of the citation, so it is written
+		// without the brackets that would enclose the whole of it.
+		const label = (picked: PickedSource): string =>
+			formatCitations([cite(picked)], { brackets: false, labels });
+		const picked = await pickSource(this.app, {
+			sources,
+			cited,
+			citation,
+			label,
+		});
+		if (!picked || picked.length === 0) {
 			return;
 		}
-		const citation = citationOf(picked.citekey, this.settings.brackets);
-		await this.writePick(editor, ctx, { citation, notes: "" });
+		await this.writePick(editor, ctx, {
+			citation: citation(picked),
+			notes: "",
+		});
 	}
 
 	/**

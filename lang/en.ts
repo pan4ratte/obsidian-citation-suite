@@ -103,6 +103,14 @@ export default {
 	// cannot be reached.
 	SOURCE_MODAL_PLACEHOLDER: "Search by key, title, author or year",
 	SOURCE_MODAL_EMPTY: "No source matches",
+	// The source window works as Zotero's citation window does: the source is
+	// chosen first, and the page typed in the same field after it.
+	SOURCE_MODAL_CHOOSE: "Choose the source",
+	SOURCE_MODAL_INSERT: "Insert the citation",
+	SOURCE_MODAL_KEEP: "Add to the citation",
+	SOURCE_MODAL_REMOVE: "Remove the source",
+	SOURCE_MODAL_LOCATOR_LABEL: "Page",
+	SOURCE_MODAL_LOCATOR_PLACEHOLDER: "Page or range — for instance, 33 or 33–35",
 	NOTICE_NO_LIBRARY: "Zotero cannot be reached. Choose a bibliography file in the plugin settings, or name one in the note's bibliography property.",
 	NOTICE_LIBRARY_EMPTY: "The bibliography file has no sources.",
 

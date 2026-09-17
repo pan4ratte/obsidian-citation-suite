@@ -74,7 +74,7 @@ If you want to test beta-versions of the plugin or use previous versions, you ca
 
 The panel at the top of the plugin settings shows Zotero's status and whether the plugin is ready to work.
 
-Zotero is only needed on the desktop. Where there is none — on a phone or tablet, or simply with Zotero closed — name a `.bib` or CSL JSON file kept in the vault in the plugin settings, and sources will be read from it. A note can name a file of its own in its `bibliography` property: it is looked for beside the note first and then from the vault's root, and there can be several — where two hold the same key, the source in the last of them is the one cited, as Pandoc does it. Where Zotero cannot be reached, the "Insert citation" command opens a list of the sources in that file instead of Zotero's citation window; a page number or any other addition to the citation is then yours to type. Opening a PDF and showing a source in Zotero are not shown on mobile.
+Zotero is only needed on the desktop. Where there is none — on a phone or tablet, or simply with Zotero closed — choose a `.bib` or CSL JSON file kept in the vault in the plugin settings, and sources will be read from it. A note can name a file of its own in its `bibliography` property: it is looked for beside the note first and then from the vault's root, and there can be several — where two hold the same key, the source in the last of them is the one cited, as Pandoc does it. For a note that reads its sources from a file, the "Insert citation" command opens a list of that file's sources instead of Zotero's citation window, even with Zotero running; the page is typed in that same window: the source picked stays in the field and the page is typed after it, as it is in Zotero's citation window. Enter fixes the page to the source, another source can then be added to the same citation, and the next Enter writes the citation into the note. A prefix and a suffix are still Zotero's window alone. Opening a PDF and showing a source in Zotero are not shown on mobile.
 
 
 ## 2. Commands
@@ -83,7 +83,7 @@ By default Obsidian assigns no hotkeys to the commands. To set them, go to *Sett
 
 | Command | What it does |
 | --- | --- |
-| **Insert citation** | Opens Zotero's citation window and inserts the citation in Pandoc format. Selected text is replaced by the citation. Zotero notes picked in the window are inserted as Markdown text. Where Zotero cannot be reached — on a phone, or with the program closed — it opens a list of the sources in the note's bibliography file instead. |
+| **Insert citation** | Opens Zotero's citation window and inserts the citation in Pandoc format. Selected text is replaced by the citation. Zotero notes picked in the window are inserted as Markdown text. Where the note reads its sources from a bibliography file, it opens a list of that file's sources instead, where every source picked can be given a page and several of them can be gathered into one citation. |
 | **Insert footnote without a citation** | Inserts an empty footnote following your footnote settings. |
 | **Renumber footnotes in order** | Renumbers the footnotes in the order they appear in the note. One undo reverts it. |
 | **Footnote settings for the current note** | Sets footnote settings for this note only. The same window opens from the note's context menu. |

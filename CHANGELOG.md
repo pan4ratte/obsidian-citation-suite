@@ -3,12 +3,12 @@
 
 ## 1.3.0
 
-### New features
+### A major update: mobile support, and citation style and bibliography files from the vault
 
-* **Works on phones and tablets.** The plugin no longer needs a desktop: sources come from a bibliography file in the vault, and styles from `.csl` files kept there too. Opening a PDF and showing a source in Zotero are not shown on mobile.
-* **A bibliography file in the vault.** Choose a `.bib` or CSL JSON file in the settings — the plugin finds them in the vault itself — and sources will be read from it rather than from Zotero, which works on the desktop too, with Zotero closed. A note can name a file of its own in its `bibliography` property, as it would for Pandoc, several files included. A `.bib` is read the way Pandoc reads one: the same source types, the same dates, the same names.
-* **Citation styles from the vault.** A `.csl` file kept in the vault appears in the list of styles, in a group of its own under Zotero's. The style a note names in its `csl` property is looked for beside the note first and then from the vault's root — where Pandoc looks for it.
-* **Picking a source without Zotero.** Where Zotero cannot be reached — on a phone, or with the program closed — the "Insert citation" command opens a list of the sources in the note's bibliography file, searchable by key, title, author and year. The citation goes in as it would from Zotero's window, footnote included where that is turned on.
+* **Mobile support.** Phones and tablets are now fully supported, thanks to the plugin scanning the vault for bibliography files (`.bib` or CSL JSON) and citation style files (`.csl`) on its own.
+* **Bibliographies from files in the vault.** The plugin scans the vault, and where it finds bibliography files it offers them in its settings to choose from. This is what lets it be used not only on mobile devices, but on the desktop without Zotero. A note can name a bibliography of its own in its `bibliography` property (Pandoc's format), several files at once included. A note's own setting takes priority.
+* **Citation styles from the vault.** The plugin scans the vault, and where it finds citation style files it shows them in a section of their own in the list of styles. The style named in a note's `csl` property takes priority.
+* **Picking a source from a bibliography file.** When a note reads its sources from a file, the "Insert citation" command opens a list of that file's sources, searchable by key, title, author and year, whether or not Zotero is running. Zotero's citation window opens for the notes that read their sources from Zotero. The window works the way Zotero's citation window does: the source picked stays in the field, the page or range is typed after it in that same field, and Enter puts it into the source — after which another source can be added to the same citation, or the citation written into the note. The row under the field shows the citation as it stands throughout. The page is written in the note's language, as Zotero's window writes one. The citation goes in as it would from Zotero's window, footnote included where that is turned on.
 * **Suggestions while typing a key work without Zotero.** When a note reads its sources from a file, typing `@` offers every source in that file.
 
 ### UI/UX enhancements and bug fixes

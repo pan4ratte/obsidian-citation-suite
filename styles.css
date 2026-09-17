@@ -652,6 +652,87 @@ body.citation-suite-citation-color-custom .citation-suite-style-preview-swatch {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   The source window's chosen sources
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* The sources of the citation being built in the window that picks them from a
+   file, standing in the field itself as the bubbles in Zotero's citation
+   window do: the field takes the page of the last of them, and then the next
+   source. Obsidian lays `.prompt-input-container` out as a row already, so
+   these only have to hold their own width and wrap among themselves. */
+.citation-suite-source-pills {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-2-2);
+	flex: 0 1 auto;
+	max-width: 60%;
+	margin-inline-start: var(--size-4-4);
+	padding: var(--size-2-2) 0;
+}
+
+.citation-suite-source-pill {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	max-width: 100%;
+	padding: var(--size-2-1) var(--size-2-3);
+	border: 1px solid transparent;
+	border-radius: var(--radius-s);
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	white-space: nowrap;
+}
+
+/* The source whose page is being typed: what the field is about just now. */
+.citation-suite-source-pill.is-active {
+	border-color: var(--interactive-accent);
+}
+
+/* A source longer than the pill is cut rather than widening it past the field. */
+.citation-suite-source-pill > span {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.citation-suite-source-pill-remove {
+	display: flex;
+	align-items: center;
+	color: var(--text-muted);
+	cursor: var(--cursor);
+}
+
+.citation-suite-source-pill-remove:hover {
+	color: var(--text-normal);
+}
+
+.citation-suite-source-pill-remove .svg-icon {
+	width: var(--icon-xs);
+	height: var(--icon-xs);
+}
+
+/* The field takes what the pills leave, down to a width that still reads as a
+   field. Obsidian's own rule gives it the whole width and the padding of a
+   field standing alone; beside a pill it starts where the pills end. */
+.citation-suite-source-picked {
+	flex-wrap: wrap;
+}
+
+.citation-suite-source-picked input.prompt-input {
+	flex: 1 1 8em;
+	width: auto;
+	min-width: 0;
+	padding-inline-start: var(--size-4-2);
+}
+
+/* The citation the window is about to write, in the one row the list holds
+   once a source is chosen: set as a citation in a note is, not as a title. */
+.citation-suite-source-citation {
+	font-family: var(--font-text);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    A note's footnote settings
    ────────────────────────────────────────────────────────────────────────── */
 
