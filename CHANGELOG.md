@@ -6,7 +6,7 @@
 ### New features
 
 * **Building the bibliography from embedded notes.** The bibliography pane now counts the sources cited in embedded notes (`![[note]]`, a heading's section or a block included) — where the embed stands, and however deep embeds are nested.
-* **Selecting every source in Zotero.** A new button in the bibliography pane's header selects all of the note's sources in Zotero's window. Zotero shows one library at a time, so where the sources are spread over several libraries, those in the library holding the most of them are selected.
+* **Selecting every source in Zotero.** A new button in the bibliography pane selects all of the note's sources in Zotero's window. Zotero shows one library at a time, so where the sources are spread over several libraries, those in the library holding the most of them are selected.
 
 ### UI/UX enhancements and bug fixes
 
