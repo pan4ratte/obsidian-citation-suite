@@ -240,6 +240,9 @@ export class BibliographyView extends ItemView {
 	private countEl!: HTMLElement;
 	private searchButton!: HTMLElement;
 	private copyButton!: HTMLElement;
+	private selectButton!: HTMLElement;
+	/** Whether Zotero is being asked for the link, a long list taking a second or so. */
+	private selecting = false;
 	private refreshButton!: HTMLElement;
 	/** The refresh button's icon, turning while a press of it is answered. */
 	private refreshSpin!: Spinner;
@@ -636,6 +639,12 @@ embeds` : file.path,
 				void this.copyList(this.bibliography);
 			}
 		});
+		this.selectButton = this.iconButton(
+			actions,
+			"list-checks",
+			t.BIBLIOGRAPHY_SELECT_ALL,
+			() => void this.selectInZotero()
+		);
 		this.refreshButton = this.iconButton(
 			actions,
 			"refresh-cw",
@@ -784,6 +793,12 @@ embeds` : file.path,
 			this.toggleSearch(false, false);
 		}
 		this.copyButton.toggleClass(HIDDEN_CLASS, bibliography === null);
+		// Zotero's window can select only what Zotero holds, and there is no
+		// Zotero on a phone to hand the link to.
+		this.selectButton.toggleClass(
+			HIDDEN_CLASS,
+			bibliography === null || this.library !== ZOTERO_LIBRARY || !onDesktop()
+		);
 		this.refreshButton.toggleClass(HIDDEN_CLASS, file === null);
 		this.countEl.toggleClass(HIDDEN_CLASS, bibliography === null);
 	}
@@ -1137,6 +1152,38 @@ embeds` : file.path,
 				found.error === "unreachable"
 					? t.NOTICE_ZOTERO_UNREACHABLE
 					: t.BIBLIOGRAPHY_REVEAL_NOT_FOUND
+			);
+		}
+	}
+
+	/**
+	 * Selects every source in the list in Zotero's window, through one
+	 * `zotero://select` link, and says so when some could not be: Zotero
+	 * shows one library at a time, and a note citing from two is selected in
+	 * the one holding the most of its sources.
+	 */
+	private async selectInZotero(): Promise<void> {
+		if (this.selecting) {
+			return;
+		}
+		const keys = this.entries.flatMap((entry) => entry.keys);
+		this.selecting = true;
+		const found = await this.context.renderer
+			.selectionLink(keys)
+			.finally(() => (this.selecting = false));
+		if ("error" in found) {
+			new Notice(
+				found.error === "unreachable"
+					? t.NOTICE_ZOTERO_UNREACHABLE
+					: t.BIBLIOGRAPHY_SELECT_NOT_FOUND
+			);
+			return;
+		}
+		window.open(found.link);
+		const total = new Set(keys).size;
+		if (found.selected < total) {
+			new Notice(
+				`${found.elsewhere > 0 ? t.BIBLIOGRAPHY_SELECT_ELSEWHERE : t.BIBLIOGRAPHY_SELECT_MISSING} ${found.selected} / ${total}`
 			);
 		}
 	}

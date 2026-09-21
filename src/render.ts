@@ -18,6 +18,7 @@ import {
 	eventToEventTitle,
 	PdfAttachment,
 	pdfAttachments,
+	selectItemsLink,
 	selectLink,
 	uppercasesSubtitles,
 } from "src/zoteroCite";
@@ -193,6 +194,15 @@ interface FoundItem {
  * or why there is none — Zotero not answering, or no longer holding the item.
  */
 export type ItemLink = { link: string } | { error: "unreachable" | "not-found" };
+
+/**
+ * What asking Zotero to select a note's sources comes to: the link, how many
+ * of the keys it selects, and how many were left out for standing in another
+ * library — or why there is no link.
+ */
+export type SelectionLink =
+	| { link: string; selected: number; elsewhere: number }
+	| { error: "unreachable" | "not-found" };
 
 /** What asking Zotero for a key's PDFs comes to: the PDFs, or why there are none to hand. */
 export type ItemPdfs =
@@ -882,6 +892,69 @@ export class CitationRenderer {
 		);
 		const link = typeof item?.id === "string" ? selectLink(item.id) : null;
 		return link ? { link } : { error: "not-found" };
+	}
+
+	/**
+	 * The link that selects the keys' items in Zotero's window, all at once.
+	 *
+	 * Zotero shows one library at a time and the link names one, so the keys
+	 * are selected in the library holding the most of them — the first cited
+	 * of those holding as many — and the rest are counted as `elsewhere`.
+	 * The items are found in one `item.search`: `joinMode any` over the keys,
+	 * with the library as a required condition, which Zotero's search keeps
+	 * whatever the join mode.
+	 */
+	async selectionLink(citekeys: string[]): Promise<SelectionLink> {
+		const itemLibraries = this.source(ZOTERO_LIBRARY).itemLibraries;
+		const byLibrary = new Map<number, string[]>();
+		for (const citekey of new Set(citekeys)) {
+			const library = itemLibraries.get(citekey);
+			if (library !== undefined) {
+				byLibrary.set(library, [...(byLibrary.get(library) ?? []), citekey]);
+			}
+		}
+		let library: number | null = null;
+		let keys: string[] = [];
+		for (const [candidate, held] of byLibrary) {
+			if (held.length > keys.length) {
+				library = candidate;
+				keys = held;
+			}
+		}
+		if (library === null) {
+			return { error: "not-found" };
+		}
+		const found = await rpc<Record<string, unknown>[]>(
+			this.port,
+			"item.search",
+			[
+				[
+					["joinMode", "any"],
+					["libraryID", "is", library, true],
+					...keys.map((key) => ["citationKey", "is", key]),
+				],
+			]
+		);
+		if (!Array.isArray(found)) {
+			return { error: "unreachable" };
+		}
+		// `is` does not tell case apart; the key is matched again here.
+		const wanted = new Set(keys);
+		const uris = new Map<string, string>();
+		for (const item of found) {
+			const key = item.citekey ?? item["citation-key"];
+			if (typeof key === "string" && wanted.has(key) && typeof item.id === "string") {
+				uris.set(key, item.id);
+			}
+		}
+		const link = selectItemsLink([...uris.values()]);
+		return link
+			? {
+					link,
+					selected: uris.size,
+					elsewhere: [...byLibrary.values()].flat().length - keys.length,
+				}
+			: { error: "not-found" };
 	}
 
 	/**

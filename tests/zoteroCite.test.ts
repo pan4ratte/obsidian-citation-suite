@@ -5,6 +5,7 @@ import {
 	eventToEventTitle,
 	formattedBibliography,
 	pdfAttachments,
+	selectItemsLink,
 	selectLink,
 	uppercasesSubtitles,
 } from "src/zoteroCite";
@@ -221,5 +222,34 @@ describe("selectLink", () => {
 		expect(selectLink("doe2020")).toBeNull();
 		expect(selectLink("http://zotero.org/groups/1/collections/ABCD")).toBeNull();
 		expect(selectLink("https://example.com/users/1/items/ABCD")).toBeNull();
+	});
+});
+
+describe("selectItemsLink", () => {
+	it("selects several items of My Library in one link", () => {
+		expect(
+			selectItemsLink([
+				"http://zotero.org/users/9070599/items/9NUEPUXZ",
+				"http://zotero.org/users/9070599/items/M9Y6U8BS",
+				"http://zotero.org/users/9070599/items/9NUEPUXZ",
+			])
+		).toBe("zotero://select/library/items?itemKey=9NUEPUXZ,M9Y6U8BS");
+	});
+
+	it("selects items of a group", () => {
+		expect(
+			selectItemsLink(["http://zotero.org/groups/5823832/items/5VQ4XA96"])
+		).toBe("zotero://select/groups/5823832/items?itemKey=5VQ4XA96");
+	});
+
+	it("gives no link for items of two libraries, or for none", () => {
+		expect(
+			selectItemsLink([
+				"http://zotero.org/users/9070599/items/9NUEPUXZ",
+				"http://zotero.org/groups/5823832/items/5VQ4XA96",
+			])
+		).toBeNull();
+		expect(selectItemsLink([])).toBeNull();
+		expect(selectItemsLink(["urn:x"])).toBeNull();
 	});
 });

@@ -1,12 +1,16 @@
 # Changelog
 
 
-## Unreleased
+## 2.1.0
 
 ### New features
 
-* **Bibliography from embedded notes.** The bibliography pane now counts the sources cited in embedded notes (`![[note]]`, a heading's section or a block included) — where the embed stands, and however deep embeds are nested.
-* **The bibliography is gathered at once.** The bibliography pane starts reading the current note's citations when Obsidian starts, even while its tab is not open, so the list is ready by the time it is opened.
+* **Building the bibliography from embedded notes.** The bibliography pane now counts the sources cited in embedded notes (`![[note]]`, a heading's section or a block included) — where the embed stands, and however deep embeds are nested.
+* **Selecting every source in Zotero.** A new button in the bibliography pane's header selects all of the note's sources in Zotero's window. Zotero shows one library at a time, so where the sources are spread over several libraries, those in the library holding the most of them are selected.
+
+### UI/UX enhancements and bug fixes
+
+* The bibliography pane starts reading the current note's citations when Obsidian starts, even while its tab is not open.
 
 
 ## 2.0.0

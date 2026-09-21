@@ -5,7 +5,7 @@
 | Command | What it does |
 |---------|-------------|
 | `npm run dev` | esbuild watch mode (no typecheck) |
-| `npm test` | Vitest — 326 tests, all passing |
+| `npm test` | Vitest — 329 tests, all passing |
 | `npm run lint` / `npm run lint:fix` | ESLint (`lint:ts`) and Stylelint (`lint:css`) with the official Obsidian rulesets |
 | `npm run build` | `tsc -noEmit -skipLibCheck && node esbuild.config.mjs production` |
 
@@ -809,8 +809,8 @@ object by `loadSettings` and read by nothing.
   from the note's citations when an embed cites before the note does.
 - **Each pass is numbered**, and a pass overtaken while it waited on Zotero draws
   nothing. `restyle()` refreshes every open pane.
-- **The bar reads "References", with the entry count beside it**, and three
-  buttons: search, copy and refresh. Copy writes `formattedBibliography` as
+- **The bar reads "References", with the entry count beside it**, and four
+  buttons: search, copy, select in Zotero and refresh. Copy writes `formattedBibliography` as
   `text/html` and the text engine's entries as `text/plain` in one
   `ClipboardItem` — what Zotero's Copy Bibliography puts on the clipboard — and
   always copies the whole list, not what the search leaves showing: a subset
@@ -899,6 +899,24 @@ object by `loadSettings` and read by nothing.
   Do not switch to BBT's `zotero://select/items/@key`: its patched
   `parseLibraryKeyHash` looks the key up in My Library only. Checked by opening
   a group item's link and reading `item.citationkey("selected")` back.
+- **Select in Zotero** (the bar's `list-checks` button, desktop and a Zotero
+  library only) selects every entry's item in Zotero's window through one
+  link. Read out of Zotero 7's `ZoteroProtocolHandler.mjs`, `xpcom/api.js`
+  and `pathparser.mjs`: the router lets a route's last parameter be missing,
+  so `library/items` and `groups/ID/items` match with no key, and
+  `itemKey=A,B,C` from the query is split on commas into one search whose
+  items `ZoteroPane.selectItems` selects, after selecting the library root.
+  One library per link, since the pane shows one: `selectionLink` in
+  `src/render.ts` takes the library holding the most of the list's keys
+  (`itemLibraries`), the first cited on a tie, and counts the rest as
+  `elsewhere` for the notice. The item keys come from one `item.search`:
+  `["joinMode","any"]`, `["libraryID","is",id,true]` — the fourth element
+  makes a condition required, which Zotero keeps whatever the join mode —
+  and a `citationKey is` per key; `selectItemsLink` in `src/zoteroCite.ts`
+  builds the link from the URIs. Checked against a running Zotero: the
+  library condition held across a key that exists in My Library and a
+  group, and 250 keys came back in 1.4 s as a 2.3 KB link. A press while one
+  is being answered is ignored.
 - **Copy entry** is `copyBibliography` with an index: one entry, as HTML and
   text, numbered as it is in the list: it copies what the reader right-clicked.
 - **Find in note** cannot be a submenu of mentions: Obsidian 1.13 has no public

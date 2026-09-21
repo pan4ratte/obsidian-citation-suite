@@ -176,6 +176,33 @@ export function selectLink(uri: string): string | null {
 		: `zotero://select/groups/${library}/items/${key}`;
 }
 
+/**
+ * The link that selects several items in Zotero's window at once, from the
+ * URIs Zotero knows them by, or `null` when there is none or they are not all
+ * in one library. Zotero shows one library at a time, and its
+ * `zotero://select` handler routes `library/items` and
+ * `groups/ID/items` with no key of their own and reads the keys from
+ * `itemKey`, split on commas, into one search whose items it selects.
+ */
+export function selectItemsLink(uris: string[]): string | null {
+	let prefix: string | null = null;
+	const keys = new Set<string>();
+	for (const uri of uris) {
+		const link = selectLink(uri);
+		if (!link) {
+			return null;
+		}
+		const cut = link.lastIndexOf("/");
+		const itemsOf = link.slice(0, cut);
+		if (prefix !== null && prefix !== itemsOf) {
+			return null;
+		}
+		prefix = itemsOf;
+		keys.add(link.slice(cut + 1));
+	}
+	return prefix === null ? null : `${prefix}?itemKey=${[...keys].join(",")}`;
+}
+
 /** A PDF attached to a source: the file's name, and the link that opens it in Zotero. */
 export interface PdfAttachment {
 	name: string;
