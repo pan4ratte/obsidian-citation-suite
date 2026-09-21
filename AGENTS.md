@@ -732,6 +732,13 @@ is not handed it back on every launch; checking for a leaf instead of the flag
 would do exactly that. The `show-bibliography` command opens and reveals it,
 and `onunload` does not detach it.
 
+**It is loaded at launch, shown or not.** Obsidian restores a tab it is not
+showing as deferred — `leaf.isDeferred`, no view made until the tab is first
+looked at — and a pane behind another sidebar tab then read no note until it
+was opened. `loadBibliographyPanes()` calls `loadIfDeferred()` on every
+bibliography leaf once the layout is ready and on each `layout-change`, so the
+pane follows the note from the start and its list is there when the tab is.
+
 The flag was a `data.json` field, `bibliographyPaneOpened`, and **must not go
 back there**. `data.json` travels with the plugin's folder and is synced to
 every device, while the layout is each device's own: a second device read "put

@@ -232,8 +232,15 @@ export default class CitationSuitePlugin extends Plugin {
 					onTypingChange: (listener) => suggest.onTypingChange(listener),
 				})
 		);
-		this.app.workspace.onLayoutReady(() => {
-			void this.openBibliographyOnce();
+		this.app.workspace.onLayoutReady(async () => {
+			await this.openBibliographyOnce();
+			await this.loadBibliographyPanes();
+			// A pane moved, or put back by a layout a workspace restored.
+			this.registerEvent(
+				this.app.workspace.on("layout-change", () => {
+					void this.loadBibliographyPanes();
+				})
+			);
 		});
 
 		// The command IDs are persisted with whatever hotkey is bound to them,
@@ -390,6 +397,23 @@ export default class CitationSuitePlugin extends Plugin {
 			reveal: false,
 		});
 		this.app.saveLocalStorage(BIBLIOGRAPHY_PLACED_KEY, true);
+	}
+
+	/**
+	 * Brings every bibliography pane to life that has not been shown yet.
+	 *
+	 * Obsidian restores a tab it is not showing as deferred: the view is not
+	 * made until the tab is first looked at. A pane behind another tab of the
+	 * sidebar would then read no note until it was opened, and open onto a
+	 * wait. Loaded, it follows the note being worked on from the start, and
+	 * its list is there when the tab is.
+	 */
+	private async loadBibliographyPanes(): Promise<void> {
+		for (const leaf of this.app.workspace.getLeavesOfType(BIBLIOGRAPHY_VIEW)) {
+			if (leaf.isDeferred) {
+				await leaf.loadIfDeferred();
+			}
+		}
 	}
 
 	/**

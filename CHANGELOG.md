@@ -6,6 +6,7 @@
 ### New features
 
 * **Bibliography from embedded notes.** The bibliography pane now counts the sources cited in embedded notes (`![[note]]`, a heading's section or a block included) — where the embed stands, and however deep embeds are nested.
+* **The bibliography is gathered at once.** The bibliography pane starts reading the current note's citations when Obsidian starts, even while its tab is not open, so the list is ready by the time it is opened.
 
 
 ## 2.0.0
