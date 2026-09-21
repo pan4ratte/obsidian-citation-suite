@@ -1,6 +1,13 @@
 # Changelog
 
 
+## Unreleased
+
+### New features
+
+* **Bibliography from embedded notes.** The bibliography pane now counts the sources cited in embedded notes (`![[note]]`, a heading's section or a block included) — where the embed stands, and however deep embeds are nested.
+
+
 ## 2.0.0
 
 ### Major update: mobile devices support, as well as citation style and bibliography files from the vault

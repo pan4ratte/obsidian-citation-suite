@@ -5,6 +5,7 @@ import {
 	MarkdownView,
 	Menu,
 	Notice,
+	resolveSubpath,
 	sanitizeHTMLToDom,
 	SearchComponent,
 	setIcon,
@@ -15,6 +16,7 @@ import {
 import { t } from "lang/helpers";
 import { onDesktop } from "src/desktop";
 import { citedKeys, mentionsOf } from "src/citation";
+import { Embed, EmbeddedText, expandEmbeds } from "src/embeds";
 import { literatureNote } from "src/literatureNote";
 import { noteCitations } from "src/noteCitations";
 import { NoteRenderer } from "src/noteRendering";
@@ -209,6 +211,13 @@ export class BibliographyView extends ItemView {
 	 * into it; this is what tells a later look that it read the wrong thing.
 	 */
 	private readText: string | null = null;
+	/** Every note the latest pass read through the note's embeds. */
+	private embedded = new Set<string>();
+	/**
+	 * Whether an embed in the latest pass led to no note: one created or
+	 * renamed since may be the note it names.
+	 */
+	private embedsUnresolved = false;
 	/**
 	 * Counts the passes, so that one overtaken by a later pass while it waited
 	 * on Zotero draws nothing: the later one knows better.
@@ -284,7 +293,7 @@ export class BibliographyView extends ItemView {
 		this.registerEvent(workspace.on("file-open", () => this.follow()));
 		this.registerEvent(
 			workspace.on("editor-change", (_editor, info) => {
-				if (info.file === this.file) {
+				if (info.file && this.reads(info.file.path)) {
 					this.refreshSoon();
 				}
 			})
@@ -298,10 +307,21 @@ export class BibliographyView extends ItemView {
 				}
 			})
 		);
+		// A note the note embeds, once the cache has read it: a heading's
+		// section is found by the cache.
 		this.registerEvent(
-			vault.on("rename", (file) => {
+			this.app.metadataCache.on("changed", (file) => {
+				if (this.embedded.has(file.path) || this.embedsUnresolved) {
+					this.refreshSoon();
+				}
+			})
+		);
+		this.registerEvent(
+			vault.on("rename", (file, oldPath) => {
 				if (file === this.file) {
 					void this.refresh();
+				} else if (this.embedded.has(oldPath) || this.embedsUnresolved) {
+					this.refreshSoon();
 				}
 			})
 		);
@@ -310,6 +330,8 @@ export class BibliographyView extends ItemView {
 				if (file === this.file) {
 					this.file = null;
 					void this.refresh();
+				} else if (this.embedded.has(file.path)) {
+					this.refreshSoon();
 				}
 			})
 		);
@@ -337,6 +359,11 @@ export class BibliographyView extends ItemView {
 		// Whatever pass is still waiting on Zotero has nowhere left to draw.
 		this.pass++;
 		return Promise.resolve();
+	}
+
+	/** Whether the list is read from the note at the path, itself or embedded. */
+	private reads(path: string): boolean {
+		return path === this.file?.path || this.embedded.has(path);
 	}
 
 	/** The note being worked on, if the file being worked on is a note. */
@@ -402,6 +429,38 @@ export class BibliographyView extends ItemView {
 	}
 
 	/**
+	 * What an embed in the note at `sourcePath` shows. A heading's section
+	 * or a block is cut out of the note as saved, since that is the text the
+	 * cache found it in; a whole note is read as it stands.
+	 */
+	private async embedShows(embed: Embed, sourcePath: string): Promise<EmbeddedText | null> {
+		const { metadataCache, vault } = this.app;
+		const file =
+			embed.link === ""
+				? vault.getFileByPath(sourcePath)
+				: metadataCache.getFirstLinkpathDest(embed.link, sourcePath);
+		if (!file) {
+			return null;
+		}
+		if (file.extension !== "md") {
+			return { path: file.path, text: null };
+		}
+		if (embed.subpath === "") {
+			return { path: file.path, text: await this.noteText(file) };
+		}
+		const text = await vault.cachedRead(file);
+		const cache = metadataCache.getFileCache(file);
+		const section = cache ? resolveSubpath(cache, embed.subpath) : null;
+		// A heading or block that is not there shows nothing, until it is.
+		return {
+			path: file.path,
+			text: section
+				? text.slice(section.start.offset, section.end?.offset ?? text.length)
+				: "",
+		};
+	}
+
+	/**
 	 * Draws the list again from the note, the style and the library. The
 	 * plugin calls this when the style changes; the pane calls it when the
 	 * note does.
@@ -413,6 +472,8 @@ export class BibliographyView extends ItemView {
 		const renderer = this.context.renderer;
 
 		if (!file) {
+			this.embedded = new Set();
+			this.embedsUnresolved = false;
 			this.showMessage(null, t.BIBLIOGRAPHY_NO_NOTE);
 			return;
 		}
@@ -432,11 +493,19 @@ export class BibliographyView extends ItemView {
 		// asking Zotero about it, would be wrong on every keystroke.
 		const typed = this.context.typedKey(file, read);
 		const text = typed ? blankRange(read, typed) : read;
-		const keys = citedKeys(text);
+		// A note built of embedded notes cites what they cite, where they
+		// stand in it. Only the list is read through them: finding a source
+		// looks in the note itself, where the offsets are.
+		const expanded = await expandEmbeds(text, file.path, (embed, from) =>
+			this.embedShows(embed, from)
+		);
+		const keys = citedKeys(expanded.text);
 		if (pass !== this.pass) {
 			return;
 		}
 		this.readText = read;
+		this.embedded = expanded.paths;
+		this.embedsUnresolved = expanded.unresolved;
 		if (keys.length === 0) {
 			this.showMessage(file, t.BIBLIOGRAPHY_NO_CITATIONS);
 			return;
@@ -469,8 +538,12 @@ export class BibliographyView extends ItemView {
 			missing.length < keys.length
 				? await this.context.notes.bibliography(
 						style,
-						file.path,
-						noteCitations(text, style.labels)
+						// Kept apart from the note the editor writes, which
+						// cites only what the note itself does: under one
+						// name, each would write over the other's.
+						expanded.paths.size > 0 ? `${file.path}
+embeds` : file.path,
+						noteCitations(expanded.text, style.labels)
 					)
 				: null;
 		if (pass !== this.pass) {

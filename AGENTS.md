@@ -5,7 +5,7 @@
 | Command | What it does |
 |---------|-------------|
 | `npm run dev` | esbuild watch mode (no typecheck) |
-| `npm test` | Vitest — 315 tests, all passing |
+| `npm test` | Vitest — 326 tests, all passing |
 | `npm run lint` / `npm run lint:fix` | ESLint (`lint:ts`) and Stylelint (`lint:css`) with the official Obsidian rulesets |
 | `npm run build` | `tsc -noEmit -skipLibCheck && node esbuild.config.mjs production` |
 
@@ -782,6 +782,24 @@ object by `loadSettings` and read by nothing.
   engine, not the tooltips' number-less one: in a reference list the numbers
   belong. Unknown keys are not given to the engine — citeproc would write them
   as untitled documents — and are listed separately under the entries.
+- **The list is read through the note's embeds.** `expandEmbeds`
+  (`src/embeds.ts`, pure) writes every `![[note]]`, `![[note#heading]]`,
+  `![[note#^block]]` and `![](note.md)` in the prose into the text, at any
+  depth, an embed of a note already being read left as it is, the embedded
+  note's front matter dropped and its footnote labels suffixed
+  (`-embed-N`) so that its `[^1]` is not the note's. Keys and
+  `noteCitations` are read from that text; the finding and the mention bar
+  still read the note alone, where the offsets are, so a source cited only in
+  an embed is not found in the note. A whole note is read as `noteText` reads
+  it; a section is cut out of `cachedRead` with `resolveSubpath`, since the
+  cache's offsets are the saved text's. The engine writes such a note under
+  the path with `\nembeds` after it, not the note's path: the editor writes the note's own
+  citations under that, and sharing it would make each rewrite the other's on
+  every pass. The pane redraws on `metadataCache` `changed`, `editor-change`,
+  rename and delete of any note it read through an embed, and on any
+  `changed` while an embed led nowhere. The editor and reading view do not
+  expand embeds: a numbered style can number the pane's list differently
+  from the note's citations when an embed cites before the note does.
 - **Each pass is numbered**, and a pass overtaken while it waited on Zotero draws
   nothing. `restyle()` refreshes every open pane.
 - **The bar reads "References", with the entry count beside it**, and three
@@ -1214,6 +1232,7 @@ src/
   localeTerms.ts    — locator labels in a language, from CSL locale and style terms (pure)
   citationSuggest.ts — the EditorSuggest that offers sources after `@`
   bibliography.ts   — the right-sidebar pane listing the note's bibliography
+  embeds.ts         — a note with the notes it embeds written in (pure)
   zoteroCite.ts     — what Zotero does around citeproc, ported (pure)
   search.ts         — the pane's filter: words, normalisation, matching (pure)
   settings.ts       — the declarative settings tab
@@ -1242,6 +1261,7 @@ tests/
   citationSession.test.ts — incremental updates against a fresh citeproc engine
   suggestion.test.ts — trigger, insertion, sources shown and ranked
   literatureNote.test.ts — which note is a source's, and which of several
+  embeds.test.ts    — embeds found, expanded, nested, and kept apart
   noteStyle.test.ts — properties, file names, URLs matched to Zotero's styles, lookup order
   localeTerms.test.ts — locators read as pandoc 3.11 read them, per language and style
   bibtex.test.ts    — a `.bib` mapped as pandoc maps one, rule by rule
