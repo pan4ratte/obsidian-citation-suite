@@ -16,9 +16,10 @@ import { CitationStyle } from "src/types";
 import {
 	asZoteroCites,
 	eventToEventTitle,
+	LibrarySelection,
+	librarySelections,
 	PdfAttachment,
 	pdfAttachments,
-	selectItemsLink,
 	selectLink,
 	uppercasesSubtitles,
 } from "src/zoteroCite";
@@ -196,12 +197,11 @@ interface FoundItem {
 export type ItemLink = { link: string } | { error: "unreachable" | "not-found" };
 
 /**
- * What asking Zotero to select a note's sources comes to: the link, how many
- * of the keys it selects, and how many were left out for standing in another
- * library — or why there is no link.
+ * The Zotero libraries holding a note's sources, each with its share of them
+ * and the link that selects it — or why there are none to select in.
  */
-export type SelectionLink =
-	| { link: string; selected: number; elsewhere: number }
+export type SelectionLibraries =
+	| { libraries: LibrarySelection[] }
 	| { error: "unreachable" | "not-found" };
 
 /** What asking Zotero for a key's PDFs comes to: the PDFs, or why there are none to hand. */
@@ -242,13 +242,22 @@ async function rpc<T>(
  * not answer.
  */
 async function fetchLibraries(port: number): Promise<number[] | null> {
-	const libraries = await rpc<{ id: unknown }[]>(port, "user.groups", []);
+	return (await fetchLibraryNames(port))?.map((library) => library.id) ?? null;
+}
+
+/** Every library Zotero has, as `fetchLibraries` orders them, with its name. */
+async function fetchLibraryNames(
+	port: number
+): Promise<{ id: number; name: string }[] | null> {
+	const libraries = await rpc<{ id: unknown; name: unknown }[]>(port, "user.groups", []);
 	if (!Array.isArray(libraries)) {
 		return null;
 	}
-	return libraries
-		.map((library) => library.id)
-		.filter((id): id is number => typeof id === "number");
+	return libraries.flatMap((library) =>
+		typeof library.id === "number"
+			? [{ id: library.id, name: typeof library.name === "string" ? library.name : "" }]
+			: []
+	);
 }
 
 /** What `item.pandoc_filter` answers with when asked for CSL. */
@@ -895,66 +904,38 @@ export class CitationRenderer {
 	}
 
 	/**
-	 * The link that selects the keys' items in Zotero's window, all at once.
+	 * The Zotero libraries holding the keys' items, each with its share of the
+	 * keys and the link that selects them, for the reader to pick one: Zotero
+	 * shows one library at a time, and a link names one.
 	 *
-	 * Zotero shows one library at a time and the link names one, so the keys
-	 * are selected in the library holding the most of them — the first cited
-	 * of those holding as many — and the rest are counted as `elsewhere`.
-	 * The items are found in one `item.search`: `joinMode any` over the keys,
-	 * with the library as a required condition, which Zotero's search keeps
-	 * whatever the join mode.
+	 * Not the libraries the items were rendered from: a key is looked up in one
+	 * library after another and kept from the first that has it, while the same
+	 * source is commonly in My Library and the group it was shared to, and is
+	 * to be selectable in either. So Better BibTeX's `item.search` is asked for
+	 * the keys in every library at once, `joinMode any` over them, and answers
+	 * with each item's URI and library name; `user.groups` puts the libraries
+	 * in Zotero's order, My Library first, and leaves out feeds.
 	 */
-	async selectionLink(citekeys: string[]): Promise<SelectionLink> {
-		const itemLibraries = this.source(ZOTERO_LIBRARY).itemLibraries;
-		const byLibrary = new Map<number, string[]>();
-		for (const citekey of new Set(citekeys)) {
-			const library = itemLibraries.get(citekey);
-			if (library !== undefined) {
-				byLibrary.set(library, [...(byLibrary.get(library) ?? []), citekey]);
-			}
-		}
-		let library: number | null = null;
-		let keys: string[] = [];
-		for (const [candidate, held] of byLibrary) {
-			if (held.length > keys.length) {
-				library = candidate;
-				keys = held;
-			}
-		}
-		if (library === null) {
+	async selectionLibraries(citekeys: string[]): Promise<SelectionLibraries> {
+		const keys = [...new Set(citekeys)];
+		if (keys.length === 0) {
 			return { error: "not-found" };
 		}
-		const found = await rpc<Record<string, unknown>[]>(
-			this.port,
-			"item.search",
-			[
-				[
-					["joinMode", "any"],
-					["libraryID", "is", library, true],
-					...keys.map((key) => ["citationKey", "is", key]),
-				],
-			]
-		);
-		if (!Array.isArray(found)) {
+		const [libraries, found] = await Promise.all([
+			fetchLibraryNames(this.port),
+			rpc<Record<string, unknown>[]>(this.port, "item.search", [
+				[["joinMode", "any"], ...keys.map((key) => ["citationKey", "is", key])],
+			]),
+		]);
+		if (!libraries || !Array.isArray(found)) {
 			return { error: "unreachable" };
 		}
-		// `is` does not tell case apart; the key is matched again here.
-		const wanted = new Set(keys);
-		const uris = new Map<string, string>();
-		for (const item of found) {
-			const key = item.citekey ?? item["citation-key"];
-			if (typeof key === "string" && wanted.has(key) && typeof item.id === "string") {
-				uris.set(key, item.id);
-			}
-		}
-		const link = selectItemsLink([...uris.values()]);
-		return link
-			? {
-					link,
-					selected: uris.size,
-					elsewhere: [...byLibrary.values()].flat().length - keys.length,
-				}
-			: { error: "not-found" };
+		const selections = librarySelections(
+			found,
+			keys,
+			libraries.map((library) => library.name)
+		);
+		return selections.length > 0 ? { libraries: selections } : { error: "not-found" };
 	}
 
 	/**

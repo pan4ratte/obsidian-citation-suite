@@ -203,6 +203,73 @@ export function selectItemsLink(uris: string[]): string | null {
 	return prefix === null ? null : `${prefix}?itemKey=${[...keys].join(",")}`;
 }
 
+/** One library's share of the sources to select: its name, the keys it holds, and the link. */
+export interface LibrarySelection {
+	name: string;
+	keys: string[];
+	link: string;
+}
+
+/**
+ * The sources to select, by the library holding them, out of what Better
+ * BibTeX's `item.search` found for their keys in every library. A key is
+ * commonly in several libraries at once — My Library and the group it was
+ * shared to — and counts in each of them. What `item.search` found in a
+ * library not among `libraries` (a feed) is left out, and so is a key matched
+ * only without its case, since Zotero's `is` does not tell case apart. The
+ * libraries come in the order `libraries` names them, the keys in the order
+ * given.
+ */
+export function librarySelections(
+	found: Record<string, unknown>[],
+	citekeys: string[],
+	libraries: string[]
+): LibrarySelection[] {
+	const order = new Map(citekeys.map((key, index) => [key, index]));
+	const byLibrary = new Map<string, { name: string; keys: Set<string>; uris: string[] }>();
+	for (const item of found) {
+		const key = item.citekey ?? item["citation-key"];
+		const name = item.library;
+		if (
+			typeof key !== "string" ||
+			!order.has(key) ||
+			typeof name !== "string" ||
+			!libraries.includes(name) ||
+			typeof item.id !== "string"
+		) {
+			continue;
+		}
+		const link = selectLink(item.id);
+		if (!link) {
+			continue;
+		}
+		// The library is told by the link rather than the name: two groups
+		// can be named alike.
+		const library = link.slice(0, link.lastIndexOf("/"));
+		let entry = byLibrary.get(library);
+		if (!entry) {
+			entry = { name, keys: new Set(), uris: [] };
+			byLibrary.set(library, entry);
+		}
+		entry.keys.add(key);
+		entry.uris.push(item.id);
+	}
+	const selections: LibrarySelection[] = [];
+	for (const { name, keys, uris } of byLibrary.values()) {
+		const link = selectItemsLink(uris);
+		if (link) {
+			selections.push({
+				name,
+				keys: [...keys].sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0)),
+				link,
+			});
+		}
+	}
+	return selections.sort(
+		(a, b) => libraries.indexOf(a.name) - libraries.indexOf(b.name)
+	);
+}
+
 /** A PDF attached to a source: the file's name, and the link that opens it in Zotero. */
 export interface PdfAttachment {
 	name: string;

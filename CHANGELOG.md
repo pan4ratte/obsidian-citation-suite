@@ -1,6 +1,17 @@
 # Changelog
 
 
+## 2.2.0
+
+### New options
+
+* **Choosing the library when selecting sources in Zotero.** Where the note's sources are spread over several Zotero libraries, the select button opens a menu naming them, each with the number of sources it holds, and the sources in the chosen library are selected.
+
+### UI/UX enhancements and bug fixes
+
+* A source that is in several Zotero libraries at once is selected in any of them, not only in the one it was taken from for the bibliography.
+
+
 ## 2.1.0
 
 ### New features

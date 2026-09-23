@@ -4,6 +4,7 @@ import {
 	asZoteroCites,
 	eventToEventTitle,
 	formattedBibliography,
+	librarySelections,
 	pdfAttachments,
 	selectItemsLink,
 	selectLink,
@@ -251,5 +252,64 @@ describe("selectItemsLink", () => {
 		).toBeNull();
 		expect(selectItemsLink([])).toBeNull();
 		expect(selectItemsLink(["urn:x"])).toBeNull();
+	});
+});
+
+describe("librarySelections", () => {
+	const libraries = ["Моя библиотека", "Dissertation SPCU", "Stellenbosch Thesis"];
+	/** An item as `item.search` answers with it: Zotero's CSL, its URI and library. */
+	const found = (citekey: string, library: string, id: string) => ({
+		id,
+		citekey,
+		library,
+	});
+
+	it("counts a key in every library holding it, in Zotero's order", () => {
+		const selections = librarySelections(
+			[
+				found("barton2019", "Stellenbosch Thesis", "http://zotero.org/groups/6069354/items/MM42KG3K"),
+				found("ingrem2025", "Stellenbosch Thesis", "http://zotero.org/groups/6069354/items/CBMER66X"),
+				found("ingrem2025", "Моя библиотека", "http://zotero.org/users/9070599/items/KFKU3ZET"),
+			],
+			["ingrem2025", "barton2019"],
+			libraries
+		);
+		expect(selections).toEqual([
+			{
+				name: "Моя библиотека",
+				keys: ["ingrem2025"],
+				link: "zotero://select/library/items?itemKey=KFKU3ZET",
+			},
+			{
+				name: "Stellenbosch Thesis",
+				keys: ["ingrem2025", "barton2019"],
+				link: "zotero://select/groups/6069354/items?itemKey=MM42KG3K,CBMER66X",
+			},
+		]);
+	});
+
+	it("leaves out keys matched without their case, and libraries Zotero does not list", () => {
+		expect(
+			librarySelections(
+				[
+					found("Barton2019", "Моя библиотека", "http://zotero.org/users/9070599/items/9NUEPUXZ"),
+					found("barton2019", "A feed", "http://zotero.org/users/9070599/items/M9Y6U8BS"),
+				],
+				["barton2019"],
+				libraries
+			)
+		).toEqual([]);
+	});
+
+	it("tells apart two groups of one name", () => {
+		const selections = librarySelections(
+			[
+				found("a", "Thesis", "http://zotero.org/groups/1/items/AAAAAAAA"),
+				found("b", "Thesis", "http://zotero.org/groups/2/items/BBBBBBBB"),
+			],
+			["a", "b"],
+			["Thesis"]
+		);
+		expect(selections.map((selection) => selection.keys)).toEqual([["a"], ["b"]]);
 	});
 });

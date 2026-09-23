@@ -173,7 +173,6 @@ export default {
 	BIBLIOGRAPHY_REFRESH: "Обновить библиографию",
 	BIBLIOGRAPHY_SELECT_ALL: "Выделить все источники в Zotero",
 	BIBLIOGRAPHY_SELECT_NOT_FOUND: "Источников этой заметки больше нет в Zotero.",
-	BIBLIOGRAPHY_SELECT_ELSEWHERE: "Zotero показывает одну библиотеку за раз, поэтому выделены источники из той, где их больше всего. Выделено:",
 	BIBLIOGRAPHY_SELECT_MISSING: "Некоторых источников заметки больше нет в Zotero. Выделено:",
 	BIBLIOGRAPHY_NO_NOTE: "Откройте заметку, чтобы увидеть процитированные в ней источники.",
 	BIBLIOGRAPHY_NO_STYLE: "Выберите стиль предпросмотра в настройках Citation Suite, чтобы увидеть библиографию заметки, оформленную в выбранном стиле.",

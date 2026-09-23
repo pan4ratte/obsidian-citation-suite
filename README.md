@@ -124,6 +124,8 @@ The "Bibliography" tab in the right sidebar shows every source cited in the open
 
 The "Copy bibliography" button copies the list with its formatting, as Zotero does: a word processor pastes it with italics, indents and numbering, if the style has them.
 
+The "Select all sources in Zotero" button selects the note's sources in Zotero's window. Zotero shows one library at a time, so where the sources are spread over several libraries, the button opens a menu naming them, each with the number of sources it holds, and the sources in the library you choose are selected.
+
 Right-clicking an entry opens a context menu. Two of its items need explaining:
 
 * **Open literature note** opens a note named `@key` or `key`, or one with the key in its `citekey`, `citationKey` or `citation-key` property. The item appears only when such a note exists. Hold `Ctrl` (`Cmd` on macOS) to open the note in a new tab.

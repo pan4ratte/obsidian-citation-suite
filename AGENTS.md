@@ -906,17 +906,23 @@ object by `loadSettings` and read by nothing.
   so `library/items` and `groups/ID/items` match with no key, and
   `itemKey=A,B,C` from the query is split on commas into one search whose
   items `ZoteroPane.selectItems` selects, after selecting the library root.
-  One library per link, since the pane shows one: `selectionLink` in
-  `src/render.ts` takes the library holding the most of the list's keys
-  (`itemLibraries`), the first cited on a tie, and counts the rest as
-  `elsewhere` for the notice. The item keys come from one `item.search`:
-  `["joinMode","any"]`, `["libraryID","is",id,true]` — the fourth element
-  makes a condition required, which Zotero keeps whatever the join mode —
-  and a `citationKey is` per key; `selectItemsLink` in `src/zoteroCite.ts`
-  builds the link from the URIs. Checked against a running Zotero: the
-  library condition held across a key that exists in My Library and a
-  group, and 250 keys came back in 1.4 s as a 2.3 KB link. A press while one
-  is being answered is ignored.
+  One library per link, since Zotero's pane shows one. One library is
+  selected at once; several are offered in a `Menu` under the button, each
+  with the count of the list's sources in it, and the chosen one is selected.
+  **Not `itemLibraries`**: that is the library a key was rendered from, the
+  first in `user.groups` order that had it, while a source is commonly in
+  My Library and the group it was shared to — counted by it, a note of 71
+  group sources, one also in My Library, offered the group 70. So
+  `selectionLibraries` in `src/render.ts` asks one `item.search` for the
+  keys in every library, `["joinMode","any"]` and a `citationKey is` per
+  key, and `librarySelections` in `src/zoteroCite.ts` groups the answer by
+  the library its URI names (two groups can share a name), keeps a key only
+  matched with its case, drops libraries `user.groups` does not list
+  (feeds), orders them as it lists them — My Library first — and builds each
+  link from the URIs with `selectItemsLink`. A menu choice opens its link
+  with nothing more to ask. For reference, a single-library search of 250
+  keys came back in 1.4 s as a 2.3 KB link. A press while one is being
+  answered is ignored.
 - **Copy entry** is `copyBibliography` with an index: one entry, as HTML and
   text, numbered as it is in the list: it copies what the reader right-clicked.
 - **Find in note** cannot be a submenu of mentions: Obsidian 1.13 has no public

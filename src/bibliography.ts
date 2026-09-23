@@ -1158,18 +1158,18 @@ embeds` : file.path,
 
 	/**
 	 * Selects every source in the list in Zotero's window, through one
-	 * `zotero://select` link, and says so when some could not be: Zotero
-	 * shows one library at a time, and a note citing from two is selected in
-	 * the one holding the most of its sources.
+	 * `zotero://select` link. Zotero shows one library at a time, so a note
+	 * whose sources are in several is asked which, in a menu under the button
+	 * naming each library and how many of the note's sources it holds.
 	 */
 	private async selectInZotero(): Promise<void> {
 		if (this.selecting) {
 			return;
 		}
-		const keys = this.entries.flatMap((entry) => entry.keys);
+		const keys = new Set(this.entries.flatMap((entry) => entry.keys));
 		this.selecting = true;
 		const found = await this.context.renderer
-			.selectionLink(keys)
+			.selectionLibraries([...keys])
 			.finally(() => (this.selecting = false));
 		if ("error" in found) {
 			new Notice(
@@ -1179,13 +1179,35 @@ embeds` : file.path,
 			);
 			return;
 		}
-		window.open(found.link);
-		const total = new Set(keys).size;
-		if (found.selected < total) {
-			new Notice(
-				`${found.elsewhere > 0 ? t.BIBLIOGRAPHY_SELECT_ELSEWHERE : t.BIBLIOGRAPHY_SELECT_MISSING} ${found.selected} / ${total}`
+		const { libraries } = found;
+		if (libraries.length === 1) {
+			const [library] = libraries;
+			window.open(library.link);
+			// Some sources were in no library: gone from Zotero since the list
+			// was drawn.
+			if (library.keys.length < keys.size) {
+				new Notice(
+					`${t.BIBLIOGRAPHY_SELECT_MISSING} ${library.keys.length} / ${keys.size}`
+				);
+			}
+			return;
+		}
+		const menu = new Menu();
+		for (const library of libraries) {
+			menu.addItem((item) =>
+				item
+					.setTitle(`${library.name} (${library.keys.length})`)
+					.setIcon("library")
+					.onClick(() => {
+						window.open(library.link);
+					})
 			);
 		}
+		const rect = this.selectButton.getBoundingClientRect();
+		menu.showAtPosition(
+			{ x: rect.left, y: rect.bottom, width: rect.width, overlap: true },
+			this.contentEl.doc
+		);
 	}
 
 	/**
