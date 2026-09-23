@@ -1,6 +1,6 @@
 {
 	"name": "citation-suite",
-	"version": "2.1.0",
+	"version": "2.2.0",
 	"description": "Cite literature in Pandoc style from your Zotero library, view formatted reference list in the sidebar, preview citations with citation styles, automate footnotes creation, and more.",
 	"main": "main.js",
 	"scripts": {
