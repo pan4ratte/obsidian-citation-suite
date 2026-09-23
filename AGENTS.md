@@ -1172,7 +1172,7 @@ description of its own: it opens straight onto the status card.
   of Pandoc GUI's settings (`PandocDashboard`, `PandocNotices`, `PandocLinks`,
   `ChangelogNotice` there), with its classes and values carried over under this
   plugin's prefix: one card, a row to each thing it is read for. Top to bottom:
-  what this release brought (until dismissed); then one row of panels divided
+  one row of panels divided
   by upright rules — three `actionButton`s in equal thirds (`flex: 1 1 0`,
   never narrower than their content), each an icon before a centred label:
   the Zotero status, which checks again when pressed (`refresh-cw`; its label
@@ -1183,6 +1183,25 @@ description of its own: it opens straight onto the status card.
   so they survive the row wrapping; every panel is opaque for that reason.
   Zotero's version is deliberately not shown. Better BibTeX deliberately has no
   panel of its own: it is only worth a line when something is wrong with it.
+  There is no changelog notice: it only duplicated the changelog panel, and
+  the panel announces a release itself (below).
+- **While the running release's changelog is unread, the changelog panel's
+  icon is Animate UI's sparkles** (`@animate-ui/icons-sparkles`, from the
+  shadcn registry); once it is read, Lucide's `scroll-text`, swapped in on
+  the click that opens it. The original is a React component animated by
+  Motion; `sparklesIcon()` draws its SVG by hand, one class per part, and
+  styles.css ports its `default` animation (0.75 s) to keyframes — the
+  timings are written over them. The label (`citation-suite-sparkles-label`
+  while unread) pulses with the star, more gently. It plays once on hover or
+  focus, and `sparkle()` plays it every 3 s through `is-sparkling`, which also puts the
+  panel's icon and label in the accent and is taken off after `SPARKLE_MS`:
+  a timer, not `animationend`, which never fires while the pointer is on the
+  panel, and not an endless CSS animation, whose colour would win over the
+  hover's. Under reduced motion nothing plays and the colours stay regular. Give `createSvg` its classes as an array:
+  unlike `createEl`, it hands `cls` to `classList.add()` as it is, which
+  throws on a space-separated string (the typings allow one) — and a throw
+  there left the tab blank after the status panel. Check the registry's
+  `https://animate-ui.com/r/icons-sparkles.json` before touching the timings.
 - `checkZotero()` in `src/cayw.ts` asks two things, and neither opens anything:
   Zotero's own `/connector/ping` (200 when Zotero runs, whether or not Better
   BibTeX is installed), then the CAYW `probe`. Zotero
@@ -1190,9 +1209,12 @@ description of its own: it opens straight onto the status card.
   a Zotero without Better BibTeX is told from one that is not running. The
   answer is kept on the tab (`lastCheck`) so that a redraw from `update()` does
   not ask again; `hide()` drops it, and a port change asks again.
-- Dismissing the changelog notice writes `manifest.version` into
-  `dismissedChangelogVersion`, a settings field the tab never draws. The next
-  release is a version that no longer matches, so the notice comes back.
+- Opening the changelog — from the panel or the `show-changelog` command, both
+  through `plugin.openChangelog()` — writes `manifest.version` into
+  `dismissedChangelogVersion`, a settings field the tab never draws, and the
+  panel stops announcing. The next release is a version that no longer
+  matches, so it announces again. The field keeps its old name, since it is
+  in every installed `data.json`.
 
 ## Changelog and user guide in the plugin
 

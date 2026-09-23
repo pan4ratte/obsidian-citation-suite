@@ -221,10 +221,4 @@ export default {
 	STATUS_BETTER_BIBTEX_INSTALL: "How to install it",
 	STATUS_CHANGELOG: "Changelog",
 	STATUS_USER_GUIDE: "User guide",
-
-	// ─── Changelog ───────────────────────────────────────────────────────────
-	// The version number is appended as a link right after this string, which
-	// is why it ends in a space and carries no punctuation of its own.
-	CHANGELOG_BANNER_PREFIX: "What's new in version ",
-	CHANGELOG_BANNER_DISMISS: "Dismiss until the next update",
 };

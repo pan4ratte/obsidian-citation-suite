@@ -1,14 +1,14 @@
 import { App, setIcon, setTooltip } from "obsidian";
-import { getChangelogContent, getUserGuideContent, t } from "lang/helpers";
+import { getUserGuideContent, t } from "lang/helpers";
 import { checkZotero, ZoteroCheck } from "src/cayw";
 import { MarkdownModal } from "src/markdownModal";
 import { spinner } from "src/spinner";
 
 /**
  * The card at the head of the settings, drawn after the one Pandoc GUI keeps at
- * the head of its own: what the running release brought, until it is dismissed;
- * whether Zotero is there to cite from, with the documents to read beside it;
- * and what is wrong, when something is.
+ * the head of its own: whether Zotero is there to cite from, with the documents
+ * to read beside it — the changelog announcing a release not yet read — and
+ * what is wrong, when something is.
  *
  * Each of those is a row of one card, divided by a rule. The status row is
  * panels divided by upright rules: Zotero's status — one line saying whether it
@@ -24,11 +24,10 @@ const BETTER_BIBTEX_INSTALL_URL =
 
 export interface StatusCardOptions {
 	app: App;
-	/** The release running now, which is also what dismissing remembers. */
-	version: string;
-	/** The release whose changelog notice was dismissed. */
-	dismissedVersion: string;
-	onDismiss(): void;
+	/** Whether the running release's changelog has been opened. */
+	changelogRead: boolean;
+	/** Opens the changelog, and marks it read. */
+	openChangelog(): void;
 	/** The port the settings point at, read again on every check. */
 	port(): number;
 	/**
@@ -45,67 +44,113 @@ export interface StatusCard {
 }
 
 /**
- * A button standing as a panel of the card: an icon and a label. The label is
- * handed back for a button whose label is more than a word.
+ * A button standing as a panel of the card: an icon and a label. The icon is
+ * Obsidian's by name, or drawn into its place. The label is handed back for a
+ * button whose label is more than a word.
  */
 function actionButton(
 	parent: HTMLElement,
-	icon: string,
+	icon: string | ((el: HTMLElement) => void),
 	label: string,
 	onClick: () => void
 ): { button: HTMLButtonElement; icon: HTMLElement; label: HTMLElement } {
 	const button = parent.createEl("button", { cls: "citation-suite-action" });
 	const iconEl = button.createSpan({ cls: "citation-suite-action-icon" });
-	setIcon(iconEl, icon);
+	if (typeof icon === "string") {
+		setIcon(iconEl, icon);
+	} else {
+		icon(iconEl);
+	}
 	const labelEl = button.createSpan({ text: label });
 	button.addEventListener("click", onClick);
 	return { button, icon: iconEl, label: labelEl };
 }
 
-/**
- * What this release brought, as the first row of the card. Dismissing it
- * closes the card up behind the row rather than blinking it out of a gap.
- */
-function renderChangelogNotice(
-	card: HTMLElement,
-	options: StatusCardOptions
-): void {
-	if (options.dismissedVersion === options.version) {
-		return;
-	}
-	const row = card.createDiv({
-		cls: "citation-suite-status-row citation-suite-changelog-notice",
-	});
-	const text = row.createSpan({ cls: "citation-suite-changelog-notice-text" });
-	text.appendText(t.CHANGELOG_BANNER_PREFIX);
-	// A button rather than a link: it opens a modal, it does not go anywhere.
-	const versionButton = text.createEl("button", {
-		cls: "citation-suite-changelog-version",
-		text: options.version,
-	});
-	versionButton.addEventListener("click", () => {
-		new MarkdownModal(options.app, getChangelogContent()).open();
-	});
+/** Animate UI's sparkles: the star. */
+const SPARKLES_STAR =
+	"M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z";
 
-	const dismiss = row.createEl("button", {
-		cls: "clickable-icon citation-suite-changelog-dismiss",
-	});
-	setIcon(dismiss, "x");
-	setTooltip(dismiss, t.CHANGELOG_BANNER_DISMISS);
-	dismiss.addEventListener("click", () => {
-		options.onDismiss();
-		if (row.win.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-			row.remove();
-			return;
+/** How often an unread changelog's sparkles play. */
+const SPARKLE_EVERY_MS = 3000;
+
+/** How long the sparkles play: the animation's length in styles.css. Change the two together. */
+const SPARKLE_MS = 750;
+
+/**
+ * Plays the sparkles of the button every `SPARKLE_EVERY_MS`, from now: the
+ * `is-sparkling` class plays the icon's animation once and puts the panel in
+ * the accent, and comes off after `SPARKLE_MS`, so the panel is in the accent
+ * exactly while the icon moves. On a timer rather than the animation's end,
+ * which never comes when the pointer is on the panel: the hover has played the
+ * animation already, and the class does not start it again. A
+ * class played by a timer rather than an endless animation, since an
+ * animated colour would win over the hover's. Nothing plays for a reader who
+ * asked for less motion. Answers what stops it; it also stops by itself once
+ * the button is gone from the page.
+ */
+function sparkle(button: HTMLElement): () => void {
+	if (button.win.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+		return () => {};
+	}
+	let end = 0;
+	const play = (): void => {
+		button.removeClass("is-sparkling");
+		// Asking for the animations brings the style up to date, so that the
+		// class put back starts them again.
+		button.getAnimations({ subtree: true });
+		button.addClass("is-sparkling");
+		button.win.clearTimeout(end);
+		end = button.win.setTimeout(() => button.removeClass("is-sparkling"), SPARKLE_MS);
+	};
+	const timer = button.win.setInterval(() => {
+		if (button.isConnected) {
+			play();
+		} else {
+			button.win.clearInterval(timer);
 		}
-		const animation = row.animate(
-			{
-				height: [`${row.getBoundingClientRect().height}px`, "0px"],
-				opacity: [1, 0],
-			},
-			{ duration: 180, easing: "ease-in-out" }
-		);
-		animation.onfinish = () => row.remove();
+	}, SPARKLE_EVERY_MS);
+	// The first once the card is on screen: the button is not in the page yet.
+	button.win.requestAnimationFrame(play);
+	return () => {
+		button.win.clearInterval(timer);
+		button.win.clearTimeout(end);
+	};
+}
+
+/**
+ * The changelog's icon: Animate UI's sparkles (`@animate-ui/icons-sparkles`),
+ * Lucide's star with a plus and a dot, drawn here as that icon draws it. The
+ * original is a React component animated by Motion, which the plugin has
+ * neither of, so each of its three parts carries a class and styles.css plays
+ * the icon's `default` animation on them: the star pulses, and the plus and
+ * the dot wink out and back. Drawn only while the release's changelog is
+ * unread.
+ */
+function sparklesIcon(parent: HTMLElement): void {
+	const svg = parent.createSvg("svg", {
+		// An array, not a space-separated string, whatever the typings say:
+		// Obsidian's `createSvg` hands `cls` to `classList.add()` as it is,
+		// which throws on a space (read out of 1.13.7's `enhance.js`).
+		cls: ["svg-icon", "citation-suite-sparkles"],
+		attr: {
+			viewBox: "0 0 24 24",
+			fill: "none",
+			stroke: "currentColor",
+			"stroke-width": "2",
+			"stroke-linecap": "round",
+			"stroke-linejoin": "round",
+		},
+	});
+	svg.createSvg("g", { cls: "citation-suite-sparkles-star" }).createSvg("path", {
+		attr: { d: SPARKLES_STAR },
+	});
+	svg.createSvg("path", {
+		cls: "citation-suite-sparkles-plus",
+		attr: { d: "M20 2v4 M22 4h-4" },
+	});
+	svg.createSvg("circle", {
+		cls: "citation-suite-sparkles-dot",
+		attr: { cx: "4", cy: "20", r: "2" },
 	});
 }
 
@@ -114,7 +159,6 @@ export function renderStatusCard(
 	options: StatusCardOptions
 ): StatusCard {
 	const card = parent.createDiv({ cls: "citation-suite-status-panel" });
-	renderChangelogNotice(card, options);
 
 	const panels = card.createDiv({
 		cls: "citation-suite-status-row citation-suite-status-panels",
@@ -131,9 +175,28 @@ export function renderStatusCard(
 	const line = status.label.createSpan({ cls: "citation-suite-status-line" });
 	setTooltip(status.button, t.STATUS_RECHECK);
 	const spin = spinner(status.icon);
-	actionButton(panels, "scroll-text", t.STATUS_CHANGELOG, () => {
-		new MarkdownModal(options.app, getChangelogContent()).open();
-	});
+	// A release whose changelog is unread is announced by the panel itself:
+	// sparkles, played a beat apart, the panel in the accent while they play.
+	// Once read, the scroll every other document panel would have.
+	let stopSparkling = (): void => {};
+	const changelog = actionButton(
+		panels,
+		options.changelogRead ? "scroll-text" : sparklesIcon,
+		t.STATUS_CHANGELOG,
+		() => {
+			options.openChangelog();
+			stopSparkling();
+			changelog.button.removeClass("is-sparkling");
+			changelog.label.removeClass("citation-suite-sparkles-label");
+			changelog.icon.empty();
+			setIcon(changelog.icon, "scroll-text");
+		}
+	);
+	if (!options.changelogRead) {
+		// The label pulses with the star, more gently.
+		changelog.label.addClass("citation-suite-sparkles-label");
+		stopSparkling = sparkle(changelog.button);
+	}
 	actionButton(panels, "book-open", t.STATUS_USER_GUIDE, () => {
 		new MarkdownModal(options.app, getUserGuideContent()).open();
 	});

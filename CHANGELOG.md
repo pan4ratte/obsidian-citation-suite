@@ -10,6 +10,7 @@
 ### UI/UX enhancements and bug fixes
 
 * A source that is in several Zotero libraries at once is selected in any of them, not only in the one it was taken from for the bibliography.
+* The new-version notice in the settings is gone, as it duplicated the "Changelog" button. The button now announces a new version itself: its icon is animated until the changelog is opened.
 
 
 ## 2.1.0

@@ -329,9 +329,7 @@ export default class CitationSuitePlugin extends Plugin {
 		this.addCommand({
 			id: "show-changelog",
 			name: t.COMMAND_SHOW_CHANGELOG,
-			callback: () => {
-				new MarkdownModal(this.app, getChangelogContent()).open();
-			},
+			callback: () => this.openChangelog(),
 		});
 
 		this.addCommand({
@@ -462,6 +460,19 @@ export default class CitationSuitePlugin extends Plugin {
 		this.settings.noteFootnotes = readNoteFootnotes(
 			this.settings.noteFootnotes
 		);
+	}
+
+	/**
+	 * Opens the changelog, and marks the running release's as read: the
+	 * settings' changelog button stops announcing it.
+	 */
+	openChangelog(): void {
+		new MarkdownModal(this.app, getChangelogContent()).open();
+		const version = this.manifest.version;
+		if (this.settings.dismissedChangelogVersion !== version) {
+			this.settings.dismissedChangelogVersion = version;
+			void this.saveSettings();
+		}
 	}
 
 	async saveSettings(): Promise<void> {

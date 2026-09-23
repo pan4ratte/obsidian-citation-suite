@@ -573,15 +573,11 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 	 * which styles.css does not draw: the tab opens straight onto the card.
 	 */
 	private renderStatus(root: HTMLElement): void {
-		const version = this.plugin.manifest.version;
 		this.statusCard = renderStatusCard(root, {
 			app: this.app,
-			version,
-			dismissedVersion: this.plugin.settings.dismissedChangelogVersion,
-			onDismiss: () => {
-				this.plugin.settings.dismissedChangelogVersion = version;
-				void this.plugin.saveSettings();
-			},
+			changelogRead:
+				this.plugin.settings.dismissedChangelogVersion === this.plugin.manifest.version,
+			openChangelog: () => this.plugin.openChangelog(),
 			port: () => this.plugin.settings.port,
 			lastCheck: this.lastCheck,
 			onChecked: (check) => {

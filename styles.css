@@ -150,16 +150,14 @@
 
 /* Everything about the plugin's footing in one card, drawn after the one Pandoc
    GUI keeps at the head of its settings: a row to each thing it is read for —
-   what this release brought, whether Zotero answers with the documents to read
-   beside it, and what is wrong with it. `overflow` keeps a panel's hover fill
+   whether Zotero answers, with the documents to read beside it, and what is
+   wrong with it. `overflow` keeps a panel's hover fill
    inside the rounded corners. */
 .citation-suite-status-panel {
-	/* How tall the changelog notice stands: its padding above and below the
-	   dismiss button, which is Obsidian's `.clickable-icon` — an icon of
-	   `--icon-size` in `--size-2-2` above and below. The panels and the notices
-	   under it are given the same height, so every row of the card matches. Stated here
-	   rather than on the notice, whose height is animated to nothing when it
-	   is dismissed. */
+	/* How tall every row of the card stands at least: the panels and the
+	   notices, so that they all match. It is the height an
+	   icon button of Obsidian's (`.clickable-icon`, an icon of `--icon-size` in
+	   `--size-2-2` above and below) would give a row, in its padding. */
 	--citation-suite-status-row-height: calc(
 		var(--size-4-2) * 2 + var(--icon-size) + var(--size-2-2) * 2
 	);
@@ -213,7 +211,7 @@
 }
 
 /* A line too long to stand beside a version: one run of text across the card,
-   in the muted colour of the changelog notice whatever it says, and at least
+   muted whatever it says, and at least
    as tall as the card's other rows, centred in that height. A longer one
    wraps and grows the row. */
 .citation-suite-status-row.citation-suite-status-notice {
@@ -222,51 +220,6 @@
 	padding: var(--size-4-2) var(--size-4-4);
 	font-size: var(--font-ui-smaller);
 	line-height: var(--line-height-tight);
-	color: var(--text-muted);
-}
-
-/* What this release brought, the first row of the card until it is dismissed.
-   `overflow` is for the closing: the row is animated down to no height, and
-   what stands in it is cut rather than spilling over the row below. */
-.citation-suite-status-row.citation-suite-changelog-notice {
-	align-items: center;
-	gap: var(--size-4-2);
-	padding: var(--size-4-2) var(--size-4-4);
-	overflow: hidden;
-	font-size: var(--font-ui-smaller);
-	color: var(--text-muted);
-}
-
-.citation-suite-changelog-notice-text {
-	flex: 1;
-	min-width: 0;
-}
-
-/* The version is what opens the changelog — a link in the line of text rather
-   than a button standing beside it. */
-.citation-suite-changelog-notice .citation-suite-changelog-version {
-	height: auto;
-	margin: 0;
-	padding: 0;
-	background: none;
-	border: none;
-	box-shadow: none;
-	color: var(--text-accent);
-	font-family: inherit;
-	font-size: inherit;
-	font-weight: var(--font-semibold);
-	text-decoration: underline;
-	cursor: var(--cursor);
-}
-
-.citation-suite-changelog-notice .citation-suite-changelog-version:hover {
-	color: var(--text-accent-hover);
-	background: none;
-	box-shadow: none;
-}
-
-.citation-suite-changelog-dismiss {
-	flex: none;
 	color: var(--text-muted);
 }
 
@@ -285,7 +238,7 @@
 	min-width: max-content;
 	height: auto;
 
-	/* As tall as the changelog notice above; see the status panel. */
+	/* As tall as the card's other rows; see the status panel. */
 	min-height: var(--citation-suite-status-row-height);
 	margin: 0;
 	padding: var(--size-4-2) var(--size-4-4);
@@ -344,6 +297,134 @@
 .citation-suite-action .svg-icon {
 	width: var(--icon-s);
 	height: var(--icon-s);
+}
+
+/* The changelog's sparkles — Animate UI's `icons-sparkles`, whose `default`
+   animation is ported here from Motion: the star pulses (scale 1, 0.9, 1.1, 1
+   over 0.6 s), the dot winks out and back (0.2 s out, 0.2 s gone, 0.2 s back)
+   and the plus does the same 0.15 s later, the whole taking 0.75 s. Each part
+   scales about its own centre, as Motion scales an SVG element, and each
+   segment eases in and out, as Motion's `easeInOut` does.
+
+   It plays once under the pointer or the keyboard's focus, and on every
+   `is-sparkling`, which src/statusCard.ts puts on the panel every few seconds
+   while the release's changelog is unread and takes off after the 0.75 s —
+   `SPARKLE_MS` there: change the two together. */
+.citation-suite-sparkles > g,
+.citation-suite-sparkles > path,
+.citation-suite-sparkles > circle {
+	transform-box: fill-box;
+	transform-origin: center;
+}
+
+.citation-suite-action:hover .citation-suite-sparkles-star,
+.citation-suite-action:focus-visible .citation-suite-sparkles-star,
+.citation-suite-action.is-sparkling .citation-suite-sparkles-star {
+	animation: citation-suite-sparkles-star 0.75s ease-in-out;
+}
+
+.citation-suite-action:hover .citation-suite-sparkles-plus,
+.citation-suite-action:focus-visible .citation-suite-sparkles-plus,
+.citation-suite-action.is-sparkling .citation-suite-sparkles-plus {
+	animation: citation-suite-sparkles-plus 0.75s ease-in-out;
+}
+
+.citation-suite-action:hover .citation-suite-sparkles-dot,
+.citation-suite-action:focus-visible .citation-suite-sparkles-dot,
+.citation-suite-action.is-sparkling .citation-suite-sparkles-dot {
+	animation: citation-suite-sparkles-dot 0.75s ease-in-out;
+}
+
+/* The label pulses with the star, more gently (0.98 and 1.04 against the
+   star's 0.9 and 1.1), over the same 0.6 s. Inline-block, since an inline
+   box does not take a transform. */
+.citation-suite-sparkles-label {
+	display: inline-block;
+}
+
+.citation-suite-action:hover .citation-suite-sparkles-label,
+.citation-suite-action:focus-visible .citation-suite-sparkles-label,
+.citation-suite-action.is-sparkling .citation-suite-sparkles-label {
+	animation: citation-suite-sparkles-label 0.75s ease-in-out;
+}
+
+/* The panel — its icon and its label — is in the accent only while the
+   sparkles play, fading in and out on the panel's own colour transition. */
+.citation-suite-action.is-sparkling {
+	color: var(--text-accent);
+}
+
+@keyframes citation-suite-sparkles-star {
+	0%,
+	80%,
+	100% {
+		transform: scale(1);
+	}
+
+	26.667% {
+		transform: scale(0.9);
+	}
+
+	53.333% {
+		transform: scale(1.1);
+	}
+}
+
+@keyframes citation-suite-sparkles-label {
+	0%,
+	80%,
+	100% {
+		transform: scale(1);
+	}
+
+	26.667% {
+		transform: scale(0.98);
+	}
+
+	53.333% {
+		transform: scale(1.04);
+	}
+}
+
+@keyframes citation-suite-sparkles-plus {
+	0%,
+	20%,
+	100% {
+		opacity: 1;
+		transform: scale(1);
+	}
+
+	46.667%,
+	73.333% {
+		opacity: 0;
+		transform: scale(0);
+	}
+}
+
+@keyframes citation-suite-sparkles-dot {
+	0%,
+	80%,
+	100% {
+		opacity: 1;
+		transform: scale(1);
+	}
+
+	26.667%,
+	53.333% {
+		opacity: 0;
+		transform: scale(0);
+	}
+}
+
+/* Less motion asked for: nothing plays, on hover either. As specific as the
+   rules that play the animation, and after them. */
+@media (prefers-reduced-motion: reduce) {
+	.citation-suite-action.citation-suite-action .citation-suite-sparkles-star,
+	.citation-suite-action.citation-suite-action .citation-suite-sparkles-plus,
+	.citation-suite-action.citation-suite-action .citation-suite-sparkles-dot,
+	.citation-suite-action.citation-suite-action .citation-suite-sparkles-label {
+		animation: none;
+	}
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
