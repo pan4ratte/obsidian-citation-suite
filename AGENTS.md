@@ -1189,15 +1189,12 @@ description of its own: it opens straight onto the status card.
   icon is Animate UI's sparkles** (`@animate-ui/icons-sparkles`, from the
   shadcn registry); once it is read, Lucide's `scroll-text`, swapped in on
   the click that opens it. The original is a React component animated by
-  Motion; `sparklesIcon()` draws its SVG by hand, one class per part, and
+  Motion; `sparklesIcon()` draws its SVG by hand, a class on each moving part, and
   styles.css ports its `default` animation (0.75 s) to keyframes — the
-  timings are written over them. The label (`citation-suite-sparkles-label`
-  while unread) pulses with the star, more gently. It plays once on hover or
-  focus, and `sparkle()` plays it every 3 s through `is-sparkling`, which also puts the
-  panel's icon and label in the accent and is taken off after `SPARKLE_MS`:
-  a timer, not `animationend`, which never fires while the pointer is on the
-  panel, and not an endless CSS animation, whose colour would win over the
-  hover's. Under reduced motion nothing plays and the colours stay regular. Give `createSvg` its classes as an array:
+  timings are written over them — and loops it, the star held still: only the
+  plus and the dot wink. While unread the panel carries `is-unread`, which puts
+  its icon and label in the accent; the click that opens the changelog takes
+  it off. Under reduced motion nothing plays. Give `createSvg` its classes as an array:
   unlike `createEl`, it hands `cls` to `classList.add()` as it is, which
   throws on a space-separated string (the typings allow one) — and a throw
   there left the tab blank after the status panel. Check the registry's

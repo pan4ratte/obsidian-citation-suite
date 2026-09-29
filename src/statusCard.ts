@@ -70,61 +70,13 @@ function actionButton(
 const SPARKLES_STAR =
 	"M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z";
 
-/** How often an unread changelog's sparkles play. */
-const SPARKLE_EVERY_MS = 3000;
-
-/** How long the sparkles play: the animation's length in styles.css. Change the two together. */
-const SPARKLE_MS = 750;
-
-/**
- * Plays the sparkles of the button every `SPARKLE_EVERY_MS`, from now: the
- * `is-sparkling` class plays the icon's animation once and puts the panel in
- * the accent, and comes off after `SPARKLE_MS`, so the panel is in the accent
- * exactly while the icon moves. On a timer rather than the animation's end,
- * which never comes when the pointer is on the panel: the hover has played the
- * animation already, and the class does not start it again. A
- * class played by a timer rather than an endless animation, since an
- * animated colour would win over the hover's. Nothing plays for a reader who
- * asked for less motion. Answers what stops it; it also stops by itself once
- * the button is gone from the page.
- */
-function sparkle(button: HTMLElement): () => void {
-	if (button.win.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-		return () => {};
-	}
-	let end = 0;
-	const play = (): void => {
-		button.removeClass("is-sparkling");
-		// Asking for the animations brings the style up to date, so that the
-		// class put back starts them again.
-		button.getAnimations({ subtree: true });
-		button.addClass("is-sparkling");
-		button.win.clearTimeout(end);
-		end = button.win.setTimeout(() => button.removeClass("is-sparkling"), SPARKLE_MS);
-	};
-	const timer = button.win.setInterval(() => {
-		if (button.isConnected) {
-			play();
-		} else {
-			button.win.clearInterval(timer);
-		}
-	}, SPARKLE_EVERY_MS);
-	// The first once the card is on screen: the button is not in the page yet.
-	button.win.requestAnimationFrame(play);
-	return () => {
-		button.win.clearInterval(timer);
-		button.win.clearTimeout(end);
-	};
-}
-
 /**
  * The changelog's icon: Animate UI's sparkles (`@animate-ui/icons-sparkles`),
  * Lucide's star with a plus and a dot, drawn here as that icon draws it. The
  * original is a React component animated by Motion, which the plugin has
- * neither of, so each of its three parts carries a class and styles.css plays
- * the icon's `default` animation on them: the star pulses, and the plus and
- * the dot wink out and back. Drawn only while the release's changelog is
- * unread.
+ * neither of, so the plus and the dot carry a class and styles.css loops the
+ * icon's `default` animation on them, the star held still: the plus and the
+ * dot wink out and back. Drawn only while the release's changelog is unread.
  */
 function sparklesIcon(parent: HTMLElement): void {
 	const svg = parent.createSvg("svg", {
@@ -141,9 +93,7 @@ function sparklesIcon(parent: HTMLElement): void {
 			"stroke-linejoin": "round",
 		},
 	});
-	svg.createSvg("g", { cls: "citation-suite-sparkles-star" }).createSvg("path", {
-		attr: { d: SPARKLES_STAR },
-	});
+	svg.createSvg("path", { attr: { d: SPARKLES_STAR } });
 	svg.createSvg("path", {
 		cls: "citation-suite-sparkles-plus",
 		attr: { d: "M20 2v4 M22 4h-4" },
@@ -176,27 +126,20 @@ export function renderStatusCard(
 	setTooltip(status.button, t.STATUS_RECHECK);
 	const spin = spinner(status.icon);
 	// A release whose changelog is unread is announced by the panel itself:
-	// sparkles, played a beat apart, the panel in the accent while they play.
-	// Once read, the scroll every other document panel would have.
-	let stopSparkling = (): void => {};
+	// in the accent, with looping sparkles. Once read, the scroll every other
+	// document panel would have.
 	const changelog = actionButton(
 		panels,
 		options.changelogRead ? "scroll-text" : sparklesIcon,
 		t.STATUS_CHANGELOG,
 		() => {
 			options.openChangelog();
-			stopSparkling();
-			changelog.button.removeClass("is-sparkling");
-			changelog.label.removeClass("citation-suite-sparkles-label");
+			changelog.button.removeClass("is-unread");
 			changelog.icon.empty();
 			setIcon(changelog.icon, "scroll-text");
 		}
 	);
-	if (!options.changelogRead) {
-		// The label pulses with the star, more gently.
-		changelog.label.addClass("citation-suite-sparkles-label");
-		stopSparkling = sparkle(changelog.button);
-	}
+	changelog.button.toggleClass("is-unread", !options.changelogRead);
 	actionButton(panels, "book-open", t.STATUS_USER_GUIDE, () => {
 		new MarkdownModal(options.app, getUserGuideContent()).open();
 	});

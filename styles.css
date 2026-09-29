@@ -299,91 +299,28 @@
 	height: var(--icon-s);
 }
 
-/* The changelog's sparkles — Animate UI's `icons-sparkles`, whose `default`
-   animation is ported here from Motion: the star pulses (scale 1, 0.9, 1.1, 1
-   over 0.6 s), the dot winks out and back (0.2 s out, 0.2 s gone, 0.2 s back)
-   and the plus does the same 0.15 s later, the whole taking 0.75 s. Each part
-   scales about its own centre, as Motion scales an SVG element, and each
-   segment eases in and out, as Motion's `easeInOut` does.
+/* The changelog while the release's is unread: in the accent, and its icon is
+   Animate UI's `icons-sparkles`, whose `default` animation is ported here from
+   Motion and looped, the star held still: the dot winks out and back (0.2 s
+   out, 0.2 s gone, 0.2 s back) and the plus does the same 0.15 s later, the
+   whole taking 0.75 s. Each part scales about its own centre, as Motion scales
+   an SVG element. */
+.citation-suite-action.citation-suite-action.is-unread {
+	color: var(--text-accent);
+}
 
-   It plays once under the pointer or the keyboard's focus, and on every
-   `is-sparkling`, which src/statusCard.ts puts on the panel every few seconds
-   while the release's changelog is unread and takes off after the 0.75 s —
-   `SPARKLE_MS` there: change the two together. */
-.citation-suite-sparkles > g,
 .citation-suite-sparkles > path,
 .citation-suite-sparkles > circle {
 	transform-box: fill-box;
 	transform-origin: center;
 }
 
-.citation-suite-action:hover .citation-suite-sparkles-star,
-.citation-suite-action:focus-visible .citation-suite-sparkles-star,
-.citation-suite-action.is-sparkling .citation-suite-sparkles-star {
-	animation: citation-suite-sparkles-star 0.75s ease-in-out;
+.citation-suite-sparkles-plus {
+	animation: citation-suite-sparkles-plus 0.75s ease-in-out infinite;
 }
 
-.citation-suite-action:hover .citation-suite-sparkles-plus,
-.citation-suite-action:focus-visible .citation-suite-sparkles-plus,
-.citation-suite-action.is-sparkling .citation-suite-sparkles-plus {
-	animation: citation-suite-sparkles-plus 0.75s ease-in-out;
-}
-
-.citation-suite-action:hover .citation-suite-sparkles-dot,
-.citation-suite-action:focus-visible .citation-suite-sparkles-dot,
-.citation-suite-action.is-sparkling .citation-suite-sparkles-dot {
-	animation: citation-suite-sparkles-dot 0.75s ease-in-out;
-}
-
-/* The label pulses with the star, more gently (0.98 and 1.04 against the
-   star's 0.9 and 1.1), over the same 0.6 s. Inline-block, since an inline
-   box does not take a transform. */
-.citation-suite-sparkles-label {
-	display: inline-block;
-}
-
-.citation-suite-action:hover .citation-suite-sparkles-label,
-.citation-suite-action:focus-visible .citation-suite-sparkles-label,
-.citation-suite-action.is-sparkling .citation-suite-sparkles-label {
-	animation: citation-suite-sparkles-label 0.75s ease-in-out;
-}
-
-/* The panel — its icon and its label — is in the accent only while the
-   sparkles play, fading in and out on the panel's own colour transition. */
-.citation-suite-action.is-sparkling {
-	color: var(--text-accent);
-}
-
-@keyframes citation-suite-sparkles-star {
-	0%,
-	80%,
-	100% {
-		transform: scale(1);
-	}
-
-	26.667% {
-		transform: scale(0.9);
-	}
-
-	53.333% {
-		transform: scale(1.1);
-	}
-}
-
-@keyframes citation-suite-sparkles-label {
-	0%,
-	80%,
-	100% {
-		transform: scale(1);
-	}
-
-	26.667% {
-		transform: scale(0.98);
-	}
-
-	53.333% {
-		transform: scale(1.04);
-	}
+.citation-suite-sparkles-dot {
+	animation: citation-suite-sparkles-dot 0.75s ease-in-out infinite;
 }
 
 @keyframes citation-suite-sparkles-plus {
@@ -416,13 +353,9 @@
 	}
 }
 
-/* Less motion asked for: nothing plays, on hover either. As specific as the
-   rules that play the animation, and after them. */
 @media (prefers-reduced-motion: reduce) {
-	.citation-suite-action.citation-suite-action .citation-suite-sparkles-star,
-	.citation-suite-action.citation-suite-action .citation-suite-sparkles-plus,
-	.citation-suite-action.citation-suite-action .citation-suite-sparkles-dot,
-	.citation-suite-action.citation-suite-action .citation-suite-sparkles-label {
+	.citation-suite-sparkles-plus,
+	.citation-suite-sparkles-dot {
 		animation: none;
 	}
 }
