@@ -581,6 +581,11 @@ interface SourceState {
 	unknown: Set<string>;
 	/** The keys in `unknown` that were missed because the library was not there. */
 	unreached: Set<string>;
+	/**
+	 * Keys in `unknown` whose item Zotero still has under another key — the
+	 * key Better BibTeX gave it since — by the old key.
+	 */
+	renamed: Map<string, string>;
 	/** The lookups under way, by each key they were started for. */
 	lookups: Map<string, Promise<void>>;
 }
@@ -591,6 +596,7 @@ function emptySource(): SourceState {
 		itemLibraries: new Map(),
 		unknown: new Set(),
 		unreached: new Set(),
+		renamed: new Map(),
 		lookups: new Map(),
 	};
 }
@@ -621,6 +627,8 @@ export class CitationRenderer {
 	private labels = new Map<string, LocatorLabels>();
 	/** Told which Zotero item each key found stands for. */
 	private identified: IdentifiedListener | null = null;
+	/** The items a key stood for when it was last found, as `libraryID:itemKey`. */
+	private keyHistory: ((citekey: string) => string[]) | null = null;
 
 	constructor(
 		private port: number,
@@ -650,6 +658,14 @@ export class CitationRenderer {
 	 */
 	onIdentified(listener: IdentifiedListener | null): void {
 		this.identified = listener;
+	}
+
+	/**
+	 * Where to learn which items a key stood for, so that a key Zotero no
+	 * longer has can be traced to the key its item has now (`renamed`).
+	 */
+	setKeyHistory(history: ((citekey: string) => string[]) | null): void {
+		this.keyHistory = history;
 	}
 
 	/**
@@ -755,10 +771,12 @@ export class CitationRenderer {
 				}
 			}
 		}
+		const unknownHere: string[] = [];
 		for (const key of wanted) {
 			if (source.items.has(key)) {
 				source.unknown.delete(key);
 				source.unreached.delete(key);
+				source.renamed.delete(key);
 			} else {
 				// The library does not know it: a key typed by hand, or one
 				// whose item has gone — or the library was not there to ask.
@@ -766,11 +784,69 @@ export class CitationRenderer {
 				source.unknown.add(key);
 				if (answered) {
 					source.unreached.delete(key);
+					unknownHere.push(key);
 				} else {
 					source.unreached.add(key);
 				}
 			}
 		}
+		if (ref === ZOTERO_LIBRARY && unknownHere.length > 0) {
+			await this.traceRenames(unknownHere, source);
+		}
+	}
+
+	/**
+	 * Of the keys Zotero has just said it has no item for, the ones whose item
+	 * it still has under another key: a key Better BibTeX made anew, whether
+	 * by hand or because the item was edited while it regenerates keys.
+	 *
+	 * The key index says which items a key stood for when it was last found,
+	 * and Better BibTeX's `item.citationkey` what each of them is called now —
+	 * one request for all the keys, and none for a key the index never saw.
+	 * The first item that has a key other than the old one gives the new key,
+	 * My Library's before a group's. Nothing answering leaves the keys missing
+	 * as they were.
+	 */
+	private async traceRenames(keys: string[], source: SourceState): Promise<void> {
+		const history = this.keyHistory;
+		if (!history) {
+			return;
+		}
+		const items = new Map<string, string[]>();
+		for (const key of keys) {
+			const refs = history(key);
+			if (refs.length > 0) {
+				items.set(key, refs);
+			}
+		}
+		if (items.size === 0) {
+			return;
+		}
+		const now = await rpc<Record<string, unknown>>(this.port, "item.citationkey", [
+			[...new Set([...items.values()].flat())],
+		]);
+		if (!now || typeof now !== "object") {
+			return;
+		}
+		for (const [key, refs] of items) {
+			const renamed = refs
+				.map((ref) => now[ref])
+				.find((current): current is string => typeof current === "string" && current !== "" && current !== key);
+			if (renamed) {
+				source.renamed.set(key, renamed);
+			} else {
+				source.renamed.delete(key);
+			}
+		}
+	}
+
+	/**
+	 * The key Zotero now has a missing key's item under, when the key index
+	 * traced it there; nothing for any other key.
+	 */
+	renamed(citekey: string, ref: LibraryRef = ZOTERO_LIBRARY): string | undefined {
+		const source = this.source(ref);
+		return source.unknown.has(citekey) ? source.renamed.get(citekey) : undefined;
 	}
 
 	/** The keys as Zotero has them, through Better BibTeX. */
@@ -1014,6 +1090,7 @@ export class CitationRenderer {
 		for (const source of this.sources.values()) {
 			source.unknown.clear();
 			source.unreached.clear();
+			source.renamed.clear();
 		}
 		// A key may be missing because its group was joined after the list
 		// of libraries was read.

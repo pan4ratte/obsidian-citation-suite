@@ -5,7 +5,7 @@
 | Command | What it does |
 |---------|-------------|
 | `npm run dev` | esbuild watch mode (no typecheck) |
-| `npm test` | Vitest — 351 tests, all passing |
+| `npm test` | Vitest — 367 tests, all passing |
 | `npm run lint` / `npm run lint:fix` | ESLint (`lint:ts`) and Stylelint (`lint:css`) with the official Obsidian rulesets |
 | `npm run build` | `tsc -noEmit -skipLibCheck && node esbuild.config.mjs production` |
 
@@ -539,8 +539,8 @@ on by default.
 A key is Better BibTeX's name for an item, and the name can change: by hand,
 or — while "Regenerate citation key when item changes" is on — on every edit
 of the item. Nothing in Zotero remembers the old key, so a note citing it loses
-the source for good. Three steps answer that; **1 and 2 are built, 3 is not
-yet**.
+the source for good. Three steps answer that: a warning, an index of which
+item each key stood for, and the repair built on the index.
 
 What Better BibTeX does, read out of **9.0.71**'s bundle and checked against
 a running Zotero:
@@ -606,16 +606,53 @@ finds (`CitationRenderer.onIdentified`, fed by `fetchItems` from `custom.uri`).
   first lookup. Obsidian Sync may not carry it, which is fine — each desktop
   builds its own, and nothing is shared that could conflict.
 
-**3. The repair (to build).** When `CitationRenderer.missing(key)` — Zotero
-answered and had nothing — look the key up in the index and ask
-`item.citationkey` for its items' keys now. If one changed: the pane's "not
-found" list shows "@old → @new" with a button that rewrites the note; the
-missing-key mark's tooltip says the same; and a command rewrites every note
-in the vault after a `ConfirmModal` with the counts, through `vault.process`,
-by `keyMentions`/`proseOf` ranges so code and comments are left alone, and
-braced through `citationKeyToken`. Never rewrite silently. Optional later: a
-"which source was @old?" chooser from a quick search on the key's parts, for
-keys cited before the index existed; matching `.bib` libraries by DOI or title.
+**3. The repair.** Never silent: a key is rewritten only by the reader's
+press of a button or a confirmed command.
+
+- **Tracing, in the renderer.** `lookUp` hands the keys Zotero answered
+  for and had nothing to `traceRenames`: the index's items for each
+  (`setKeyHistory`, fed by `KeyIndexFile.itemsOf`), one `item.citationkey` for
+  all of them, and the first item — My Library's first — whose key now is
+  another gives `renamed(key)`. A key the index never saw costs no request; a
+  Zotero not answering leaves the keys missing as they were. `forgetUnknown()`
+  clears it with the rest, and a key found again drops it. Since `load()`
+  awaits it, everything that reads `missing()` after a load reads
+  `renamed()` too. `tests/keyTrace.test.ts` runs it against a mocked
+  `requestUrl` answering as BBT 9.0.71 does.
+- **The rewrite** is `src/keyRename.ts` (pure, tested): `keyRenameEdits`
+  finds every key place in `proseOf(text)` — bracketed groups through
+  `keyMentions`, and standalone `@key`/`-@key` at the start or after a space or
+  `(`, which is what the plugin writes with brackets off, but not after a
+  letter (an address) or `/` (a link) — and writes the new key through
+  `citationKeyToken`, keeping the `-`. Matched with a capture group, not a
+  lookbehind, which the Obsidian lint refuses for iOS before 16.4.
+  `CitationSuitePlugin.replaceKeys(paths, renames)` applies it: in an open
+  `MarkdownView` as one `editor.transaction` (unsaved text kept, one undo),
+  otherwise `vault.process`, and only for a note that cites one of the keys.
+- **The marks.** `missingKeyLabel` in `src/reading.ts` is the tooltip of a
+  missing key in reading view and live preview alike, naming the new key when
+  there is one; live preview builds one decoration per distinct label.
+- **The pane** splits `notFound` into renamed and missing. "Keys changed in
+  Zotero" (`citation-suite-bibliography-renamed`, a class of its own so the
+  search's hiding of an emptied section still finds the missing keys' `code`)
+  lists each pair — the old key struck through, the new under it after
+  `corner-down-right`, since side by side they broke wherever a sidebar ran
+  out and ran into the next pair — and "Replace in note" rewrites the note
+  and every note it embeds (`expanded.paths`), since the list was read
+  through them. The pass that the edit sets off redraws the section away.
+- **The command** `replace-changed-keys` (desktop only: `keyIndex` is there)
+  reads every note whose library is Zotero's — a note reading from a vault
+  file keeps the file's keys whatever Zotero calls the source — collects the
+  keys the index knows (`citationKeysIn`), loads them, gives up with the
+  unreachable notice if Zotero did not answer, and opens a `ConfirmModal`
+  with the counts and the pairs in its `list` (monospace, scrolling past about
+  eight lines). Nothing found is a notice.
+- **Not covered.** A key cited before the index existed has no pair, and stays
+  merely missing; a "which source was @old?" chooser from a quick search on
+  the key's parts would be the next step. A key that another item of the same
+  library has since taken is found, not missing, and so not traced. Keys in
+  `.canvas` text cards are swept but not rewritten. `.bib` libraries are not
+  traced at all: a file carries no Zotero identity.
 
 ## The pandoc formatter
 
@@ -1352,7 +1389,7 @@ was renamed with it, from `pan4ratte/obsidian-zoterik` to
 
 ```
 src/
-  main.ts           — Plugin class, 7 commands, note menus, the bibliography view, settings load/save
+  main.ts           — Plugin class, 8 commands, note menus, the bibliography view, settings load/save
   cayw.ts           — the Better BibTeX CAYW client: probe, Zotero check, pick, parse
   sourceModal.ts    — the citation window for a file library: pills, pages, a group
   pandoc.ts         — citations → pandoc syntax (pure; no Obsidian, no network)
@@ -1377,6 +1414,7 @@ src/
   literatureNote.ts — the note kept about a source, found by name or front matter (pure)
   keyIndex.ts       — which Zotero item each cited key stood for, and the sweep's rule (pure)
   keyIndexFile.ts   — the key index on disk, and the sweep over the vault
+  keyRename.ts      — old citation keys written over with new ones (pure)
   noteStyle.ts      — a note's `csl` and `lang`, and where pandoc finds the style (pure)
   noteStyles.ts     — the style each note is previewed in, resolved and kept
   localeTerms.ts    — locator labels in a language, from CSL locale and style terms (pure)
@@ -1412,6 +1450,8 @@ tests/
   suggestion.test.ts — trigger, insertion, sources shown and ranked
   literatureNote.test.ts — which note is a source's, and which of several
   keyIndex.test.ts  — pairs kept, replaced and swept; the file read back; keys a file cites
+  keyRename.test.ts — which places a key is rewritten in, and how
+  keyTrace.test.ts  — a missing key traced to its new one, against a mocked Better BibTeX
   embeds.test.ts    — embeds found, expanded, nested, and kept apart
   noteStyle.test.ts — properties, file names, URLs matched to Zotero's styles, lookup order
   localeTerms.test.ts — locators read as pandoc 3.11 read them, per language and style

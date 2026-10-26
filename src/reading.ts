@@ -134,13 +134,23 @@ export function citationEl(
 function missingKeyEl(
 	text: string,
 	tooltip: CitationTooltip,
-	library: LibraryRef
+	library: LibraryRef,
+	renamed: string | undefined
 ): HTMLElement {
 	const span = createSpan({ cls: MISSING_CLASS, text });
-	const label =
-		library === ZOTERO_LIBRARY ? t.CITATION_KEY_MISSING : t.CITATION_KEY_MISSING_FILE;
-	setTooltip(span, label, { delay: tooltip.delay });
+	setTooltip(span, missingKeyLabel(library, renamed), { delay: tooltip.delay });
 	return span;
+}
+
+/**
+ * What a missing key's mark says: that the note's library has no source for
+ * it — or, for a key Zotero's item has been given anew since, what it is now.
+ */
+export function missingKeyLabel(library: LibraryRef, renamed: string | undefined): string {
+	if (renamed !== undefined) {
+		return `${t.CITATION_KEY_RENAMED} @${renamed}`;
+	}
+	return library === ZOTERO_LIBRARY ? t.CITATION_KEY_MISSING : t.CITATION_KEY_MISSING_FILE;
 }
 
 /** What the plugin hands reading view: the renderer, the notes, and the settings read. */
@@ -208,7 +218,12 @@ function decorateNode(
 			if (context.renderer.missing(mention.id, library)) {
 				upTo(mention.from);
 				fragment.appendChild(
-					missingKeyEl(text.slice(mention.from, mention.to), tooltip, library)
+					missingKeyEl(
+						text.slice(mention.from, mention.to),
+						tooltip,
+						library,
+						context.renderer.renamed(mention.id, library)
+					)
 				);
 				at = mention.to;
 				replaced = true;

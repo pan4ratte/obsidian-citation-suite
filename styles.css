@@ -1101,6 +1101,28 @@ body.citation-suite-citation-italic .citation-suite-citation em {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   Confirmation dialog
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* What a confirmation will do, one line each — the keys to be replaced — in a
+   box of their own under the text, scrolling once there are more than about
+   eight. Monospace, since each line is citation keys as the note writes them. */
+.citation-suite-confirm-list {
+	max-height: calc(8 * var(--line-height-normal) * var(--font-ui-small) + 2 * var(--size-4-2));
+	margin: 0 0 var(--size-4-4);
+	padding: var(--size-4-2) var(--size-4-3);
+	overflow-y: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background-color: var(--background-secondary);
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-small);
+	line-height: var(--line-height-normal);
+	list-style: none;
+	user-select: text;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    Bibliography pane
    ────────────────────────────────────────────────────────────────────────── */
 
@@ -1636,6 +1658,7 @@ body.citation-suite-citation-italic .citation-suite-citation em {
 /* The keys the note cites that Zotero had nothing for, or the word that
    Zotero did not answer, under a rule. */
 .citation-suite-bibliography-missing,
+.citation-suite-bibliography-renamed,
 /* What the note's own `csl` and `lang` make of the list, above it: muted, as
    the pane's other notes are, and in the warning colour what the properties
    asked for that the preview could not have. */
@@ -1655,6 +1678,7 @@ body.citation-suite-citation-italic .citation-suite-citation em {
    pane has to say about the keys it could not list is not the last entry of
    the list, and reads as one when it sits right under it. */
 .citation-suite-bibliography-missing,
+.citation-suite-bibliography-renamed,
 .citation-suite-bibliography-unreachable {
 	margin-top: var(--size-4-6);
 	padding-top: var(--size-4-4);
@@ -1663,6 +1687,7 @@ body.citation-suite-citation-italic .citation-suite-citation em {
 
 /* Nothing above it to be set apart from: every key was missed. */
 .citation-suite-bibliography-body > .citation-suite-bibliography-missing:first-child,
+.citation-suite-bibliography-body > .citation-suite-bibliography-renamed:first-child,
 .citation-suite-bibliography-body > .citation-suite-bibliography-unreachable:first-child {
 	margin-top: 0;
 	padding-top: 0;
@@ -1690,6 +1715,58 @@ body.citation-suite-citation-italic .citation-suite-citation em {
 .citation-suite-bibliography-missing-keys code {
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
+}
+
+/* The keys whose sources have new keys, a pair to each: the old key struck
+   through, as what is going, and under it the new key after an arrow, in the
+   text colour, as what will stand in the note. Under each other rather than
+   side by side, since two keys rarely fit across a sidebar and a pair broken
+   wherever it ran out of room ran into the next. A long key wraps. */
+.citation-suite-bibliography-renamed-keys {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-2);
+	user-select: text;
+}
+
+.citation-suite-bibliography-renamed-row {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-1);
+	min-width: 0;
+}
+
+.citation-suite-bibliography-renamed-row code {
+	font-size: var(--font-ui-smaller);
+	overflow-wrap: anywhere;
+}
+
+.citation-suite-bibliography-renamed-old {
+	color: var(--text-faint);
+	text-decoration: line-through;
+}
+
+.citation-suite-bibliography-renamed-new {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--size-2-2);
+	color: var(--text-normal);
+}
+
+.citation-suite-bibliography-renamed-arrow {
+	--icon-size: var(--icon-xs);
+	--icon-stroke: var(--icon-xs-stroke-width);
+
+	display: flex;
+	flex: none;
+	align-items: center;
+	height: calc(var(--font-ui-smaller) * var(--line-height-normal));
+	color: var(--text-faint);
+}
+
+.citation-suite-bibliography-renamed-replace {
+	margin-top: var(--size-4-3);
 }
 
 /* Whatever the pane hides — a button with nothing to act on, or what the

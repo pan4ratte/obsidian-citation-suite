@@ -3,6 +3,10 @@
 
 ## Unreleased
 
+### New options
+
+* **Replacing changed citation keys.** If Better BibTeX gave a source a new key and the note still cites the old one, the "Bibliography" tab shows both keys and replaces the old ones with one button, and a new command does the same in every note. The tooltip on the underlined key names the new key.
+
 ### UI/UX enhancements and bug fixes
 
 * **A warning about changing citation keys.** If Better BibTeX makes a key anew every time a source is edited in Zotero, the plugin's settings warn about it and say which option to turn off: otherwise notes with the old key lose the source. The warning can be closed for good.

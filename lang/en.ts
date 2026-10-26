@@ -17,6 +17,7 @@ export default {
 	COMMAND_SHOW_BIBLIOGRAPHY: "Show bibliography",
 	COMMAND_SHOW_CHANGELOG: "View changelog",
 	COMMAND_OPEN_USER_GUIDE: "Open user guide",
+	COMMAND_REPLACE_CHANGED_KEYS: "Replace changed citation keys in all notes",
 
 	// ─── Notices ─────────────────────────────────────────────────────────────
 	NOTICE_ZOTERO_UNREACHABLE: "Zotero is not answering. Check that it is running, that Better BibTeX is installed in it, and that the port in the settings matches its own.",
@@ -94,6 +95,8 @@ export default {
 	// ─── Citations in a note ─────────────────────────────────────────────────
 	CITATION_KEY_MISSING: "Zotero has no source with this citation key",
 	CITATION_KEY_MISSING_FILE: "The bibliography file has no source with this citation key",
+	// Followed by the new key.
+	CITATION_KEY_RENAMED: "This source's key changed in Zotero; it is now",
 	// The hints under the list of sources offered while a key is typed.
 	SUGGEST_NAVIGATE: "Move through the list",
 	SUGGEST_INSERT: "Insert the key",
@@ -113,6 +116,18 @@ export default {
 	SOURCE_MODAL_LOCATOR_PLACEHOLDER: "Page or range — for instance, 33 or 33–35",
 	NOTICE_NO_LIBRARY: "Zotero cannot be reached. Choose a bibliography file in the plugin settings, or name one in the note's bibliography property.",
 	NOTICE_LIBRARY_EMPTY: "The bibliography file has no sources.",
+	NOTICE_KEYS_SEARCHING: "Looking for citation keys changed in Zotero…",
+	NOTICE_NO_CHANGED_KEYS: "No note cites a key that changed in Zotero.",
+	// Followed by the number of keys replaced.
+	NOTICE_KEYS_REPLACED: "Citation keys replaced:",
+
+	// ─── Changed citation keys ───────────────────────────────────────────────
+	CHANGED_KEYS_TITLE: "Replace changed citation keys?",
+	CHANGED_KEYS_TEXT: "Better BibTeX gave new keys to sources cited in your notes. The old keys will be replaced with the new ones. The replacement can be undone only in open notes.",
+	// Each followed by a number.
+	CHANGED_KEYS_COUNT: "Changed keys:",
+	CHANGED_KEYS_NOTES: "Notes they appear in:",
+	CHANGED_KEYS_CONFIRM: "Replace",
 
 	// ─── Note footnote settings ──────────────────────────────────────────────
 	NOTE_FOOTNOTES_TITLE: "Footnote settings for this note",
@@ -190,6 +205,9 @@ export default {
 	BIBLIOGRAPHY_MISSING_DESC: "Better BibTeX has no items for these citation keys. If you have already added the sources to Zotero, refresh the bibliography.",
 	BIBLIOGRAPHY_MISSING_FILE: "Sources not found in the bibliography file",
 	BIBLIOGRAPHY_MISSING_FILE_DESC: "The note's bibliography file has no sources for these citation keys. If you have already added them to the file, refresh the bibliography.",
+	BIBLIOGRAPHY_RENAMED: "Keys changed in Zotero",
+	BIBLIOGRAPHY_RENAMED_DESC: "Better BibTeX gave these sources new citation keys. Replace the old keys to find the sources again.",
+	BIBLIOGRAPHY_RENAMED_REPLACE: "Replace in note",
 	BIBLIOGRAPHY_UNREACHABLE: "Zotero is not responding",
 	BIBLIOGRAPHY_UNREACHABLE_DESC: "Could not get the note's sources. Make sure Zotero is running, Better BibTeX is installed in it and the port in the settings matches its own. The bibliography will update as soon as Zotero responds.",
 	BIBLIOGRAPHY_UNREACHABLE_FILE: "The bibliography file could not be read",

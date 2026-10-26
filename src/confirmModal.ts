@@ -6,6 +6,11 @@ export interface Confirmation {
 	title: string;
 	/** Each a paragraph of its own. */
 	paragraphs: string[];
+	/**
+	 * What exactly will be done, one line each, under the paragraphs: in a
+	 * box of its own that scrolls once it is long.
+	 */
+	list?: string[];
 	/** The label of the button that does it. */
 	confirm: string;
 	onConfirm: () => void | Promise<void>;
@@ -30,6 +35,13 @@ export class ConfirmModal extends Modal {
 		this.setTitle(this.confirmation.title);
 		for (const text of this.confirmation.paragraphs) {
 			contentEl.createEl("p", { text });
+		}
+		const lines = this.confirmation.list ?? [];
+		if (lines.length > 0) {
+			const list = contentEl.createEl("ul", { cls: "citation-suite-confirm-list" });
+			for (const text of lines) {
+				list.createEl("li", { text });
+			}
 		}
 		const buttons = contentEl.createDiv("modal-button-container");
 		new ButtonComponent(buttons)

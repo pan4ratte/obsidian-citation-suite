@@ -132,6 +132,8 @@ Right-clicking an entry opens a context menu. Two of its items need explaining:
 
 * **Open PDF** opens the source's PDF in Zotero, along with your annotations.
 
+If Better BibTeX gave a source a new key and the note still cites the old one, the tab shows both keys under "Keys changed in Zotero", and the "Replace in note" button puts the new keys in place of the old ones. The **Replace changed citation keys in all notes** command does the same across the vault. A new key is found only if the plugin has already seen the source under its old key: whenever it finds a source in Zotero, it remembers which item the key belongs to.
+
 ## 5. Citation preview
 
 Choose a style from your Zotero library in the plugin settings — it formats the citations in your notes and the bibliography. In the note itself citations stay in Pandoc format, so the export is not affected.
@@ -180,7 +182,7 @@ If you added the source or changed its key after opening the note, press "Refres
 
 ### A source is no longer found after editing it in Zotero?
 
-If *Regenerate citation key when item changes* is on in Better BibTeX's settings, on the *Citation keys* tab, Better BibTeX makes the key anew every time the source is edited, its author, title or year for example, and notes with the old key lose the source. Turn that option off to keep keys as they are. While it is on, Citation Suite warns about it in its settings. If a source's key has already changed, replace the old key in the note with the new one.
+If *Regenerate citation key when item changes* is on in Better BibTeX's settings, on the *Citation keys* tab, Better BibTeX makes the key anew every time the source is edited, its author, title or year for example, and notes with the old key lose the source. Turn that option off to keep keys as they are. While it is on, Citation Suite warns about it in its settings. If a source's key has already changed, replace it with the "Replace in note" button in the "Bibliography" tab, or with the **Replace changed citation keys in all notes** command.
 
 
 # About the Author

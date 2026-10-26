@@ -36,7 +36,7 @@ export interface CitationGroup {
  * The characters pandoc lets a citation key hold, as `src/pandoc.ts` states
  * them. A key in braces may hold anything, which is what the braces are for.
  */
-const KEY = "[a-zA-Z0-9_](?:[a-zA-Z0-9_]*[:.#$%&+?<>~/-]?[a-zA-Z0-9_]+)*";
+export const KEY = "[a-zA-Z0-9_](?:[a-zA-Z0-9_]*[:.#$%&+?<>~/-]?[a-zA-Z0-9_]+)*";
 
 /** `@key` or `@{key}`, with the `-` that suppresses the author before it. */
 const CITATION = new RegExp("(-?)@(?:[{]([^}]*)[}]|(" + KEY + "))");

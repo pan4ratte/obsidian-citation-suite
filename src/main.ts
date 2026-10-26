@@ -28,7 +28,9 @@ import {
 import { openFootnotePopover } from "src/footnotePopover";
 import { citedKeys } from "src/citation";
 import { onDesktop } from "src/desktop";
+import { ConfirmModal } from "src/confirmModal";
 import { KeyIndexFile } from "src/keyIndexFile";
+import { applyEdits, citationKeysIn, keyRenameEdits } from "src/keyRename";
 import { citationExtension } from "src/live";
 import { applyLook, clearLook } from "src/look";
 import { MarkdownModal } from "src/markdownModal";
@@ -244,6 +246,10 @@ export default class CitationSuitePlugin extends Plugin {
 					redrawCitations: () => this.redrawCitations(),
 					typedKey: (file, text) => suggest.typedKey(file, text),
 					onTypingChange: (listener) => suggest.onTypingChange(listener),
+					replaceKeys: async (paths, renames) => {
+						const count = await this.replaceKeys(paths, renames);
+						new Notice(`${t.NOTICE_KEYS_REPLACED} ${count}`);
+					},
 				})
 		);
 		this.app.workspace.onLayoutReady(async () => {
@@ -337,6 +343,21 @@ export default class CitationSuitePlugin extends Plugin {
 					"right",
 					{ active: true, reveal: true }
 				);
+			},
+		});
+
+		this.addCommand({
+			id: "replace-changed-keys",
+			name: t.COMMAND_REPLACE_CHANGED_KEYS,
+			checkCallback: (checking: boolean) => {
+				// Only where keys are traced: a desktop, with Zotero to ask.
+				if (!this.keyIndex) {
+					return false;
+				}
+				if (!checking) {
+					void this.replaceChangedKeys();
+				}
+				return true;
 			},
 		});
 
@@ -827,6 +848,125 @@ export default class CitationSuitePlugin extends Plugin {
 	}
 
 	/**
+	 * Writes each old key the notes cite over with the key its source has in
+	 * Zotero now, and answers how many were replaced. A note open in an editor
+	 * is changed there, in one transaction — what is typed and not yet saved
+	 * is kept, and one undo puts the old keys back; any other note is changed
+	 * on disk, and only if it cites one of the keys.
+	 */
+	async replaceKeys(paths: string[], renames: ReadonlyMap<string, string>): Promise<number> {
+		let count = 0;
+		for (const path of new Set(paths)) {
+			const file = this.app.vault.getFileByPath(path);
+			if (!isNote(file)) {
+				continue;
+			}
+			const view = this.app.workspace
+				.getLeavesOfType("markdown")
+				.map((leaf) => leaf.view)
+				.find(
+					(view): view is MarkdownView =>
+						view instanceof MarkdownView && view.file === file
+				);
+			if (view) {
+				const editor = view.editor;
+				const edits = keyRenameEdits(editor.getValue(), renames);
+				if (edits.length > 0) {
+					editor.transaction({
+						changes: edits.map((edit) => ({
+							from: editor.offsetToPos(edit.from),
+							to: editor.offsetToPos(edit.to),
+							text: edit.text,
+						})),
+					});
+					count += edits.length;
+				}
+				continue;
+			}
+			if (keyRenameEdits(await this.app.vault.cachedRead(file), renames).length === 0) {
+				continue;
+			}
+			await this.app.vault.process(file, (text) => {
+				const edits = keyRenameEdits(text, renames);
+				count += edits.length;
+				return applyEdits(text, edits);
+			});
+		}
+		return count;
+	}
+
+	/**
+	 * The vault's command for keys Better BibTeX has changed: reads every note
+	 * that takes its sources from Zotero, asks Zotero about each key the key
+	 * index has an item for, and — once the reader agrees to what it found —
+	 * writes the old keys over with the new ones. A note reading from a file
+	 * of the vault is left out: its keys are the file's, whatever Zotero calls
+	 * the same source.
+	 */
+	private async replaceChangedKeys(): Promise<void> {
+		const index = this.keyIndex;
+		if (!index) {
+			return;
+		}
+		const searching = new Notice(t.NOTICE_KEYS_SEARCHING, 0);
+		const texts = new Map<string, string>();
+		const keys = new Set<string>();
+		let renames = new Map<string, string>();
+		try {
+			for (const file of this.app.vault.getMarkdownFiles()) {
+				if (this.noteStyles.libraryOf(file.path) !== ZOTERO_LIBRARY) {
+					continue;
+				}
+				const text = await this.noteText(file.path);
+				if (!text?.includes("@")) {
+					continue;
+				}
+				texts.set(file.path, text);
+				for (const key of citationKeysIn(text)) {
+					if (index.itemsOf(key).length > 0) {
+						keys.add(key);
+					}
+				}
+			}
+			if (keys.size > 0) {
+				await this.renderer.load([...keys], true, ZOTERO_LIBRARY);
+				if ([...keys].some((key) => this.renderer.unreachable(key))) {
+					new Notice(t.NOTICE_ZOTERO_UNREACHABLE);
+					return;
+				}
+				renames = new Map(
+					[...keys].flatMap((key) => {
+						const renamed = this.renderer.renamed(key);
+						return renamed ? [[key, renamed] as const] : [];
+					})
+				);
+			}
+		} finally {
+			searching.hide();
+		}
+		if (renames.size === 0) {
+			new Notice(t.NOTICE_NO_CHANGED_KEYS);
+			return;
+		}
+		const paths = [...texts]
+			.filter(([, text]) => keyRenameEdits(text, renames).length > 0)
+			.map(([path]) => path);
+		new ConfirmModal(this.app, {
+			title: t.CHANGED_KEYS_TITLE,
+			paragraphs: [
+				t.CHANGED_KEYS_TEXT,
+				`${t.CHANGED_KEYS_COUNT} ${renames.size}. ${t.CHANGED_KEYS_NOTES} ${paths.length}.`,
+			],
+			list: [...renames].map(([old, renamed]) => `@${old} → @${renamed}`),
+			confirm: t.CHANGED_KEYS_CONFIRM,
+			onConfirm: async () => {
+				const count = await this.replaceKeys(paths, renames);
+				new Notice(`${t.NOTICE_KEYS_REPLACED} ${count}`);
+			},
+		}).open();
+	}
+
+	/**
 	 * Rebuilds what the rendering needs after a setting changed it: the style
 	 * to render in, or the port the library is behind.
 	 */
@@ -880,6 +1020,7 @@ export default class CitationSuitePlugin extends Plugin {
 		this.renderer.onIdentified((citekey, library, itemKey) =>
 			index.record(citekey, library, itemKey)
 		);
+		this.renderer.setKeyHistory((citekey) => index.itemsOf(citekey));
 		const sweep = (): void => void index.sweepIfDue();
 		this.app.workspace.onLayoutReady(() => {
 			const timer = window.setTimeout(sweep, KEY_INDEX_SWEEP_DELAY);

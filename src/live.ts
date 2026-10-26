@@ -9,17 +9,15 @@ import {
 	WidgetType,
 } from "@codemirror/view";
 import { editorInfoField, editorLivePreviewField, MarkdownView } from "obsidian";
-import { t } from "lang/helpers";
 import { ENGLISH_LABELS, keyMentions, LocatorLabels } from "src/citation";
 import { matchCitations, NoteCitation, noteCitations } from "src/noteCitations";
 import { NoteRenderer } from "src/noteRendering";
-import { CitationTooltip, citationEl, MISSING_CLASS } from "src/reading";
+import { CitationTooltip, citationEl, MISSING_CLASS, missingKeyLabel } from "src/reading";
 import {
 	CitationRenderer,
 	LibraryRef,
 	RenderedCitation,
 	StyleRef,
-	ZOTERO_LIBRARY,
 } from "src/render";
 
 /**
@@ -247,18 +245,26 @@ export function citationExtension(context: LiveContext) {
 					? this.rendered(view, style, citations, byPosition, pending.length === 0)
 					: new Map<NoteCitation, RenderedCitation | null>();
 				const tooltip = context.tooltip();
-				const missingMark = Decoration.mark({
-					class: MISSING_CLASS,
-					// Obsidian shows a tooltip for any element with a label.
-					attributes: {
-						// The note's own library is what has no source for it.
-						"aria-label":
-							library === ZOTERO_LIBRARY
-								? t.CITATION_KEY_MISSING
-								: t.CITATION_KEY_MISSING_FILE,
-						"data-tooltip-delay": String(tooltip.delay),
-					},
-				});
+				// One mark for every key the library has no source for, and one
+				// to each key whose source has a new key, which it names.
+				const marks = new Map<string, Decoration>();
+				const missingMark = (renamed: string | undefined): Decoration => {
+					const id = renamed ?? "";
+					let decoration = marks.get(id);
+					if (!decoration) {
+						decoration = Decoration.mark({
+							class: MISSING_CLASS,
+							// Obsidian shows a tooltip for any element with a label.
+							attributes: {
+								// The note's own library is what has no source for it.
+								"aria-label": missingKeyLabel(library, renamed),
+								"data-tooltip-delay": String(tooltip.delay),
+							},
+						});
+						marks.set(id, decoration);
+					}
+					return decoration;
+				};
 
 				for (const citation of byPosition) {
 					if (
@@ -303,7 +309,7 @@ export function citationExtension(context: LiveContext) {
 							builder.add(
 								citation.from + mention.from,
 								citation.from + mention.to,
-								missingMark
+								missingMark(context.renderer.renamed(mention.id, library))
 							);
 						}
 					}

@@ -190,6 +190,8 @@ export interface BibliographyContext {
 	typedKey(file: TFile, text: string): { from: number; to: number } | null;
 	/** Calls back when a key starts or stops being typed; answers the unsubscribe. */
 	onTypingChange(listener: () => void): () => void;
+	/** Writes the new keys over the old in the notes at the paths, and says so. */
+	replaceKeys(paths: string[], renames: ReadonlyMap<string, string>): Promise<void>;
 }
 
 /**
@@ -564,8 +566,20 @@ embeds` : file.path,
 			this.drawUnreachable();
 			this.scheduleRetry(pass, keys);
 		}
-		if (notFound.length > 0) {
-			this.drawMissing(notFound);
+		// A key whose source Zotero still has under a new key is not missing
+		// so much as out of date, and has a way back of its own.
+		const renames = new Map(
+			notFound.flatMap((key) => {
+				const renamed = renderer.renamed(key, library);
+				return renamed ? [[key, renamed] as const] : [];
+			})
+		);
+		if (renames.size > 0) {
+			this.drawRenamed(renames, [file.path, ...expanded.paths]);
+		}
+		const gone = notFound.filter((key) => !renames.has(key));
+		if (gone.length > 0) {
+			this.drawMissing(gone);
 		}
 		this.redrawFinding(file, text);
 		this.applySearch();
@@ -921,6 +935,52 @@ embeds` : file.path,
 		});
 	}
 
+	/**
+	 * The keys the note cites whose sources Zotero has under new keys, each
+	 * beside its new one, and a button that writes the new keys into the note
+	 * — and into the notes it embeds, which the list was read through too.
+	 */
+	private drawRenamed(renames: ReadonlyMap<string, string>, paths: string[]): void {
+		const section = this.bodyEl.createDiv({
+			cls: "citation-suite-bibliography-renamed",
+		});
+		section.createDiv({
+			cls: "citation-suite-bibliography-missing-title",
+			text: t.BIBLIOGRAPHY_RENAMED,
+		});
+		section.createDiv({
+			cls: "citation-suite-bibliography-missing-desc",
+			text: t.BIBLIOGRAPHY_RENAMED_DESC,
+		});
+		const list = section.createDiv({
+			cls: "citation-suite-bibliography-renamed-keys",
+		});
+		for (const [old, renamed] of renames) {
+			const row = list.createDiv({ cls: "citation-suite-bibliography-renamed-row" });
+			row.createEl("code", {
+				cls: "citation-suite-bibliography-renamed-old",
+				text: `@${old}`,
+			});
+			const now = row.createDiv({ cls: "citation-suite-bibliography-renamed-new" });
+			setIcon(
+				now.createSpan({ cls: "citation-suite-bibliography-renamed-arrow" }),
+				"corner-down-right"
+			);
+			now.createEl("code", { text: `@${renamed}` });
+			this.searchable.push({ el: row, text: `@${old} @${renamed}` });
+		}
+		const button = section.createEl("button", {
+			cls: "citation-suite-bibliography-renamed-replace",
+			text: t.BIBLIOGRAPHY_RENAMED_REPLACE,
+		});
+		button.addEventListener("click", () => {
+			button.disabled = true;
+			void this.context.replaceKeys(paths, renames).finally(() => {
+				button.disabled = false;
+			});
+		});
+	}
+
 	/** The keys the note cites that its library had no source for. */
 	private drawMissing(keys: string[]): void {
 		const section = this.bodyEl.createDiv({
@@ -975,13 +1035,17 @@ embeds` : file.path,
 			);
 		}
 
-		// A missing-keys section with every key hidden is hidden with them.
-		const missing = this.bodyEl.querySelector<HTMLElement>(
-			".citation-suite-bibliography-missing"
-		);
-		if (missing) {
-			const anyKey = missing.querySelector(`code:not(.${HIDDEN_CLASS})`);
-			missing.toggleClass(HIDDEN_CLASS, anyKey === null);
+		// A section of keys with every key hidden is hidden with them: the
+		// missing keys, each a `code` of its own, and the changed keys, each a
+		// row of the old and the new.
+		for (const section of this.bodyEl.findAll(
+			".citation-suite-bibliography-missing, .citation-suite-bibliography-renamed"
+		)) {
+			const anyKey = section.querySelector(
+				`.citation-suite-bibliography-missing-keys > code:not(.${HIDDEN_CLASS}), ` +
+					`.citation-suite-bibliography-renamed-row:not(.${HIDDEN_CLASS})`
+			);
+			section.toggleClass(HIDDEN_CLASS, anyKey === null);
 		}
 
 		this.bodyEl.querySelector(".citation-suite-bibliography-no-matches")?.remove();

@@ -2,5 +2,6 @@ node_modules/
 main.js
 *.js.map
 data.json
+citation-keys.json
 .DS_Store
 tests/.tmp/
