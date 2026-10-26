@@ -574,6 +574,7 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 	private renderStatus(root: HTMLElement): void {
 		this.statusCard = renderStatusCard(root, {
 			app: this.app,
+			version: this.plugin.manifest.version,
 			changelogRead:
 				this.plugin.settings.dismissedChangelogVersion === this.plugin.manifest.version,
 			openChangelog: () => this.plugin.openChangelog(),

@@ -10,12 +10,12 @@ import { spinner } from "src/spinner";
  * to read beside it — the changelog announcing a release not yet read — and
  * what is wrong, when something is.
  *
- * Each of those is a row of one card, divided by a rule. The status row is
- * panels divided by upright rules: Zotero's status — one line saying whether it
- * answers, which checks again when pressed — and to the right of it the
- * changelog and the user guide. Better
- * BibTeX has no panel of its own: it is only ever worth a line when it is
- * missing, and then that line is a notice across the whole card.
+ * Each of those is a card of its own, a gap apart. The first row is three
+ * cards side by side: Zotero's status — one line saying whether it answers,
+ * which checks again when pressed — and to the right of it the changelog and
+ * the user guide. Better BibTeX has no card of its own: it is only ever worth
+ * a line when it is missing, and then that line is a notice across the whole
+ * width, under the three.
  */
 
 /** Where Better BibTeX's installation is explained, for the notice to link to. */
@@ -33,6 +33,8 @@ export interface StatusCheck extends ZoteroCheck {
 
 export interface StatusCardOptions {
 	app: App;
+	/** The running release's version, shown under the changelog's title. */
+	version: string;
 	/** Whether the running release's changelog has been opened. */
 	changelogRead: boolean;
 	/** Opens the changelog, and marks it read. */
@@ -59,26 +61,40 @@ export interface StatusCard {
 }
 
 /**
- * A button standing as a panel of the card: an icon and a label. The icon is
- * Obsidian's by name, or drawn into its place. The label is handed back for a
- * button whose label is more than a word.
+ * A button standing as a card of its own: an icon in a tinted badge at the
+ * start, and beside it a title, over a line when there is one to give — Zotero's
+ * state, the release's version. The icon is Obsidian's by name, or drawn into
+ * its place. The icon and the line are handed back: the status turns the one
+ * and writes Zotero's state in the other.
  */
 function actionButton(
 	parent: HTMLElement,
 	icon: string | ((el: HTMLElement) => void),
-	label: string,
+	title: string,
+	description: string | null,
 	onClick: () => void
-): { button: HTMLButtonElement; icon: HTMLElement; label: HTMLElement } {
+): { button: HTMLButtonElement; icon: HTMLElement; description: HTMLElement | null } {
 	const button = parent.createEl("button", { cls: "citation-suite-action" });
-	const iconEl = button.createSpan({ cls: "citation-suite-action-icon" });
+	// The icon has a span of its own inside the badge, so that the status
+	// turns the icon and not the badge around it.
+	const badge = button.createSpan({ cls: "citation-suite-action-badge" });
+	const iconEl = badge.createSpan({ cls: "citation-suite-action-icon" });
 	if (typeof icon === "string") {
 		setIcon(iconEl, icon);
 	} else {
 		icon(iconEl);
 	}
-	const labelEl = button.createSpan({ text: label });
+	const text = button.createSpan({ cls: "citation-suite-action-text" });
+	text.createSpan({ cls: "citation-suite-action-title", text: title });
+	const descriptionEl =
+		description === null
+			? null
+			: text.createSpan({
+					cls: "citation-suite-action-description",
+					text: description,
+				});
 	button.addEventListener("click", onClick);
-	return { button, icon: iconEl, label: labelEl };
+	return { button, icon: iconEl, description: descriptionEl };
 }
 
 /** Animate UI's sparkles: the star. */
@@ -139,21 +155,17 @@ export function renderStatusCard(
 	parent: HTMLElement,
 	options: StatusCardOptions
 ): StatusCard {
-	const card = parent.createDiv({ cls: "citation-suite-status-panel" });
+	const card = parent.createDiv({ cls: "citation-suite-status-card" });
 
 	const panels = card.createDiv({
 		cls: "citation-suite-status-row citation-suite-status-panels",
 	});
-	// The status is a panel like the documents beside it, and pressing it asks
-	// Zotero again. Its label is the name and what Zotero said, one run of
-	// text a word space apart, so that they read as one line.
-	const status = actionButton(panels, "refresh-cw", "", () => refresh());
-	status.label.createSpan({
-		cls: "citation-suite-status-name",
-		text: t.STATUS_TITLE,
-	});
-	status.label.appendText(" ");
-	const line = status.label.createSpan({ cls: "citation-suite-status-line" });
+	// The status is a card like the documents beside it, and pressing it asks
+	// Zotero again. The line under its title is what Zotero said.
+	const status = actionButton(panels, "refresh-cw", t.STATUS_TITLE, "", () =>
+		refresh()
+	);
+	const line = status.description!;
 	setTooltip(status.button, t.STATUS_RECHECK);
 	const spin = spinner(status.icon);
 	// A release whose changelog is unread is announced by the panel itself:
@@ -163,6 +175,7 @@ export function renderStatusCard(
 		panels,
 		options.changelogRead ? "scroll-text" : sparklesIcon,
 		t.STATUS_CHANGELOG,
+		`${t.STATUS_VERSION} ${options.version}`,
 		() => {
 			options.openChangelog();
 			changelog.button.removeClass("is-unread");
@@ -171,7 +184,7 @@ export function renderStatusCard(
 		}
 	);
 	changelog.button.toggleClass("is-unread", !options.changelogRead);
-	actionButton(panels, "book-open", t.STATUS_USER_GUIDE, () => {
+	actionButton(panels, "book-open", t.STATUS_USER_GUIDE, null, () => {
 		new MarkdownModal(options.app, getUserGuideContent()).open();
 	});
 	// Under the status, filled only when there is something to say at length.
@@ -183,14 +196,15 @@ export function renderStatusCard(
 	/** A check whose answer is still out when another starts is not drawn. */
 	let generation = 0;
 
-	const drawLine = (state: string, text: string): void => {
-		line.className = `citation-suite-status-line is-${state}`;
+	/** Zotero's state as a pill, tinted by what it says. */
+	const drawLine = (state: "ok" | "absent" | "checking", text: string): void => {
+		line.className = `citation-suite-status-pill is-${state}`;
 		line.setText(text);
 	};
 
 	const drawNotice = (text: string, link?: string): void => {
 		const notice = notices.createDiv({
-			cls: "citation-suite-status-row citation-suite-status-notice",
+			cls: "citation-suite-status-panel citation-suite-status-row citation-suite-status-notice",
 		});
 		// The text and its link in one span, so that the row can centre them
 		// as one line of words; laid out on their own, the space between them

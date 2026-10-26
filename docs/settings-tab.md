@@ -170,14 +170,23 @@ description of its own: it opens straight onto the status card.
 - The **status card** (`src/statusCard.ts`) is drawn after the one at the head
   of Pandoc GUI's settings (`PandocDashboard`, `PandocNotices`, `PandocLinks`,
   `ChangelogNotice` there), with its classes and values carried over under this
-  plugin's prefix: one card, a row to each thing it is read for. Top to bottom:
-  one row of panels divided
-  by upright rules — three `actionButton`s in equal thirds (`flex: 1 1 0`,
-  never narrower than their content), each an icon before a centred label:
-  the Zotero status, which checks again when pressed (`refresh-cw`; its label
-  is "Zotero:" and the coloured state as one run of text, a word space apart,
-  not bold, no dot), then the changelog and the user guide — and last a
-  notice across the card only when Better BibTeX is missing or still starting.
+  plugin's prefix: a card to each thing it is read for, a `--size-4-3` gap
+  apart, in `citation-suite-status-card`, a wrapper with no look of its own.
+  Top to bottom: one row of three cards — `actionButton`s in a grid of
+  `repeat(auto-fit, minmax(12rem, 1fr))`, so three across on a desktop pane
+  and one on a phone — each one row, to the start edge: the icon in a
+  rounded-square badge tinted in the accent (`--interactive-accent-hsl` at
+  0.1, 0.18 on hover, no outline; the icon in `--text-accent`), and beside it,
+  centred against it, a semibold `--font-ui-small` title over a muted
+  `--font-ui-smaller` line where there is one: Zotero's state, and the
+  release's version under the changelog; the user guide has none. The icon has a span of
+  its own inside the badge, so the status spins the icon and not the badge:
+  the Zotero status, which checks again when pressed (`refresh-cw`; its title
+  is "Zotero status" and under it the state as a pill with no icon, tinted
+  at 0.12 in green or orange, neutral while checking), then the changelog and
+  the user guide — and last a
+  notice in a card across the whole width only when Better BibTeX is missing
+  or still starting.
   Under the card, a card of its own to each warning — so far the one that
   Better BibTeX regenerates keys on every edit (see [changed-keys.md](changed-keys.md)) — in `citation-suite-status-warnings`, drawn with the status card's
   own class plus `citation-suite-status-warning`: tinted like Obsidian's
@@ -191,8 +200,8 @@ description of its own: it opens straight onto the status card.
   The margin is on each card, not a gap on the wrapper, so it collapses too.
   Checked in headless Chrome against 1.14.5's `app.css`, both themes, 680 and
   400 px, and paused mid-close.
-  The upright rules are the row's 1px `gap` over a border-coloured background,
-  so they survive the row wrapping; every panel is opaque for that reason.
+  Each card carries `citation-suite-status-panel` (the settings groups'
+  border, radius and fill) or, for the three cards, the same look of its own.
   Zotero's version is deliberately not shown. Better BibTeX deliberately has no
   panel of its own: it is only worth a line when something is wrong with it.
   There is no changelog notice: it only duplicated the changelog panel, and
@@ -204,9 +213,10 @@ description of its own: it opens straight onto the status card.
   Motion; `sparklesIcon()` draws its SVG by hand, a class on each moving part, and
   styles.css ports its `default` animation (0.75 s) to keyframes — the
   timings are written over them — and loops it, the star held still: only the
-  plus and the dot wink. While unread the panel carries `is-unread`, which puts
-  its icon and label in the accent; the click that opens the changelog takes
-  it off. Under reduced motion nothing plays. Give `createSvg` its classes as an array:
+  plus and the dot wink. While unread the panel carries `is-unread`, which
+  styles.css no longer draws anything for: the badge is tinted as the others
+  are, and the sparkles alone announce the release. The click that opens the
+  changelog takes it off. Under reduced motion nothing plays. Give `createSvg` its classes as an array:
   unlike `createEl`, it hands `cls` to `classList.add()` as it is, which
   throws on a space-separated string (the typings allow one) — and a throw
   there left the tab blank after the status panel. Check the registry's

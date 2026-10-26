@@ -148,20 +148,29 @@
    Settings tab — status card
    ────────────────────────────────────────────────────────────────────────── */
 
-/* Everything about the plugin's footing in one card, drawn after the one Pandoc
-   GUI keeps at the head of its settings: a row to each thing it is read for —
-   whether Zotero answers, with the documents to read beside it, and what is
-   wrong with it. `overflow` keeps a panel's hover fill
-   inside the rounded corners. */
-.citation-suite-status-panel {
-	/* How tall every row of the card stands at least: the panels and the
-	   notices, so that they all match. It is the height an
-	   icon button of Obsidian's (`.clickable-icon`, an icon of `--icon-size` in
-	   `--size-2-2` above and below) would give a row, in its padding. */
+/* Everything about the plugin's footing, drawn after the dashboard Pandoc GUI
+   keeps at the head of its settings: a card to each thing it is read for —
+   whether Zotero answers, the documents to read beside it, and what is wrong
+   with it — a gap apart. The wrapper has no look of its own. */
+.citation-suite-status-card,
+.citation-suite-status-warnings {
+	/* How tall a notice stands at least: the height an icon button of
+	   Obsidian's (`.clickable-icon`, an icon of `--icon-size` in `--size-2-2`
+	   above and below) would give a row, in its padding. */
 	--citation-suite-status-row-height: calc(
 		var(--size-4-2) * 2 + var(--icon-size) + var(--size-2-2) * 2
 	);
+}
 
+.citation-suite-status-card {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-3);
+}
+
+/* One card: outlined as the groups of settings below are — the same line,
+   radius and fill. `overflow` keeps a hover fill inside the rounded corners. */
+.citation-suite-status-panel {
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--setting-items-radius);
 	background: var(--setting-items-background);
@@ -174,39 +183,50 @@
 	align-items: stretch;
 }
 
-/* The line across, between one row of the card and the next. The notices sit
-   in a wrapper of their own under the status, so the rule is drawn above each
-   of its rows. */
-.citation-suite-status-row + .citation-suite-status-row,
-.citation-suite-status-notices > .citation-suite-status-row {
-	border-top: 1px solid var(--background-modifier-border);
+/* The notices under the three cards, each a card across the whole width. */
+.citation-suite-status-notices {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-3);
 }
 
-/* The status and the two documents, side by side. The upright lines between
-   them are the gaps between the panels, over a background of that colour: a
-   border would have to be taken off again at the start of every wrapped line,
-   and no selector can pick those out. A row narrower than the panels need
-   breaks onto a second line rather than squeezing them. */
+.citation-suite-status-notices:empty {
+	display: none;
+}
+
+/* The status and the two documents, side by side, each a card of its own, in
+   columns of equal width. A pane too narrow for three of them at their least
+   width takes fewer to a line, down to one, rather than squeezing them; a
+   grid rather than a wrapping row, so that every card on the next line keeps
+   the width of those above it. */
 .citation-suite-status-row.citation-suite-status-panels {
-	flex-wrap: wrap;
-	gap: 1px;
-	background-color: var(--background-modifier-border);
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+	gap: var(--size-4-3);
 }
 
-/* The state in the status panel: the name before it takes the button's colour,
-   as the documents' labels do, and the state is coloured by what it says. The
-   name and the state are one run of text, a word space apart. */
-.citation-suite-status-line {
+/* Zotero's state, under the status card's title: a pill tinted by what it
+   says — faint fill, full-strength text — and neutral while Zotero is being
+   asked. It is as wide as its words, not the card. */
+.citation-suite-status-pill {
+	align-self: flex-start;
+	padding: var(--size-2-1) var(--size-4-2);
+	border-radius: 999px;
+	background-color: var(--background-modifier-hover);
 	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-medium);
 }
 
-.citation-suite-status-line.is-ok {
+.citation-suite-status-pill.is-ok {
+	background-color: rgb(var(--color-green-rgb), 0.12);
 	color: var(--text-success);
 }
 
 /* Zotero not answering is something to do rather than something broken: it is
    most often just not started yet. */
-.citation-suite-status-line.is-absent {
+.citation-suite-status-pill.is-absent {
+	background-color: rgb(var(--color-orange-rgb), 0.12);
 	color: var(--text-warning);
 }
 
@@ -218,7 +238,7 @@
 	align-items: center;
 	min-height: var(--citation-suite-status-row-height);
 	padding: var(--size-4-2) var(--size-4-4);
-	font-size: var(--font-ui-smaller);
+	font-size: var(--font-ui-small);
 	line-height: var(--line-height-tight);
 	color: var(--text-muted);
 }
@@ -319,52 +339,90 @@
 	}
 }
 
-/* The panels of the status row — the status, which checks again when pressed,
-   and the documents to read — each a button with its icon before its label.
-   They share the row in equal thirds, growing from nothing at the same rate,
-   and none is narrower than its label: that is also what breaks the row onto
-   a second line when the pane is too narrow for all three, and a panel
-   wrapped onto a line of its own still fills it. */
+/* The cards of the status row — the status, which checks again when pressed,
+   and the documents to read — each a button laid out as a card: an icon in a
+   tinted badge at the start, and beside it a title over a line where there is
+   one, centred against the badge. Cards on one line of the grid stand as tall
+   as the tallest, a title that wraps included. */
 .citation-suite-action.citation-suite-action {
-	flex: 1 1 0;
-	display: inline-flex;
+	display: flex;
+	flex-direction: row;
 	align-items: center;
-	justify-content: center;
-	gap: var(--size-4-2);
-	min-width: max-content;
+	justify-content: flex-start;
+	gap: var(--size-4-3);
+	min-width: 0;
 	height: auto;
-
-	/* As tall as the card's other rows; see the status panel. */
-	min-height: var(--citation-suite-status-row-height);
 	margin: 0;
-	padding: var(--size-4-2) var(--size-4-4);
-
-	/* Opaque, so the colour the row is divided by is only seen in the gaps. */
+	padding: var(--size-4-4);
+	text-align: start;
+	white-space: normal;
 	background-color: var(--setting-items-background, var(--background-primary));
-	border: none;
-	border-radius: 0;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--setting-items-radius);
 	box-shadow: none;
 	color: var(--text-normal);
-	font-size: var(--font-ui-small);
+	line-height: var(--line-height-tight);
 	cursor: var(--cursor);
-	transition: background-color 100ms ease-in-out, color 100ms ease-in-out;
+	transition:
+		background-color 100ms ease-in-out,
+		border-color 100ms ease-in-out;
 }
 
 .citation-suite-action.citation-suite-action:hover,
 .citation-suite-action.citation-suite-action:focus-visible {
+	border-color: var(--background-modifier-border-hover);
 	background-color: var(--background-modifier-hover);
-	color: var(--text-accent);
 }
 
-/* Reached by tab, so it has to show where it is — inside the card, where an
-   outline would be clipped by the corners. */
+/* Reached by tab, so it has to show where it is. */
 .citation-suite-action.citation-suite-action:focus-visible {
 	outline: none;
-	box-shadow: inset 0 0 0 2px var(--background-modifier-border-focus);
+	box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+}
+
+/* The badge the icon sits in: a rounded square tinted in the accent, with no
+   outline, and the icon in the accent at full strength. The tint deepens while
+   the card is hovered or focused. */
+.citation-suite-action-badge {
+	display: flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: var(--size-4-9);
+	height: var(--size-4-9);
+	border-radius: var(--radius-m);
+	background-color: hsl(var(--interactive-accent-hsl), 0.1);
+	color: var(--text-accent);
+	transition:
+		background-color 100ms ease-in-out,
+		color 100ms ease-in-out;
+}
+
+.citation-suite-action:hover .citation-suite-action-badge,
+.citation-suite-action:focus-visible .citation-suite-action-badge {
+	background-color: hsl(var(--interactive-accent-hsl), 0.18);
 }
 
 .citation-suite-action-icon {
 	display: flex;
+}
+
+.citation-suite-action-text {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-2);
+	min-width: 0;
+}
+
+.citation-suite-action-title {
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+}
+
+.citation-suite-action-description {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
 }
 
 /* An icon turns while Zotero is being asked: the status panel's, and the
@@ -390,21 +448,18 @@
 	}
 }
 
-.citation-suite-action .svg-icon {
-	width: var(--icon-s);
-	height: var(--icon-s);
+.citation-suite-action-badge .svg-icon {
+	width: var(--icon-m);
+	height: var(--icon-m);
+	stroke-width: var(--icon-m-stroke-width);
 }
 
-/* The changelog while the release's is unread: in the accent, and its icon is
-   Animate UI's `icons-sparkles`, whose `default` animation is ported here from
+/* The changelog while the release's is unread: its badge tinted as every
+   other card's, and its icon is Animate UI's `icons-sparkles`, whose `default` animation is ported here from
    Motion and looped, the star held still: the dot winks out and back (0.2 s
    out, 0.2 s gone, 0.2 s back) and the plus does the same 0.15 s later, the
    whole taking 0.75 s. Each part scales about its own centre, as Motion scales
    an SVG element. */
-.citation-suite-action.citation-suite-action.is-unread {
-	color: var(--text-accent);
-}
-
 .citation-suite-sparkles > path,
 .citation-suite-sparkles > circle {
 	transform-box: fill-box;

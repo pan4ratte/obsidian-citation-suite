@@ -227,7 +227,7 @@ export default {
 	BIBLIOGRAPHY_MENTION_CLOSE: "Закрыть",
 
 	// ─── Статус ──────────────────────────────────────────────────────────────
-	STATUS_TITLE: "Zotero:",
+	STATUS_TITLE: "Статус Zotero",
 	STATUS_CHECKING: "Проверка…",
 	STATUS_ZOTERO_RUNNING: "Запущен",
 	STATUS_ZOTERO_NOT_RUNNING: "Не отвечает…",
@@ -238,5 +238,6 @@ export default {
 	STATUS_KEYS_REGENERATED: "Заметки со старым ключом теряют источник. Отключите «Regenerate citation key when item changes» в настройках Better BibTeX.",
 	STATUS_DISMISS: "Больше не показывать",
 	STATUS_CHANGELOG: "Список изменений",
+	STATUS_VERSION: "Версия",
 	STATUS_USER_GUIDE: "Руководство пользователя",
 };

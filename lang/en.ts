@@ -230,7 +230,7 @@ export default {
 	BIBLIOGRAPHY_MENTION_CLOSE: "Close",
 
 	// ─── Status ──────────────────────────────────────────────────────────────
-	STATUS_TITLE: "Zotero:",
+	STATUS_TITLE: "Zotero status",
 	STATUS_CHECKING: "Checking…",
 	STATUS_ZOTERO_RUNNING: "Running",
 	STATUS_ZOTERO_NOT_RUNNING: "Not responding…",
@@ -241,5 +241,6 @@ export default {
 	STATUS_KEYS_REGENERATED: "Notes with the old key lose the source. Turn off key regeneration in Better BibTeX's settings.",
 	STATUS_DISMISS: "Don't show again",
 	STATUS_CHANGELOG: "Changelog",
+	STATUS_VERSION: "Version",
 	STATUS_USER_GUIDE: "User guide",
 };
