@@ -1,6 +1,13 @@
 # Changelog
 
 
+## Unreleased
+
+### UI/UX enhancements and bug fixes
+
+* **A warning about changing citation keys.** If Better BibTeX makes a key anew every time a source is edited in Zotero, the plugin's settings warn about it and say which option to turn off: otherwise notes with the old key lose the source. The warning can be closed for good.
+
+
 ## 2.2.0
 
 ### New options

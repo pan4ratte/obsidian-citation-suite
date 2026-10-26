@@ -219,6 +219,9 @@ export default {
 	STATUS_RECHECK: "Check again",
 	STATUS_BETTER_BIBTEX_MISSING: "Better BibTeX is not installed in Zotero: without it the plugin cannot open the citation window or format citations.",
 	STATUS_BETTER_BIBTEX_INSTALL: "How to install it",
+	STATUS_KEYS_REGENERATED_TITLE: "Citation keys change when sources are edited",
+	STATUS_KEYS_REGENERATED: "Notes with the old key lose the source. Turn off key regeneration in Better BibTeX's settings.",
+	STATUS_DISMISS: "Don't show again",
 	STATUS_CHANGELOG: "Changelog",
 	STATUS_USER_GUIDE: "User guide",
 };

@@ -216,6 +216,9 @@ export default {
 	STATUS_RECHECK: "Проверить снова",
 	STATUS_BETTER_BIBTEX_MISSING: "Better BibTeX не установлен в Zotero. Плагин необходим для работы Citation Suite.",
 	STATUS_BETTER_BIBTEX_INSTALL: "Установить",
+	STATUS_KEYS_REGENERATED_TITLE: "Ключи цитирования меняются при правке источников",
+	STATUS_KEYS_REGENERATED: "Заметки со старым ключом теряют источник. Отключите «Regenerate citation key when item changes» в настройках Better BibTeX.",
+	STATUS_DISMISS: "Больше не показывать",
 	STATUS_CHANGELOG: "Список изменений",
 	STATUS_USER_GUIDE: "Руководство пользователя",
 };

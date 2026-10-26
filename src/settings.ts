@@ -18,11 +18,10 @@ import {
 } from "src/footnote";
 import { renderStylePreview, StylePreview } from "src/preview";
 import { PickerChoice, renderPicker } from "src/picker";
-import { ZoteroCheck } from "src/cayw";
 import { choiceVaultPath, styleChoice } from "src/styles";
 import { vaultLibraryFiles } from "src/vaultLibrary";
 import { ConfirmModal } from "src/confirmModal";
-import { renderStatusCard, StatusCard } from "src/statusCard";
+import { renderStatusCard, StatusCard, StatusCheck } from "src/statusCard";
 import {
 	asIndexable,
 	CitationStyle,
@@ -115,7 +114,7 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 	 * tab is open: `update()` draws the card again whenever a row's
 	 * visibility changes, and that is no reason to ask Zotero again.
 	 */
-	private lastCheck: ZoteroCheck | null = null;
+	private lastCheck: StatusCheck | null = null;
 
 	constructor(app: App, plugin: CitationSuitePlugin) {
 		super(app, plugin);
@@ -579,6 +578,12 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 				this.plugin.settings.dismissedChangelogVersion === this.plugin.manifest.version,
 			openChangelog: () => this.plugin.openChangelog(),
 			port: () => this.plugin.settings.port,
+			regeneratesKeys: () => this.plugin.regeneratesCitationKeys(),
+			keysWarningDismissed: () => this.plugin.settings.dismissedKeysWarning,
+			dismissKeysWarning: () => {
+				this.plugin.settings.dismissedKeysWarning = true;
+				void this.plugin.saveSettings();
+			},
 			lastCheck: this.lastCheck,
 			onChecked: (check) => {
 				this.lastCheck = check;

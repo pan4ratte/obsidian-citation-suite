@@ -1,4 +1,4 @@
-import { App, setIcon, setTooltip } from "obsidian";
+import { App, ExtraButtonComponent, setIcon, setTooltip } from "obsidian";
 import { getUserGuideContent, t } from "lang/helpers";
 import { checkZotero, ZoteroCheck } from "src/cayw";
 import { MarkdownModal } from "src/markdownModal";
@@ -22,6 +22,15 @@ import { spinner } from "src/spinner";
 const BETTER_BIBTEX_INSTALL_URL =
 	"https://retorque.re/zotero-better-bibtex/installation/";
 
+/** What the card was last told: Zotero's answer, and what its preferences say. */
+export interface StatusCheck extends ZoteroCheck {
+	/**
+	 * Whether Better BibTeX remakes a citation key whenever its source is
+	 * edited, which loses the source to every note citing the old key.
+	 */
+	regeneratesKeys: boolean;
+}
+
 export interface StatusCardOptions {
 	app: App;
 	/** Whether the running release's changelog has been opened. */
@@ -30,12 +39,18 @@ export interface StatusCardOptions {
 	openChangelog(): void;
 	/** The port the settings point at, read again on every check. */
 	port(): number;
+	/** Reads Better BibTeX's key preference off Zotero's disk, on every check. */
+	regeneratesKeys(): Promise<boolean>;
+	/** Whether the reader closed the warning about it, which is then never drawn. */
+	keysWarningDismissed(): boolean;
+	/** Closes that warning for good. */
+	dismissKeysWarning(): void;
 	/**
 	 * The last check, to draw without asking Zotero again when the card is
 	 * drawn anew within one opening of the tab.
 	 */
-	lastCheck: ZoteroCheck | null;
-	onChecked(check: ZoteroCheck): void;
+	lastCheck: StatusCheck | null;
+	onChecked(check: StatusCheck): void;
 }
 
 export interface StatusCard {
@@ -104,6 +119,22 @@ function sparklesIcon(parent: HTMLElement): void {
 	});
 }
 
+/**
+ * Collapses a closed warning's card and takes it out. styles.css animates the
+ * height down from what it is now, which only the element can say, so it is
+ * measured here. Under reduced motion there is no animation, nothing to wait
+ * for, and the card goes at once.
+ */
+async function collapse(card: HTMLElement): Promise<void> {
+	card.setCssProps({ "--citation-suite-warning-height": `${card.offsetHeight}px` });
+	card.inert = true;
+	card.addClass("is-closing");
+	await Promise.all(
+		card.getAnimations().map((animation) => animation.finished.catch(() => undefined))
+	);
+	card.remove();
+}
+
 export function renderStatusCard(
 	parent: HTMLElement,
 	options: StatusCardOptions
@@ -145,6 +176,9 @@ export function renderStatusCard(
 	});
 	// Under the status, filled only when there is something to say at length.
 	const notices = card.createDiv({ cls: "citation-suite-status-notices" });
+	// Under the card, a card to each warning: something that will go wrong
+	// unless the reader acts, rather than a state of Zotero's.
+	const warnings = parent.createDiv({ cls: "citation-suite-status-warnings" });
 
 	/** A check whose answer is still out when another starts is not drawn. */
 	let generation = 0;
@@ -172,17 +206,63 @@ export function renderStatusCard(
 		}
 	};
 
-	const draw = (check: ZoteroCheck): void => {
+	/**
+	 * A notice of something that will go wrong unless the reader acts: a
+	 * warning sign beside a title saying what, over the text saying why and
+	 * what to do. The sign and the title are in the warning colour, the text
+	 * muted as every notice's is. A cross at the end closes it for good. It is
+	 * a card of its own, under the status card, drawn as that card is.
+	 */
+	const drawWarning = (title: string, text: string, dismiss: () => void): void => {
+		const warningCard = warnings.createDiv({
+			cls: "citation-suite-status-panel citation-suite-status-warning",
+		});
+		const notice = warningCard.createDiv({
+			cls: "citation-suite-status-row citation-suite-status-notice is-warning",
+		});
+		setIcon(
+			notice.createSpan({ cls: "citation-suite-status-notice-icon" }),
+			"triangle-alert"
+		);
+		const body = notice.createDiv({ cls: "citation-suite-status-notice-body" });
+		body.createDiv({ cls: "citation-suite-status-notice-title", text: title });
+		body.createDiv({ text });
+		new ExtraButtonComponent(notice)
+			.setIcon("x")
+			.setTooltip(t.STATUS_DISMISS)
+			.onClick(() => {
+				dismiss();
+				void collapse(warningCard);
+			})
+			.extraSettingsEl.addClass("citation-suite-status-notice-close");
+	};
+
+	const draw = (check: StatusCheck): void => {
 		notices.empty();
+		warnings.empty();
 		if (!check.running) {
 			drawLine("absent", t.STATUS_ZOTERO_NOT_RUNNING);
-			return;
+		} else {
+			drawLine("ok", t.STATUS_ZOTERO_RUNNING);
+			if (check.betterBibTeX === "missing") {
+				drawNotice(t.STATUS_BETTER_BIBTEX_MISSING, BETTER_BIBTEX_INSTALL_URL);
+			} else if (check.betterBibTeX === "starting") {
+				drawNotice(t.NOTICE_ZOTERO_STARTING);
+			}
 		}
-		drawLine("ok", t.STATUS_ZOTERO_RUNNING);
-		if (check.betterBibTeX === "missing") {
-			drawNotice(t.STATUS_BETTER_BIBTEX_MISSING, BETTER_BIBTEX_INSTALL_URL);
-		} else if (check.betterBibTeX === "starting") {
-			drawNotice(t.NOTICE_ZOTERO_STARTING);
+		// Read off the disk, so it holds with Zotero closed too — and costs a
+		// citation the next time a source is edited, which is when a warning
+		// is still of use. A Zotero without Better BibTeX has no keys to lose.
+		if (
+			check.regeneratesKeys &&
+			check.betterBibTeX !== "missing" &&
+			!options.keysWarningDismissed()
+		) {
+			drawWarning(
+				t.STATUS_KEYS_REGENERATED_TITLE,
+				t.STATUS_KEYS_REGENERATED,
+				() => options.dismissKeysWarning()
+			);
 		}
 	};
 
@@ -191,10 +271,14 @@ export function renderStatusCard(
 		notices.empty();
 		drawLine("checking", t.STATUS_CHECKING);
 		spin.start();
-		void checkZotero(options.port()).then((check) => {
+		void Promise.all([
+			checkZotero(options.port()),
+			options.regeneratesKeys(),
+		]).then(([zotero, regeneratesKeys]) => {
 			if (current !== generation || !card.isConnected) {
 				return;
 			}
+			const check = { ...zotero, regeneratesKeys };
 			options.onChecked(check);
 			draw(check);
 			spin.stop();

@@ -8,6 +8,7 @@ import {
 	ParsedCitation,
 } from "src/citation";
 import { CitationSession } from "src/citationSession";
+import { itemKeyOf } from "src/keyIndex";
 import { labelWriter, localeLabels } from "src/localeTerms";
 import { LabelWriter } from "src/pandoc";
 import { chosenStyle, withoutCitationNumbers, ZoteroCitePrefs } from "src/styles";
@@ -188,7 +189,19 @@ export interface LibraryItem {
 interface FoundItem {
 	item: CslItem;
 	library: number;
+	/** Its Zotero item key, when the library is Zotero's and said what it is. */
+	itemKey?: string;
 }
+
+/**
+ * Told of every Zotero item a key is found for: the key, the library it was
+ * found in and the item's own key there — what `src/keyIndex.ts` keeps.
+ */
+export type IdentifiedListener = (
+	citekey: string,
+	library: number,
+	itemKey: string
+) => void;
 
 /**
  * What asking Zotero for an item's `zotero://select` link comes to: the link,
@@ -345,9 +358,17 @@ async function fetchItems(
 			}
 		}
 		const better = new Map<string, CslItem>();
+		// Which item each key is: `Better CSL JSON` carries the item's URI
+		// under `custom`, which Zotero's own CSL below does not.
+		const itemKeys = new Map<string, string>();
 		for (const [key, item] of Object.entries(answer.items ?? {})) {
 			if (item && typeof item === "object") {
 				better.set(key, { ...item, id: key });
+				const custom = item.custom as { uri?: unknown } | undefined;
+				const itemKey = itemKeyOf(custom?.uri);
+				if (itemKey) {
+					itemKeys.set(key, itemKey);
+				}
 			}
 		}
 		if (better.size === 0) {
@@ -356,7 +377,11 @@ async function fetchItems(
 
 		const zotero = await exportZoteroCsl(port, [...better.keys()], library);
 		for (const [key, item] of better) {
-			found.push({ item: zotero.get(key) ?? item, library });
+			found.push({
+				item: zotero.get(key) ?? item,
+				library,
+				itemKey: itemKeys.get(key),
+			});
 		}
 		remaining = remaining.filter((key) => !better.has(key));
 	}
@@ -594,6 +619,8 @@ export class CitationRenderer {
 	private writers = new Map<string, LabelWriter>();
 	/** Locator labels, by the key of the style and locale they are read in. */
 	private labels = new Map<string, LocatorLabels>();
+	/** Told which Zotero item each key found stands for. */
+	private identified: IdentifiedListener | null = null;
 
 	constructor(
 		private port: number,
@@ -614,6 +641,15 @@ export class CitationRenderer {
 		this.libraries = null;
 		this.engines.clear();
 		this.building.clear();
+	}
+
+	/**
+	 * Has the listener told, from now on, which Zotero item every key found in
+	 * Zotero stands for. It costs nothing more than the lookup: the answer
+	 * that hands the item over names it.
+	 */
+	onIdentified(listener: IdentifiedListener | null): void {
+		this.identified = listener;
 	}
 
 	/**
@@ -708,11 +744,14 @@ export class CitationRenderer {
 			ref === ZOTERO_LIBRARY
 				? await this.fromZotero(wanted)
 				: await this.fromFiles(wanted, ref);
-		for (const { item, library } of found) {
+		for (const { item, library, itemKey } of found) {
 			if (typeof item.id === "string") {
 				source.items.set(item.id, item);
 				if (library >= 0) {
 					source.itemLibraries.set(item.id, library);
+				}
+				if (library >= 0 && itemKey) {
+					this.identified?.(item.id, library, itemKey);
 				}
 			}
 		}

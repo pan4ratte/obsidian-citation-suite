@@ -152,6 +152,11 @@ export interface CitationSuiteSettings {
 	minimizeZotero: boolean;
 	/** The version whose changelog banner has been dismissed. Never drawn as a setting. */
 	dismissedChangelogVersion: string;
+	/**
+	 * Whether the warning that Better BibTeX regenerates citation keys was
+	 * closed, for good. Never drawn as a setting.
+	 */
+	dismissedKeysWarning: boolean;
 }
 
 export const DEFAULT_SETTINGS: CitationSuiteSettings = {
@@ -183,6 +188,7 @@ export const DEFAULT_SETTINGS: CitationSuiteSettings = {
 	noteFootnotes: {},
 	minimizeZotero: false,
 	dismissedChangelogVersion: "",
+	dismissedKeysWarning: false,
 };
 
 /**

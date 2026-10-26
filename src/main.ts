@@ -28,6 +28,7 @@ import {
 import { openFootnotePopover } from "src/footnotePopover";
 import { citedKeys } from "src/citation";
 import { onDesktop } from "src/desktop";
+import { KeyIndexFile } from "src/keyIndexFile";
 import { citationExtension } from "src/live";
 import { applyLook, clearLook } from "src/look";
 import { MarkdownModal } from "src/markdownModal";
@@ -62,6 +63,12 @@ import {
  * in this device's sidebar once already.
  */
 const BIBLIOGRAPHY_PLACED_KEY = "citation-suite-bibliography-placed";
+
+/** How long after the layout is ready the key index is first swept, in milliseconds. */
+const KEY_INDEX_SWEEP_DELAY = 60 * 1000;
+
+/** How often a due sweep of the key index is looked for, in milliseconds. */
+const KEY_INDEX_SWEEP_CHECK = 60 * 60 * 1000;
 
 /** What one pick in the citation window puts into the note. */
 interface Pick {
@@ -118,6 +125,12 @@ export default class CitationSuitePlugin extends Plugin {
 	private desktop: typeof import("src/zoteroStyles") | null = null;
 	/** Where style files outside the vault are looked for; `null` on a phone. */
 	private styleFiles: StyleFiles | null = null;
+	/**
+	 * Which Zotero item each key the vault cites stood for, so that a key
+	 * Better BibTeX has since changed can be traced; `null` on a phone, which
+	 * looks nothing up in Zotero.
+	 */
+	keyIndex: KeyIndexFile | null = null;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -132,6 +145,7 @@ export default class CitationSuitePlugin extends Plugin {
 			})
 		);
 		await this.loadDesktop();
+		await this.loadKeyIndex();
 		this.styles = await this.allStyles();
 		this.renderer.reset(this.settings.port, this.styles, await this.citePrefs());
 		this.applyLibrary();
@@ -357,6 +371,7 @@ export default class CitationSuitePlugin extends Plugin {
 	}
 
 	onunload(): void {
+		this.keyIndex?.stop();
 		this.notes.clear();
 		for (const doc of this.windowDocuments()) {
 			clearLook(doc.body);
@@ -848,6 +863,32 @@ export default class CitationSuitePlugin extends Plugin {
 	}
 
 	/**
+	 * Reads the key index and has the renderer fill it, on a desktop. Its
+	 * sweep, which reads the whole vault, waits until the layout is ready and
+	 * a minute more, so as not to compete with Obsidian starting; after that it
+	 * is looked at every hour, and runs once a day.
+	 */
+	private async loadKeyIndex(): Promise<void> {
+		if (!onDesktop()) {
+			return;
+		}
+		const folder =
+			this.manifest.dir ?? `${this.app.vault.configDir}/plugins/${this.manifest.id}`;
+		const index = new KeyIndexFile(this.app, folder);
+		await index.load();
+		this.keyIndex = index;
+		this.renderer.onIdentified((citekey, library, itemKey) =>
+			index.record(citekey, library, itemKey)
+		);
+		const sweep = (): void => void index.sweepIfDue();
+		this.app.workspace.onLayoutReady(() => {
+			const timer = window.setTimeout(sweep, KEY_INDEX_SWEEP_DELAY);
+			this.register(() => window.clearTimeout(timer));
+		});
+		this.registerInterval(window.setInterval(sweep, KEY_INDEX_SWEEP_CHECK));
+	}
+
+	/**
 	 * Every style to choose from: the ones Zotero has, on a desktop, and the
 	 * ones the vault holds, everywhere. A vault style of the same id as one of
 	 * Zotero's is listed as well — they are two files, and the note that names
@@ -867,6 +908,18 @@ export default class CitationSuitePlugin extends Plugin {
 		return this.fromDesktop(
 			(desktop) => desktop.zoteroCitePrefs(),
 			DEFAULT_CITE_PREFS
+		);
+	}
+
+	/**
+	 * Whether Better BibTeX remakes a source's citation key whenever the source
+	 * is edited in Zotero, for the settings to warn about. No on a phone, which
+	 * has no Zotero to ask.
+	 */
+	regeneratesCitationKeys(): Promise<boolean> {
+		return this.fromDesktop(
+			(desktop) => desktop.regeneratesCitationKeys(),
+			false
 		);
 	}
 

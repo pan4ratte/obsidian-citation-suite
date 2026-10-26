@@ -199,6 +199,27 @@ export async function zoteroCitePrefs(): Promise<ZoteroCitePrefs> {
 }
 
 /**
+ * Whether Better BibTeX makes an item's citation key anew whenever the item is
+ * edited: its "Regenerate citation key when item changes", off unless set.
+ * While it is on, correcting an author or a title in Zotero changes the key,
+ * and every note citing the old one loses the source.
+ *
+ * Read out of Better BibTeX 9.0.71: keys live in Zotero's own Citation Key
+ * field, so a key once filled in stays as it is — the old "pinned" key — and
+ * this preference, which took over the old `autoPinOverwrite`, is the one
+ * thing that overwrites it on an edit.
+ */
+export async function regeneratesCitationKeys(): Promise<boolean> {
+	const prefs = await readProfilePrefs();
+	return (
+		boolPrefValue(
+			prefs,
+			"extensions.zotero.translators.better-bibtex.resetKeyOnChange"
+		) ?? false
+	);
+}
+
+/**
  * The language Zotero writes citations in.
  *
  * It is the locale set for Zotero's own quick copy, and when that was never

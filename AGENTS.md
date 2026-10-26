@@ -5,7 +5,7 @@
 | Command | What it does |
 |---------|-------------|
 | `npm run dev` | esbuild watch mode (no typecheck) |
-| `npm test` | Vitest — 329 tests, all passing |
+| `npm test` | Vitest — 351 tests, all passing |
 | `npm run lint` / `npm run lint:fix` | ESLint (`lint:ts`) and Stylelint (`lint:css`) with the official Obsidian rulesets |
 | `npm run build` | `tsc -noEmit -skipLibCheck && node esbuild.config.mjs production` |
 
@@ -144,7 +144,8 @@ once:
   suggestions search with; see "Citation key suggestions" below.
 - **`item.search` with a string searches fewer fields than Zotero's quick
   search** — title, publication, short title, court, year and citation key,
-  but no creators — so a surname finds nothing unless it is in the key. Given
+  but no creators — so a surname finds nothing unless it is in the key (and
+  in 9.0.71 it fails outright, "Invalid condition 'groupStart'"). Given
   an array, every entry is passed to `Zotero.Search.addCondition` as it is,
   and `["quicksearch-titleCreatorYear", "contains", q]` is Zotero's own quick
   search: every word of `q` in the title, a creator or the year, and in Zotero
@@ -532,6 +533,89 @@ on by default.
   characters after the cursor: inside an unclosed `[` it is the key alone,
   keeping `-`; outside it is `[@key]` when `brackets` is on, else `@key`. A key
   pandoc would cut short is braced through `citationKeyToken`.
+
+## Citation keys that change
+
+A key is Better BibTeX's name for an item, and the name can change: by hand,
+or — while "Regenerate citation key when item changes" is on — on every edit
+of the item. Nothing in Zotero remembers the old key, so a note citing it loses
+the source for good. Three steps answer that; **1 and 2 are built, 3 is not
+yet**.
+
+What Better BibTeX does, read out of **9.0.71**'s bundle and checked against
+a running Zotero:
+
+- **There is no pinning any more.** Keys live in Zotero's own Citation Key
+  field, and a key once filled in stays — the old "pinned" key. The migration
+  moved `autoPin`/`autoPinDelay` to `fillKeyAfter` ("Automatically fill
+  citation key after N seconds", for an item with no key) and
+  `autoPinOverwrite` to `resetKeyOnChange` ("Regenerate citation key when
+  item changes", on the "Citation keys" tab, off by default; the migration
+  dialog turns it on when the reader chose dynamic keys). Only the second
+  overwrites a key on an edit: `KeyManager.update(item, { replace:
+  Preference.resetKeyOnChange })` on every `updateCitationKeys` event.
+- **`item.pandoc_filter`'s `Better CSL JSON` carries the item's URI** as
+  `custom.uri` (with `custom.itemID`, the local database id, which is useless
+  elsewhere). So which item a key stands for costs no request beyond the
+  lookup the renderer makes anyway.
+- **`item.citationkey(["libraryID:itemKey", …])`** answers
+  `{ "libraryID:itemKey": citekey | null }` from BBT's key manager; a bare
+  `itemKey` means My Library, and `"selected"` reads Zotero's selection.
+  `libraryID` is the number `user.groups` gives as `id`, not a group id.
+
+**1. The warning.** `regeneratesCitationKeys()` in `src/zoteroStyles.ts` reads
+`extensions.zotero.translators.better-bibtex.resetKeyOnChange` off `prefs.js`
+(absent means off). The status card reads it on every check, with the Zotero
+check (`StatusCheck` is both), and while it is on draws a notice saying which
+option to turn off — Zotero running or not, since it is a preference on disk,
+but not when Better BibTeX is missing. It is a card of its own under the status
+card — a sign, a title, the text — with a cross that closes it for good: `dismissedKeysWarning`, a
+settings field the tab never draws, as `dismissedChangelogVersion` is. Once
+closed it is not drawn again even if the option is turned off and on; the
+README's troubleshooting still says it. The English text describes the option
+rather than quoting its label: the sentence-case rule flags a quoted capital
+anywhere in the string. The Russian one quotes it, since Better BibTeX has no
+Russian interface.
+
+**2. The key index.** `src/keyIndex.ts` (pure, tested) keeps pairs of a key
+and the item it stood for, as `libraryID:itemKey`; `src/keyIndexFile.ts` keeps
+them in `citation-keys.json` in the plugin's folder and sweeps them; `main.ts`
+creates it on a desktop only and has the renderer report every Zotero key it
+finds (`CitationRenderer.onIdentified`, fed by `fetchItems` from `custom.uri`).
+
+- **Pairs, not one key per item.** When an item's key changes and one note is
+  written with the new key, other notes still cite the old one, and both have
+  to lead to the item. A key found for another item of the **same** library
+  drops the old pair, since a key is unique inside a library; the same key in
+  another library is another item, and stays.
+- **Bounded by the vault, not by age.** A sweep reads every `.md` and the text
+  cards of every `.canvas` (`citedKeysOfFile`, with `citedKeys`) and drops a
+  pair whose key no file cites — on the **second sweep in a row** that finds
+  it so, so that a note still on its way from another device keeps its pair.
+  A key whose item changed it stays cited in the notes missing it, which is
+  what keeps its pair. Dropping by age would be wrong: a note unopened for a
+  year still cites its keys, and is the likeliest to lose one unseen.
+- **When.** One minute after the layout is ready, then looked at hourly; it
+  runs when a day has passed since the last (`swept`, in the file), or the
+  clock went back. It reads in batches of 20 with a turn for the window
+  between, and an unreadable file or an unload calls the sweep off uncounted.
+- **The file**: `{ version: 1, swept, keys: [[citekey, item], [citekey, item,
+  misses], …] }`, written 2 s after the last change and on unload; read
+  forgivingly, a bad pair skipped, an unreadable file starting empty. About
+  50 bytes a pair. Not `data.json`: it is not a setting and changes on every
+  first lookup. Obsidian Sync may not carry it, which is fine — each desktop
+  builds its own, and nothing is shared that could conflict.
+
+**3. The repair (to build).** When `CitationRenderer.missing(key)` — Zotero
+answered and had nothing — look the key up in the index and ask
+`item.citationkey` for its items' keys now. If one changed: the pane's "not
+found" list shows "@old → @new" with a button that rewrites the note; the
+missing-key mark's tooltip says the same; and a command rewrites every note
+in the vault after a `ConfirmModal` with the counts, through `vault.process`,
+by `keyMentions`/`proseOf` ranges so code and comments are left alone, and
+braced through `citationKeyToken`. Never rewrite silently. Optional later: a
+"which source was @old?" chooser from a quick search on the key's parts, for
+keys cited before the index existed; matching `.bib` libraries by DOI or title.
 
 ## The pandoc formatter
 
@@ -1179,6 +1263,20 @@ description of its own: it opens straight onto the status card.
   is "Zotero:" and the coloured state as one run of text, a word space apart,
   not bold, no dot), then the changelog and the user guide — and last a
   notice across the card only when Better BibTeX is missing or still starting.
+  Under the card, a card of its own to each warning — so far the one that
+  Better BibTeX regenerates keys on every edit (see "Citation keys that
+  change") — in `citation-suite-status-warnings`, drawn with the status card's
+  own class plus `citation-suite-status-warning`: tinted like Obsidian's
+  warning callout (`--color-orange-rgb` at 0.08 fill, 0.3 border), the sign in
+  a round 0.15 badge, the title in `--text-normal` a size up from the muted
+  text — orange words on an orange tint read worst — and the close button,
+  all centred in the card's height. Closing collapses the card:
+  `collapse()` measures its height into `--citation-suite-warning-height`,
+  the keyframes take it, the margin above and the border to nothing, and the
+  card is removed once its animations finish (at once under reduced motion).
+  The margin is on each card, not a gap on the wrapper, so it collapses too.
+  Checked in headless Chrome against 1.14.5's `app.css`, both themes, 680 and
+  400 px, and paused mid-close.
   The upright rules are the row's 1px `gap` over a border-coloured background,
   so they survive the row wrapping; every panel is opaque for that reason.
   Zotero's version is deliberately not shown. Better BibTeX deliberately has no
@@ -1277,6 +1375,8 @@ src/
   vaultStyles.ts    — the `.csl` files of the vault, read through Obsidian
   zoteroStyles.ts   — the styles and preferences on Zotero's disk; the one Node importer
   literatureNote.ts — the note kept about a source, found by name or front matter (pure)
+  keyIndex.ts       — which Zotero item each cited key stood for, and the sweep's rule (pure)
+  keyIndexFile.ts   — the key index on disk, and the sweep over the vault
   noteStyle.ts      — a note's `csl` and `lang`, and where pandoc finds the style (pure)
   noteStyles.ts     — the style each note is previewed in, resolved and kept
   localeTerms.ts    — locator labels in a language, from CSL locale and style terms (pure)
@@ -1311,6 +1411,7 @@ tests/
   citationSession.test.ts — incremental updates against a fresh citeproc engine
   suggestion.test.ts — trigger, insertion, sources shown and ranked
   literatureNote.test.ts — which note is a source's, and which of several
+  keyIndex.test.ts  — pairs kept, replaced and swept; the file read back; keys a file cites
   embeds.test.ts    — embeds found, expanded, nested, and kept apart
   noteStyle.test.ts — properties, file names, URLs matched to Zotero's styles, lookup order
   localeTerms.test.ts — locators read as pandoc 3.11 read them, per language and style

@@ -178,6 +178,10 @@ Check that a preview style is chosen in the settings, the citation is in square 
 
 If you added the source or changed its key after opening the note, press "Refresh bibliography" in the sidebar.
 
+### A source is no longer found after editing it in Zotero?
+
+If *Regenerate citation key when item changes* is on in Better BibTeX's settings, on the *Citation keys* tab, Better BibTeX makes the key anew every time the source is edited, its author, title or year for example, and notes with the old key lose the source. Turn that option off to keep keys as they are. While it is on, Citation Suite warns about it in its settings. If a source's key has already changed, replace the old key in the note with the new one.
+
 
 # About the Author
 

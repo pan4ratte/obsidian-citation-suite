@@ -223,6 +223,102 @@
 	color: var(--text-muted);
 }
 
+/* The warnings' cards, under the status card. Each card keeps its own margin
+   above it rather than the wrapper a gap, so that a card being closed takes
+   its room away with it as it collapses. */
+.citation-suite-status-warnings {
+	display: flex;
+	flex-direction: column;
+}
+
+/* A warning: something that will go wrong unless the reader acts, rather than
+   a state of Zotero's. A card of its own, tinted in the warning colour the way
+   Obsidian's warning callout is — the fill faint, the border a little less so
+   — so that it reads as a warning before a word of it is read. */
+.citation-suite-status-panel.citation-suite-status-warning {
+	--citation-suite-warning-rgb: var(--color-orange-rgb);
+
+	margin-top: var(--size-4-3);
+	border-color: rgb(var(--citation-suite-warning-rgb), 0.3);
+	background-color: rgb(var(--citation-suite-warning-rgb), 0.08);
+}
+
+/* The sign, the words and the cross on one line, each centred in the card's
+   height. */
+.citation-suite-status-row.citation-suite-status-notice.is-warning {
+	gap: var(--size-4-3);
+	padding: var(--size-4-3) var(--size-4-4);
+}
+
+/* The sign in a round badge of the warning colour: the one place the colour is
+   at full strength. */
+.citation-suite-status-notice-icon {
+	--icon-size: var(--icon-s);
+	--icon-stroke: var(--icon-s-stroke-width);
+
+	display: flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: var(--size-4-8);
+	height: var(--size-4-8);
+	border-radius: 50%;
+	background-color: rgb(var(--citation-suite-warning-rgb), 0.15);
+	color: var(--text-warning);
+}
+
+.citation-suite-status-notice-body {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	gap: var(--size-2-1);
+	min-width: 0;
+}
+
+/* The title says what, in the text's own colour a size up from the
+   explanation, which stays muted as every notice's does. Orange words on an
+   orange tint would be the hardest thing on the card to read. */
+.citation-suite-status-notice-title {
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+}
+
+/* The cross that closes a warning. Its padding is given back on every side, so
+   the button's hover area does not make the card taller or push it off the
+   card's edge. */
+.citation-suite-status-notice-close {
+	flex: none;
+	margin: calc(-1 * var(--size-2-2));
+}
+
+/* A closed warning collapses rather than vanishing, taking its margin and its
+   border with it, so the settings below close up rather than jump. Its height
+   is measured as it is closed, since nothing else knows it. */
+.citation-suite-status-panel.citation-suite-status-warning.is-closing {
+	animation: citation-suite-warning-close var(--anim-duration-moderate)
+		var(--anim-motion-swing) forwards;
+}
+
+@keyframes citation-suite-warning-close {
+	from {
+		height: var(--citation-suite-warning-height);
+	}
+
+	to {
+		height: 0;
+		margin-top: 0;
+		border-width: 0;
+		opacity: 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.citation-suite-status-panel.citation-suite-status-warning.is-closing {
+		animation: none;
+	}
+}
+
 /* The panels of the status row — the status, which checks again when pressed,
    and the documents to read — each a button with its icon before its label.
    They share the row in equal thirds, growing from nothing at the same rate,
