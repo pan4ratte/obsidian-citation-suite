@@ -7,7 +7,7 @@
 
 * **Replacing changed citation keys.** If Better BibTeX gave a source a new key and the note still cites the old one, the "Bibliography" tab shows both keys and replaces the old ones with one button, and a new command does the same in every note. The tooltip on the underlined key names the new key.
 
-### UI/UX enhancements and bug fixes
+### Enhancements and bug fixes
 
 * The panel in the settings is refreshed: Zotero's status, the changelog and the user guide are now separate cards with an icon and a title, Zotero's status is shown in colour, and the changelog's card shows the plugin's version. The Better BibTeX notices are cards with an icon and a title, and appear and disappear with an animation.
 * If Better BibTeX makes a key anew every time a source is edited in Zotero, the plugin's settings warn about it and say which option to turn off: otherwise notes with the old key lose the source. The warning can be closed for good.
@@ -19,7 +19,7 @@
 
 * **Choosing the library when selecting sources in Zotero.** Where the note's sources are spread over several Zotero libraries, the select button opens a menu naming them, each with the number of sources it holds, and the sources in the chosen library are selected.
 
-### UI/UX enhancements and bug fixes
+### Enhancements and bug fixes
 
 * A source that is in several Zotero libraries at once is selected in any of them, not only in the one it was taken from for the bibliography.
 * The new-version notice in the settings is gone, as it duplicated the "Changelog" button. The button now announces a new version itself: its icon is animated until the changelog is opened.
@@ -27,12 +27,12 @@
 
 ## 2.1.0
 
-### New features
+### New options
 
 * **Building the bibliography from embedded notes.** The bibliography pane now counts the sources cited in embedded notes (`![[note]]`, a heading's section or a block included) — where the embed stands, and however deep embeds are nested.
 * **Selecting every source in Zotero.** A new button in the bibliography pane selects all of the note's sources in Zotero's window. Zotero shows one library at a time, so where the sources are spread over several libraries, those in the library holding the most of them are selected.
 
-### UI/UX enhancements and bug fixes
+### Enhancements and bug fixes
 
 * The bibliography pane starts reading the current note's citations when Obsidian starts, even while its tab is not open.
 
@@ -46,7 +46,7 @@
 * **Citation styles from the vault.** The plugin scans the vault, and where it finds citation style files it shows them in a section of their own in the list of styles. The style named in a note's `csl` property takes priority.
 * **Citing sources without Zotero.** Where the bibliography chosen is a file in the vault, the citation window is opened without reaching for Zotero, but its interface and working follow Zotero's own. The suggestions while a key is typed (after `@`) — that is, citing without opening the window at all — work without Zotero too.
 
-### UI/UX enhancements and bug fixes
+### Enhancements and bug fixes
 
 * The setting "Style the citation preview in the style and language from the note's properties" is gone: the `csl`, `citation-style` and `lang` properties take priority by default where a note fills them in.
 * The search and copy buttons on the bibliography pane were given animations.
@@ -57,7 +57,7 @@
 
 ## 1.2.0
 
-### New features
+### New options
 
 * **Citation preview that takes the note's context into account.** Citations are now formatted just as they will look after the note is exported: a repeated citation of a source is written in its short form or as "Ibid." if the style says so, and numbered styles number sources in order of first citation, just as the bibliography does.
 * **Unknown citation keys are marked.** A key Zotero has no source for — one with a typo, say — is underlined with a wavy line in every view mode, even with no preview style chosen. The marking can be turned off in the settings.
@@ -65,7 +65,7 @@
 * **New options in the context menu of a source in the bibliography.** The context menu of an entry on the "Bibliography" tab has a new "Open literature note" option — when the vault has a note named `@key` or `key`, or with the key in its `citekey` property. The "Open PDF" option also lets you open the PDF attached to the source in Zotero's reader.
 * **Style and language from the note's properties.** When a note's properties give `csl` (or `citation-style`) or `lang`, the preview and the bibliography are styled the way exporting with Pandoc will style them: in that style, in that language and with locator labels in that language — with `lang: ru-RU`, for instance, Pandoc reads `с. 33` as a page and leaves `p. 33` as text. The style file is looked for where Pandoc looks for it, and the bibliography says which style and language come from the properties. This can be turned off in the settings.
 
-### UI/UX enhancements and bug fixes
+### Enhancements and bug fixes
 
 * Locator labels are now inserted so that Pandoc reads them: in the note's language (`с. 33` with `lang: ru-RU`) and with abbreviations Pandoc recognises (`chap. 2` rather than `ch. 2`). Such locators used to end up in the export as plain text.
 * The comma before text after a key that is not a locator (`[@doe2020, and more]`) is now kept in the preview, as Pandoc keeps it.
@@ -73,12 +73,12 @@
 
 ## 1.1.0
 
-### New features
+### New options
 
 * **Footnote settings for a single note.** Putting citations in footnotes, where the footnote text goes, the numbering and the text before and after the number can now be set for one note — with the "Footnote settings for the current note" command or from the note's context menu. The "Reset to general settings" button gives the note the plugin's general settings back, and the "Reset the footnote settings of every note" option does it for every note at once after confirmation.
 * **Popup for footnotes.** The text of a new footnote can now optionally open in a popup, so there is no need to scroll the page. This can be turned off in the settings, and the cursor position after a footnote is created can then be set (after the footnote anchor or in its text).
 
-### UI/UX enhancements and bug fixes
+### Enhancements and bug fixes
 
 * Fixed a bug that left the bibliography empty or not updated after switching from one note to another.
 * The Zotero port option now has a button that resets the port to the default one.
