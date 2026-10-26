@@ -182,24 +182,37 @@ description of its own: it opens straight onto the status card.
   release's version under the changelog; the user guide has none. The icon has a span of
   its own inside the badge, so the status spins the icon and not the badge:
   the Zotero status, which checks again when pressed (`refresh-cw`; its title
-  is "Zotero status" and under it the state as a pill with no icon, tinted
-  at 0.12 in green or orange, neutral while checking), then the changelog and
+  is "Zotero status" and under it the state as words with no icon and no
+  fill, in `--text-success` or `--text-warning`, muted while checking), then the changelog and
   the user guide — and last a
   notice in a card across the whole width only when Better BibTeX is missing
   or still starting.
   Under the card, a card of its own to each warning — so far the one that
-  Better BibTeX regenerates keys on every edit (see [changed-keys.md](changed-keys.md)) — in `citation-suite-status-warnings`, drawn with the status card's
-  own class plus `citation-suite-status-warning`: tinted like Obsidian's
-  warning callout (`--color-orange-rgb` at 0.08 fill, 0.3 border), the sign in
-  a round 0.15 badge, the title in `--text-normal` a size up from the muted
-  text — orange words on an orange tint read worst — and the close button,
-  all centred in the card's height. Closing collapses the card:
-  `collapse()` measures its height into `--citation-suite-warning-height`,
-  the keyframes take it, the margin above and the border to nothing, and the
-  card is removed once its animations finish (at once under reduced motion).
-  The margin is on each card, not a gap on the wrapper, so it collapses too.
-  Checked in headless Chrome against 1.14.5's `app.css`, both themes, 680 and
-  400 px, and paused mid-close.
+  Better BibTeX regenerates keys on every edit (see [changed-keys.md](changed-keys.md)) — in `citation-suite-status-warnings`.
+  Notices and warnings are both drawn by `drawCallout()`, one layout in two
+  colours: the status card's own class plus `citation-suite-status-info`
+  (`--color-blue-rgb`, Obsidian's info callout) or
+  `citation-suite-status-warning` (`--color-orange-rgb`, its warning
+  callout), set as `--citation-suite-callout-rgb` at 0.08 fill and 0.3
+  border; the sign (`info` or `triangle-alert`) in a round 0.15 badge, the
+  title in `--text-normal` a size up from the muted text — coloured words on
+  a tint of their colour read worst — and, on a warning only, the close
+  button, all centred in the card's height. A notice has no close button: it
+  goes when Zotero's state does. The missing Better BibTeX notice ends in an
+  "Install" `ButtonComponent` that opens Better BibTeX's installation page.
+  Each check's cards go through `sync()`, keyed by `data-callout`: a card
+  still wanted stays as it is, a card no longer wanted collapses, and a new
+  one opens. The cards stay up while Zotero is being asked, and change only
+  when it answers. When the tab is drawn from the last check, the cards are
+  simply there, with no animation. `expand()` and `collapse()` both measure
+  the card's height into `--citation-suite-callout-height`, and the keyframes
+  take it from or to nothing, with the margin above and the border. A closing
+  card is removed once its animations finish, and under reduced motion
+  nothing plays. Closing a warning collapses it the same way. The margin is on
+  each card, not a gap on the wrapper, for notices as for warnings, so it
+  opens and collapses too; for the same reason the status card itself has no
+  gap. The close animation was checked in headless Chrome against 1.14.5's
+  `app.css`, both themes, 680 and 400 px, and paused mid-close.
   Each card carries `citation-suite-status-panel` (the settings groups'
   border, radius and fill) or, for the three cards, the same look of its own.
   Zotero's version is deliberately not shown. Better BibTeX deliberately has no

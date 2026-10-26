@@ -259,11 +259,13 @@ appearing on someone's screen.
   The same rule, for the same reason: a release note written in English first
   reads like a translation in Russian. Keep them line for line — the same
   versions, in the same order, with the same headings
-  (`### Новые возможности` / `### New features`,
+  (`### Новые опции` / `### New options`,
   `### UI/UX улучшения и исправления багов` /
   `### UI/UX enhancements and bug fixes`) and the same bullets in the same
   order. Version numbers, code spans and the markdown itself are not translated.
-  Notes stay short — a bold lead-in and a sentence or two.
+  Notes stay short. A new option is a bold lead-in and a sentence or two; an
+  enhancement or a fix is a plain sentence or two, with no lead-in. Bullets
+  under one heading follow each other with no blank line between them.
 - `manifest.json`'s `name` and `description` are duplicated by `PLUGIN_NAME` and
   `PLUGIN_DESCRIPTION`, which the plugin browser cannot reach and no translation
   can. Change them together.

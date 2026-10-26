@@ -165,7 +165,6 @@
 .citation-suite-status-card {
 	display: flex;
 	flex-direction: column;
-	gap: var(--size-4-3);
 }
 
 /* One card: outlined as the groups of settings below are — the same line,
@@ -183,17 +182,6 @@
 	align-items: stretch;
 }
 
-/* The notices under the three cards, each a card across the whole width. */
-.citation-suite-status-notices {
-	display: flex;
-	flex-direction: column;
-	gap: var(--size-4-3);
-}
-
-.citation-suite-status-notices:empty {
-	display: none;
-}
-
 /* The status and the two documents, side by side, each a card of its own, in
    columns of equal width. A pane too narrow for three of them at their least
    width takes fewer to a line, down to one, rather than squeezing them; a
@@ -205,72 +193,69 @@
 	gap: var(--size-4-3);
 }
 
-/* Zotero's state, under the status card's title: a pill tinted by what it
-   says — faint fill, full-strength text — and neutral while Zotero is being
-   asked. It is as wide as its words, not the card. */
+/* Zotero's state, under the status card's title: words coloured by what they
+   say, with no fill behind them, and muted while Zotero is being asked. They
+   start where the title does. */
 .citation-suite-status-pill {
 	align-self: flex-start;
-	padding: var(--size-2-1) var(--size-4-2);
-	border-radius: 999px;
-	background-color: var(--background-modifier-hover);
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
 	font-weight: var(--font-medium);
 }
 
 .citation-suite-status-pill.is-ok {
-	background-color: rgb(var(--color-green-rgb), 0.12);
 	color: var(--text-success);
 }
 
 /* Zotero not answering is something to do rather than something broken: it is
    most often just not started yet. */
 .citation-suite-status-pill.is-absent {
-	background-color: rgb(var(--color-orange-rgb), 0.12);
 	color: var(--text-warning);
 }
 
-/* A line too long to stand beside a version: one run of text across the card,
-   muted whatever it says, and at least
-   as tall as the card's other rows, centred in that height. A longer one
-   wraps and grows the row. */
-.citation-suite-status-row.citation-suite-status-notice {
-	align-items: center;
-	min-height: var(--citation-suite-status-row-height);
-	padding: var(--size-4-2) var(--size-4-4);
-	font-size: var(--font-ui-small);
-	line-height: var(--line-height-tight);
-	color: var(--text-muted);
-}
-
-/* The warnings' cards, under the status card. Each card keeps its own margin
-   above it rather than the wrapper a gap, so that a card being closed takes
-   its room away with it as it collapses. */
+/* The notices under the three cards, and the warnings under the status card,
+   each a card across the whole width. Each card keeps its own margin above it
+   rather than the wrapper a gap, so that a card opening or closing brings its
+   room in or takes it away with it. */
+.citation-suite-status-notices,
 .citation-suite-status-warnings {
 	display: flex;
 	flex-direction: column;
 }
 
-/* A warning: something that will go wrong unless the reader acts, rather than
-   a state of Zotero's. A card of its own, tinted in the warning colour the way
-   Obsidian's warning callout is — the fill faint, the border a little less so
-   — so that it reads as a warning before a word of it is read. */
+/* A notice or a warning: a card of its own, tinted the way Obsidian's callouts
+   are — the fill faint, the border a little less so — so that it reads as what
+   it is before a word of it is read. A notice, a state of Zotero's, takes the
+   info callout's blue; a warning, something that will go wrong unless the
+   reader acts, the warning callout's orange. */
+.citation-suite-status-panel.citation-suite-status-info,
 .citation-suite-status-panel.citation-suite-status-warning {
-	--citation-suite-warning-rgb: var(--color-orange-rgb);
-
 	margin-top: var(--size-4-3);
-	border-color: rgb(var(--citation-suite-warning-rgb), 0.3);
-	background-color: rgb(var(--citation-suite-warning-rgb), 0.08);
+	border-color: rgb(var(--citation-suite-callout-rgb), 0.3);
+	background-color: rgb(var(--citation-suite-callout-rgb), 0.08);
+}
+
+.citation-suite-status-panel.citation-suite-status-info {
+	--citation-suite-callout-rgb: var(--color-blue-rgb);
+}
+
+.citation-suite-status-panel.citation-suite-status-warning {
+	--citation-suite-callout-rgb: var(--color-orange-rgb);
 }
 
 /* The sign, the words and the cross on one line, each centred in the card's
-   height. */
-.citation-suite-status-row.citation-suite-status-notice.is-warning {
+   height, at least as tall as the card's other rows. */
+.citation-suite-status-row.citation-suite-status-notice {
+	align-items: center;
 	gap: var(--size-4-3);
+	min-height: var(--citation-suite-status-row-height);
 	padding: var(--size-4-3) var(--size-4-4);
+	font-size: var(--font-ui-small);
+	line-height: var(--line-height-tight);
+	color: var(--text-muted);
 }
 
-/* The sign in a round badge of the warning colour: the one place the colour is
+/* The sign in a round badge of the card's colour: the one place the colour is
    at full strength. */
 .citation-suite-status-notice-icon {
 	--icon-size: var(--icon-s);
@@ -283,8 +268,8 @@
 	width: var(--size-4-8);
 	height: var(--size-4-8);
 	border-radius: 50%;
-	background-color: rgb(var(--citation-suite-warning-rgb), 0.15);
-	color: var(--text-warning);
+	background-color: rgb(var(--citation-suite-callout-rgb), 0.15);
+	color: rgb(var(--citation-suite-callout-rgb));
 }
 
 .citation-suite-status-notice-body {
@@ -296,12 +281,17 @@
 }
 
 /* The title says what, in the text's own colour a size up from the
-   explanation, which stays muted as every notice's does. Orange words on an
-   orange tint would be the hardest thing on the card to read. */
+   explanation, which stays muted as every notice's does. Coloured words on a
+   tint of the same colour would be the hardest thing on the card to read. */
 .citation-suite-status-notice-title {
 	font-size: var(--font-ui-small);
 	font-weight: var(--font-semibold);
 	color: var(--text-normal);
+}
+
+/* The button that acts on a notice keeps its width beside a long text. */
+.citation-suite-status-notice-action {
+	flex: none;
 }
 
 /* The cross that closes a warning. Its padding is given back on every side, so
@@ -312,17 +302,36 @@
 	margin: calc(-1 * var(--size-2-2));
 }
 
-/* A closed warning collapses rather than vanishing, taking its margin and its
-   border with it, so the settings below close up rather than jump. Its height
-   is measured as it is closed, since nothing else knows it. */
-.citation-suite-status-panel.citation-suite-status-warning.is-closing {
-	animation: citation-suite-warning-close var(--anim-duration-moderate)
+/* A notice or a warning opens out of nothing and collapses back into it rather
+   than appearing or vanishing, bringing its margin and its border with it, so
+   the settings below make room or close up rather than jump. Its height is
+   measured as it opens or closes, since nothing else knows it. */
+.citation-suite-status-panel.is-opening {
+	animation: citation-suite-callout-open var(--anim-duration-moderate)
+		var(--anim-motion-swing);
+}
+
+.citation-suite-status-panel.is-closing {
+	animation: citation-suite-callout-close var(--anim-duration-moderate)
 		var(--anim-motion-swing) forwards;
 }
 
-@keyframes citation-suite-warning-close {
+@keyframes citation-suite-callout-open {
 	from {
-		height: var(--citation-suite-warning-height);
+		height: 0;
+		margin-top: 0;
+		border-width: 0;
+		opacity: 0;
+	}
+
+	to {
+		height: var(--citation-suite-callout-height);
+	}
+}
+
+@keyframes citation-suite-callout-close {
+	from {
+		height: var(--citation-suite-callout-height);
 	}
 
 	to {
@@ -334,7 +343,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.citation-suite-status-panel.citation-suite-status-warning.is-closing {
+	.citation-suite-status-panel.is-opening,
+	.citation-suite-status-panel.is-closing {
 		animation: none;
 	}
 }

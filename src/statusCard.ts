@@ -1,4 +1,4 @@
-import { App, ExtraButtonComponent, setIcon, setTooltip } from "obsidian";
+import { App, ButtonComponent, ExtraButtonComponent, setIcon, setTooltip } from "obsidian";
 import { getUserGuideContent, t } from "lang/helpers";
 import { checkZotero, ZoteroCheck } from "src/cayw";
 import { MarkdownModal } from "src/markdownModal";
@@ -136,18 +136,49 @@ function sparklesIcon(parent: HTMLElement): void {
 }
 
 /**
- * Collapses a closed warning's card and takes it out. styles.css animates the
- * height down from what it is now, which only the element can say, so it is
- * measured here. Under reduced motion there is no animation, nothing to wait
- * for, and the card goes at once.
+ * A notice or a warning to draw: what it says, and what can be done with it.
+ * `key` tells a card already drawn from a new one, so that a check giving the
+ * same answer leaves it standing.
  */
-async function collapse(card: HTMLElement): Promise<void> {
-	card.setCssProps({ "--citation-suite-warning-height": `${card.offsetHeight}px` });
-	card.inert = true;
-	card.addClass("is-closing");
+interface Callout {
+	key: string;
+	kind: "info" | "warning";
+	title: string;
+	text: string;
+	/** A page the card's button opens. */
+	link?: string;
+	/** Closes the card for good, from a cross at its end. */
+	dismiss?: () => void;
+}
+
+/** Resolves once the card's animations have finished, at once when it has none. */
+async function animationsDone(card: HTMLElement): Promise<void> {
 	await Promise.all(
 		card.getAnimations().map((animation) => animation.finished.catch(() => undefined))
 	);
+}
+
+/**
+ * Animates a card just drawn open from nothing. styles.css animates the height
+ * up to what it is now, which only the element can say, so it is measured
+ * here. Under reduced motion there is no animation.
+ */
+function expand(card: HTMLElement): void {
+	card.setCssProps({ "--citation-suite-callout-height": `${card.offsetHeight}px` });
+	card.addClass("is-opening");
+	void animationsDone(card).then(() => card.removeClass("is-opening"));
+}
+
+/**
+ * Collapses a card and takes it out: the same measure, the other way. Under
+ * reduced motion there is nothing to wait for, and the card goes at once.
+ */
+async function collapse(card: HTMLElement): Promise<void> {
+	card.setCssProps({ "--citation-suite-callout-height": `${card.offsetHeight}px` });
+	card.inert = true;
+	card.removeClass("is-opening");
+	card.addClass("is-closing");
+	await animationsDone(card);
 	card.remove();
 }
 
@@ -196,74 +227,111 @@ export function renderStatusCard(
 	/** A check whose answer is still out when another starts is not drawn. */
 	let generation = 0;
 
-	/** Zotero's state as a pill, tinted by what it says. */
+	/** Zotero's state, coloured by what it says. */
 	const drawLine = (state: "ok" | "absent" | "checking", text: string): void => {
 		line.className = `citation-suite-status-pill is-${state}`;
 		line.setText(text);
 	};
 
-	const drawNotice = (text: string, link?: string): void => {
-		const notice = notices.createDiv({
-			cls: "citation-suite-status-panel citation-suite-status-row citation-suite-status-notice",
+	/**
+	 * A card with an icon in a round badge beside a title saying what, over the
+	 * text saying why and what to do, the text muted. A notice is a state of
+	 * Zotero's, in the info colour, and goes when the state does; a warning is
+	 * something that will go wrong unless the reader acts, in the warning
+	 * colour, with a cross at the end that closes it for good.
+	 */
+	const drawCallout = (container: HTMLElement, callout: Callout): HTMLElement => {
+		const calloutCard = container.createDiv({
+			cls: `citation-suite-status-panel citation-suite-status-${callout.kind}`,
 		});
-		// The text and its link in one span, so that the row can centre them
-		// as one line of words; laid out on their own, the space between them
-		// would be dropped.
-		const line = notice.createSpan();
-		line.appendText(text);
+		calloutCard.dataset.callout = callout.key;
+		const row = calloutCard.createDiv({
+			cls: "citation-suite-status-row citation-suite-status-notice",
+		});
+		setIcon(
+			row.createSpan({ cls: "citation-suite-status-notice-icon" }),
+			callout.kind === "info" ? "info" : "triangle-alert"
+		);
+		const body = row.createDiv({ cls: "citation-suite-status-notice-body" });
+		body.createDiv({ cls: "citation-suite-status-notice-title", text: callout.title });
+		body.createDiv({ text: callout.text });
+		// What to do about it, as a button at the end of the card.
+		const link = callout.link;
 		if (link) {
-			line.appendText(" ");
-			line.createEl("a", {
-				text: t.STATUS_BETTER_BIBTEX_INSTALL,
-				href: link,
-			});
+			new ButtonComponent(row)
+				.setButtonText(t.STATUS_BETTER_BIBTEX_INSTALL)
+				.onClick(() => window.open(link))
+				.buttonEl.addClass("citation-suite-status-notice-action");
 		}
+		const dismiss = callout.dismiss;
+		if (dismiss) {
+			new ExtraButtonComponent(row)
+				.setIcon("x")
+				.setTooltip(t.STATUS_DISMISS)
+				.onClick(() => {
+					dismiss();
+					void collapse(calloutCard);
+				})
+				.extraSettingsEl.addClass("citation-suite-status-notice-close");
+		}
+		return calloutCard;
 	};
 
 	/**
-	 * A notice of something that will go wrong unless the reader acts: a
-	 * warning sign beside a title saying what, over the text saying why and
-	 * what to do. The sign and the title are in the warning colour, the text
-	 * muted as every notice's is. A cross at the end closes it for good. It is
-	 * a card of its own, under the status card, drawn as that card is.
+	 * Brings a container's cards in line with what should be said: a card
+	 * still wanted stays as it is, one no longer wanted collapses, and a new
+	 * one opens. Drawn with the tab, the cards are simply there.
 	 */
-	const drawWarning = (title: string, text: string, dismiss: () => void): void => {
-		const warningCard = warnings.createDiv({
-			cls: "citation-suite-status-panel citation-suite-status-warning",
-		});
-		const notice = warningCard.createDiv({
-			cls: "citation-suite-status-row citation-suite-status-notice is-warning",
-		});
-		setIcon(
-			notice.createSpan({ cls: "citation-suite-status-notice-icon" }),
-			"triangle-alert"
-		);
-		const body = notice.createDiv({ cls: "citation-suite-status-notice-body" });
-		body.createDiv({ cls: "citation-suite-status-notice-title", text: title });
-		body.createDiv({ text });
-		new ExtraButtonComponent(notice)
-			.setIcon("x")
-			.setTooltip(t.STATUS_DISMISS)
-			.onClick(() => {
-				dismiss();
-				void collapse(warningCard);
-			})
-			.extraSettingsEl.addClass("citation-suite-status-notice-close");
+	const sync = (container: HTMLElement, callouts: Callout[], animate: boolean): void => {
+		const wanted = new Set(callouts.map((callout) => callout.key));
+		const standing = new Set<string>();
+		for (const child of Array.from(container.children)) {
+			if (!child.instanceOf(HTMLElement) || child.hasClass("is-closing")) {
+				continue;
+			}
+			const key = child.dataset.callout ?? "";
+			if (wanted.has(key)) {
+				standing.add(key);
+			} else if (animate) {
+				void collapse(child);
+			} else {
+				child.remove();
+			}
+		}
+		for (const callout of callouts) {
+			if (!standing.has(callout.key)) {
+				const calloutCard = drawCallout(container, callout);
+				if (animate) {
+					expand(calloutCard);
+				}
+			}
+		}
 	};
 
-	const draw = (check: StatusCheck): void => {
-		notices.empty();
-		warnings.empty();
+	const draw = (check: StatusCheck, animate: boolean): void => {
+		const noticeCallouts: Callout[] = [];
 		if (!check.running) {
 			drawLine("absent", t.STATUS_ZOTERO_NOT_RUNNING);
 		} else {
 			drawLine("ok", t.STATUS_ZOTERO_RUNNING);
 			if (check.betterBibTeX === "missing") {
-				drawNotice(t.STATUS_BETTER_BIBTEX_MISSING, BETTER_BIBTEX_INSTALL_URL);
+				noticeCallouts.push({
+					key: "better-bibtex-missing",
+					kind: "info",
+					title: t.STATUS_BETTER_BIBTEX_MISSING_TITLE,
+					text: t.STATUS_BETTER_BIBTEX_MISSING,
+					link: BETTER_BIBTEX_INSTALL_URL,
+				});
 			} else if (check.betterBibTeX === "starting") {
-				drawNotice(t.NOTICE_ZOTERO_STARTING);
+				noticeCallouts.push({
+					key: "better-bibtex-starting",
+					kind: "info",
+					title: t.STATUS_BETTER_BIBTEX_STARTING_TITLE,
+					text: t.STATUS_BETTER_BIBTEX_STARTING,
+				});
 			}
 		}
+		const warningCallouts: Callout[] = [];
 		// Read off the disk, so it holds with Zotero closed too — and costs a
 		// citation the next time a source is edited, which is when a warning
 		// is still of use. A Zotero without Better BibTeX has no keys to lose.
@@ -272,17 +340,21 @@ export function renderStatusCard(
 			check.betterBibTeX !== "missing" &&
 			!options.keysWarningDismissed()
 		) {
-			drawWarning(
-				t.STATUS_KEYS_REGENERATED_TITLE,
-				t.STATUS_KEYS_REGENERATED,
-				() => options.dismissKeysWarning()
-			);
+			warningCallouts.push({
+				key: "keys-regenerated",
+				kind: "warning",
+				title: t.STATUS_KEYS_REGENERATED_TITLE,
+				text: t.STATUS_KEYS_REGENERATED,
+				dismiss: () => options.dismissKeysWarning(),
+			});
 		}
+		sync(notices, noticeCallouts, animate);
+		sync(warnings, warningCallouts, animate);
 	};
 
 	const refresh = (): void => {
 		const current = ++generation;
-		notices.empty();
+		// The cards stand while Zotero is asked, and change only with its answer.
 		drawLine("checking", t.STATUS_CHECKING);
 		spin.start();
 		void Promise.all([
@@ -294,13 +366,13 @@ export function renderStatusCard(
 			}
 			const check = { ...zotero, regeneratesKeys };
 			options.onChecked(check);
-			draw(check);
+			draw(check, true);
 			spin.stop();
 		});
 	};
 
 	if (options.lastCheck) {
-		draw(options.lastCheck);
+		draw(options.lastCheck, false);
 	} else {
 		refresh();
 	}
