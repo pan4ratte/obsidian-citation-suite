@@ -1,7 +1,7 @@
 # Changelog
 
 
-## Unreleased
+## 2.3.0
 
 ### New options
 
