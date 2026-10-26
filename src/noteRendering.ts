@@ -3,6 +3,7 @@ import { citationSignature, NoteCitation } from "src/noteCitations";
 import {
 	citationItem,
 	CitationRenderer,
+	inTextHere,
 	LibraryRef,
 	RenderedBibliography,
 	RenderedCitation,
@@ -278,11 +279,12 @@ export class NoteRenderer {
 				return;
 			}
 			const noteIndex = engines.notes ? group.noteNumber : 0;
+			const inText = inTextHere(group, engines);
 			const signature = citationSignature(group);
 			given.push(index);
-			input.push({ items: group.citations.map(citationItem), noteIndex });
+			input.push({ items: group.citations.map(citationItem), noteIndex, inText });
 			signatures.push(signature);
-			keyParts.push(`${noteIndex} ${signature}`);
+			keyParts.push(`${noteIndex}${inText ? " author" : ""} ${signature}`);
 		});
 		return { given, citations: input, signatures, key: keyParts.join("\n") };
 	}

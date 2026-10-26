@@ -56,6 +56,15 @@ describe("noteCitations", () => {
 		]);
 	});
 
+	it("reads a citation standing alone in an inline note, not the note as one", () => {
+		expect(order("A.^[In a note, @a says.] B @b [p. 2] says, and ^[@c, p. 3].")).toEqual([
+			"a in 1",
+			"b at 2",
+			"c in 3",
+		]);
+		expect(noteCitations("A.^[In a note, @a says.]")[0].bare).toBe(true);
+	});
+
 	it("puts a footnote nothing anchors after everything else", () => {
 		const note = ["Body [@a].", "", "[^orphan]: [@b]", "[^1]: [@c]", "", "See.[^1]"].join(
 			"\n"
@@ -100,6 +109,11 @@ describe("noteCitations", () => {
 });
 
 describe("citationSignature", () => {
+	it("tells a citation standing alone from the same one bracketed", () => {
+		const [bare, bracketed] = parseGroups("@doe2020 and [@doe2020]");
+		expect(citationSignature(bare)).not.toBe(citationSignature(bracketed));
+	});
+
 	it("is the same for the same citation wherever it stands", () => {
 		const [first, second] = parseGroups("[@a, p. 3] and later [@a, p. 3]");
 		expect(citationSignature(first)).toBe(citationSignature(second));

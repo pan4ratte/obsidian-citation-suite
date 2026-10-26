@@ -12,7 +12,13 @@ import { editorInfoField, editorLivePreviewField, MarkdownView } from "obsidian"
 import { ENGLISH_LABELS, keyMentions, LocatorLabels } from "src/citation";
 import { matchCitations, NoteCitation, noteCitations } from "src/noteCitations";
 import { NoteRenderer } from "src/noteRendering";
-import { CitationTooltip, citationEl, MISSING_CLASS, missingKeyLabel } from "src/reading";
+import {
+	CitationTooltip,
+	citationEl,
+	MISSING_CLASS,
+	missingKeyLabel,
+	standsAlone,
+} from "src/reading";
 import {
 	CitationRenderer,
 	LibraryRef,
@@ -304,15 +310,19 @@ export function citationExtension(context: LiveContext) {
 						continue;
 					}
 					const local = { ...citation, from: 0, to: source.length };
-					for (const mention of keyMentions(source, local)) {
-						if (context.renderer.missing(mention.id, library)) {
+					keyMentions(source, local).forEach((mention, index) => {
+						if (!context.renderer.missing(mention.id, library)) {
+							return;
+						}
+						const renamed = context.renderer.renamed(mention.id, library);
+						if (renamed !== undefined || !standsAlone(citation, index)) {
 							builder.add(
 								citation.from + mention.from,
 								citation.from + mention.to,
-								missingMark(context.renderer.renamed(mention.id, library))
+								missingMark(renamed)
 							);
 						}
-					}
+					});
 				}
 				return builder.finish();
 			}

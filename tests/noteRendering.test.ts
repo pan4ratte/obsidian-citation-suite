@@ -106,3 +106,58 @@ describe("a note that reads from a file in the vault", () => {
 		expect(bibliography?.text.join("")).toContain("A book in the vault");
 	});
 });
+
+describe("a citation with the author in the text", () => {
+	const AUTHOR_DATE = `<?xml version="1.0" encoding="utf-8"?>
+<style xmlns="http://purl.org/net/xbiblio/csl" class="in-text" version="1.0" default-locale="en-US">
+	<info><title>Author-date test style</title><id>test-author-date</id><updated>2026-01-01T00:00:00+00:00</updated></info>
+	<citation><layout prefix="(" suffix=")" delimiter="; ">
+		<group delimiter=", "><names variable="author"><name form="short"/></names><date variable="issued"><date-part name="year"/></date><text variable="locator"/></group>
+	</layout></citation>
+</style>`;
+
+	const NOTES = `<?xml version="1.0" encoding="utf-8"?>
+<style xmlns="http://purl.org/net/xbiblio/csl" class="note" version="1.0" default-locale="en-US">
+	<info><title>Note test style</title><id>test-notes</id><updated>2026-01-01T00:00:00+00:00</updated></info>
+	<citation><layout suffix="."><group delimiter=", ">
+		<names variable="author"><name form="short"/></names><text variable="title" font-style="italic"/>
+	</group></layout></citation>
+</style>`;
+
+	/** The note's citations as the style writes them, `null` for one left as written. */
+	async function written(csl: string, id: string, text: string): Promise<(string | null)[]> {
+		(global as unknown as { window: unknown }).window = global;
+		const renderer = new CitationRenderer(
+			23119,
+			[],
+			() => Promise.resolve(csl),
+			{ locale: "", citePaperArticleURLs: false },
+			filesOf()
+		);
+		const style: StyleRef = {
+			key: id,
+			style: { id, title: id, path: `${id}.csl`, source: "vault" },
+			locale: "",
+			labels: ENGLISH_LABELS,
+			library: libraryRefOf(["refs.bib"]),
+		};
+		const note = await new NoteRenderer(renderer).render(style, "note.md", noteCitations(text));
+		return note?.rendered.map((citation) => citation?.html ?? null) ?? [];
+	}
+
+	it("names the author before the rest, and leaves a key nothing is known about as written", async () => {
+		expect(
+			await written(
+				AUTHOR_DATE,
+				"test-author-date",
+				"@doe2020 [33] says, as [@doe2020] did; ask @someone."
+			)
+		).toEqual(["Doe (2020, 33)", "(Doe, 2020)", null]);
+	});
+
+	it("names the author in the body of a note style, and cites as any note does in a footnote", async () => {
+		expect(
+			await written(NOTES, "test-notes", "@doe2020 says.[^1]\n\n[^1]: As @doe2020 did.")
+		).toEqual(["Doe <i>A book in the vault</i>.", "Doe, <i>A book in the vault</i>."]);
+	});
+});

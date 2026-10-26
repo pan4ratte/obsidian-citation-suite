@@ -201,16 +201,18 @@ export function noteCitations(
  * written alike in the same place. Where the group stands is not part of it.
  */
 export function citationSignature(group: CitationGroup): string {
-	return JSON.stringify(
-		group.citations.map((citation) => [
+	return JSON.stringify([
+		// `@doe2020` and `[@doe2020]` cite the same and read differently.
+		group.bare ? 1 : 0,
+		...group.citations.map((citation) => [
 			citation.id,
 			citation.locator,
 			citation.label,
 			citation.prefix,
 			citation.suffix,
 			citation.suppressAuthor,
-		])
-	);
+		]),
+	]);
 }
 
 /**

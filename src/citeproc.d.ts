@@ -9,14 +9,20 @@ declare module "citeproc" {
 		prefix?: string;
 		suffix?: string;
 		"suppress-author"?: boolean;
+		/** The author alone, as the text names it: "Doe". */
+		"author-only"?: boolean;
 	}
 
 	export interface CslCitation {
 		/** The id the engine keeps the citation by in its document. */
 		citationID?: string;
 		citationItems: CslCitationItem[];
-		/** The note it stands in, or 0 for a citation in the text. */
-		properties: { noteIndex: number };
+		properties: {
+			/** The note it stands in, or 0 for a citation in the text. */
+			noteIndex: number;
+			/** Keeps the sources in the order given rather than the style's. */
+			unsorted?: boolean;
+		};
 	}
 
 	/** A citation elsewhere in the document: its id, and the note it stands in. */

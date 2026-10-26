@@ -5,7 +5,7 @@
 | Command | What it does |
 |---------|-------------|
 | `npm run dev` | esbuild watch mode (no typecheck) |
-| `npm test` | Vitest — 367 tests, all passing |
+| `npm test` | Vitest — 390 tests, all passing |
 | `npm run lint` / `npm run lint:fix` | ESLint (`lint:ts`) and Stylelint (`lint:css`) with the official Obsidian rulesets |
 | `npm run build` | `tsc -noEmit -skipLibCheck && node esbuild.config.mjs production` |
 
@@ -52,6 +52,9 @@ them that are easiest to break:
   part of its whole note, through `NoteRenderer`, never on its own (the
   settings preview excepted). A note naming `csl` or `lang` is previewed as
   pandoc 3.11 exports it; those rules were read off pandoc, not its manual.
+  A citation standing alone (`@doe2020 says`) is pandoc's author-in-text
+  form: a citation only once its key is known, never marked missing, and
+  not written with citeproc's `composite` mode.
 - **Key suggestions** ([docs/suggestions.md](docs/suggestions.md)).
   `getSuggestions` answers for `this.context.query` as it stands when it
   resolves; never name a subclass field `context`.

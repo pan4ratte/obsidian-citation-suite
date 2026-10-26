@@ -1,7 +1,13 @@
 import { readFileSync } from "node:fs";
 import { CslCitationItem, Engine } from "citeproc";
 import { describe, expect, it } from "vitest";
-import { CitationSession, SessionCitation } from "src/citationSession";
+import {
+	authorAt,
+	CitationSession,
+	clusterOf,
+	SessionCitation,
+	withAuthor,
+} from "src/citationSession";
 
 /**
  * The session is checked against citeproc itself: after every change, what it
@@ -43,6 +49,15 @@ const AUTHOR_DATE_STYLE = `<?xml version="1.0" encoding="utf-8"?>
 </layout></citation>
 </style>`;
 
+/** An author-date style that sorts the sources of a citation by author, as APA does. */
+const SORTED_STYLE = `<?xml version="1.0" encoding="utf-8"?>
+<style xmlns="http://purl.org/net/xbiblio/csl" class="in-text" version="1.0">${INFO}
+<citation><sort><key macro="author"/></sort><layout prefix="(" suffix=")" delimiter="; ">
+<group delimiter=", "><text macro="author"/><date variable="issued"><date-part name="year"/></date><text variable="locator"/></group>
+</layout></citation>
+<macro name="author"><names variable="author"><name form="short"/></names></macro>
+</style>`;
+
 const ITEMS: Record<string, Record<string, unknown>> = Object.fromEntries(
 	[
 		["doe2020a", "Doe", 2020, "First"],
@@ -73,7 +88,11 @@ function engine(style: string): Engine {
 	);
 }
 
-/** What a fresh engine writes the note as, given all of it at once. */
+/**
+ * What a fresh engine writes the note as, given all of it at once — and the
+ * author of each citation with the author in the text, written where it stands
+ * in the note the fresh engine holds.
+ */
 function fromScratch(style: string, citations: SessionCitation[]): string[] {
 	const fresh = engine(style) as Engine & {
 		rebuildProcessorState(
@@ -81,16 +100,28 @@ function fromScratch(style: string, citations: SessionCitation[]): string[] {
 			mode: string
 		): [string, number, string][];
 	};
-	return fresh
+	const ids = citations.map((citation, index): [string, number] => [
+		`fresh${index}`,
+		citation.noteIndex,
+	]);
+	const written = fresh
 		.rebuildProcessorState(
-			citations.map((citation, index) => ({
-				citationID: `fresh${index}`,
-				citationItems: citation.items.map((item) => ({ ...item })),
-				properties: { noteIndex: citation.noteIndex },
-			})),
+			citations.map((citation, index) => clusterOf(citation, ids[index][0])),
 			"html"
 		)
 		.map(([, , text]) => text);
+	const held = ids.map((position, index) => ({
+		position,
+		ids: citations[index].items.map((item) => item.id),
+	}));
+	return written.map((text, index) =>
+		citations[index].inText && text
+			? withAuthor(
+					authorAt(fresh, citations[index], held.slice(0, index), ids.slice(index + 1)),
+					text
+				)
+			: text
+	);
 }
 
 function run(session: CitationSession, citations: SessionCitation[]): string[] {
@@ -158,19 +189,23 @@ describe("CitationSession", () => {
 	] as const) {
 		it(`writes every change as a fresh engine would, in ${name}`, () => {
 			const random = numbers(7);
-			const citation = (): { items: CslCitationItem[]; notesBefore: number } => {
+			const citation = (): {
+				items: CslCitationItem[];
+				notesBefore: number;
+				inText: boolean;
+			} => {
 				const items = [cite(KEYS[random(KEYS.length)], random(2) ? String(random(20)) : undefined)];
 				if (random(5) === 0) {
 					items.push(cite(KEYS[random(KEYS.length)]));
 				}
-				return { items, notesBefore: random(3) === 0 ? 1 : 0 };
+				return { items, notesBefore: random(3) === 0 ? 1 : 0, inText: random(4) === 0 };
 			};
 			const note = Array.from({ length: 12 }, citation);
 			const numbered = (): SessionCitation[] => {
 				let noteNumber = 0;
-				return note.map(({ items, notesBefore }) => {
+				return note.map(({ items, notesBefore, inText }) => {
 					noteNumber += 1 + notesBefore;
-					return { items, noteIndex: notes ? noteNumber : 0 };
+					return { items, noteIndex: notes ? noteNumber : 0, inText };
 				});
 			};
 			const session = new CitationSession(engine(style));
@@ -241,6 +276,69 @@ describe("CitationSession", () => {
 		);
 		const changed = [...citations, { items: [cite("doe2020a", "5")], noteIndex: 3 }];
 		expect(run(session, changed)).toEqual(fromScratch(NOTE_STYLE, changed));
+	});
+
+	it("names the author in the text, the rest after it in the order written", () => {
+		const session = new CitationSession(engine(SORTED_STYLE));
+		expect(
+			run(session, [
+				{ items: [cite("roe2019")], noteIndex: 0, inText: true },
+				{ items: [cite("roe2019", "33")], noteIndex: 0, inText: true },
+				{ items: [cite("roe2019", "33"), cite("doe2020a")], noteIndex: 0, inText: true },
+				{ items: [cite("roe2019"), cite("doe2020a")], noteIndex: 0 },
+			])
+		).toEqual([
+			"Roe (2019)",
+			"Roe (2019, 33)",
+			"Roe (2019, 33; Doe, 2020)",
+			"(Doe, 2020; Roe, 2019)",
+		]);
+	});
+
+	it("gives the citation alone in a style that names no author", () => {
+		const session = new CitationSession(engine(NUMBERED_STYLE));
+		expect(
+			run(session, [
+				{ items: [cite("roe2019")], noteIndex: 0, inText: true },
+				{ items: [cite("doe2020a", "4")], noteIndex: 0, inText: true },
+			])
+		).toEqual(["[1]", "[2 p. 4]"]);
+	});
+
+	it("writes the author anew when the note around it changes", () => {
+		const session = new CitationSession(engine(AUTHOR_DATE_STYLE));
+		const one = [{ items: [cite("doe2020a")], noteIndex: 0, inText: true }];
+		expect(run(session, one)).toEqual(["Doe (2020)"]);
+		const both = [...one, { items: [cite("doe2020b")], noteIndex: 0 }];
+		expect(run(session, both)).toEqual(["Doe (2020a)", "(Doe, 2020b)"]);
+		// Nothing handed over: the author kept is the one written.
+		expect(run(session, both)).toEqual(["Doe (2020a)", "(Doe, 2020b)"]);
+	});
+
+	it("names an author in full the first time in a note style, and short after", () => {
+		const session = new CitationSession(engine(NOTE_STYLE));
+		const citations = [
+			{ items: [cite("doe2020a")], noteIndex: 1, inText: true },
+			{ items: [cite("roe2019")], noteIndex: 2 },
+			{ items: [cite("doe2020a")], noteIndex: 3, inText: true },
+		];
+		const outputs = run(session, citations);
+		expect(outputs[0]).toMatch(/^J\. Doe /);
+		expect(outputs[2]).toMatch(/^Doe /);
+		expect(outputs).toEqual(fromScratch(NOTE_STYLE, citations));
+	});
+
+	it("names the author where the style writes ibid., as a later citation names it", () => {
+		const session = new CitationSession(engine(NOTE_STYLE));
+		const citations = [
+			{ items: [cite("doe2020a")], noteIndex: 1 },
+			{ items: [cite("roe2019")], noteIndex: 2 },
+			{ items: [cite("doe2020a")], noteIndex: 3 },
+			{ items: [cite("doe2020a", "7")], noteIndex: 4, inText: true },
+		];
+		const outputs = run(session, citations);
+		expect(outputs[3]).toBe("Doe Ibid., 7.");
+		expect(outputs).toEqual(fromScratch(NOTE_STYLE, citations));
 	});
 
 	it("gives up nothing but the job it abandons", () => {

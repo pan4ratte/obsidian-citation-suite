@@ -88,12 +88,13 @@ press of a button or a confirmed command.
   `renamed()` too. `tests/keyTrace.test.ts` runs it against a mocked
   `requestUrl` answering as BBT 9.0.71 does.
 - **The rewrite** is `src/keyRename.ts` (pure, tested): `keyRenameEdits`
-  finds every key place in `proseOf(text)` — bracketed groups through
-  `keyMentions`, and standalone `@key`/`-@key` at the start or after a space or
-  `(`, which is what the plugin writes with brackets off, but not after a
-  letter (an address) or `/` (a link) — and writes the new key through
-  `citationKeyToken`, keeping the `-`. Matched with a capture group, not a
-  lookbehind, which the Obsidian lint refuses for iOS before 16.4.
+  finds every key place in `proseOf(text)` through `parseGroups` and
+  `keyMentions`, which read bracketed groups and citations standing alone
+  alike — `@key`/`-@key`, what the plugin writes with brackets off, but not
+  after a letter (an address) or `/` (a link); see [rendering.md](rendering.md) —
+  and writes the new key through `citationKeyToken`, keeping the `-`. A bare
+  key is matched with a capture group, not a lookbehind, which the Obsidian
+  lint refuses for iOS before 16.4.
   `CitationSuitePlugin.replaceKeys(paths, renames)` applies it: in an open
   `MarkdownView` as one `editor.transaction` (unsaved text kept, one undo),
   otherwise `vault.process`, and only for a note that cites one of the keys.

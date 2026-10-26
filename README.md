@@ -114,7 +114,7 @@ Citations are inserted in [Pandoc](https://pandoc.org/MANUAL.html#citation-synta
 
 Locator labels are written in the note's language, because that is how Pandoc reads them: with `lang: ru-RU` in the note's properties you get `[@doe2020, с. 33]`, and without `lang` — `[@doe2020, p. 33]`.
 
-The preview and the "Bibliography" tab recognise only citations in square brackets. Keep this in mind if you turn off **Put citations in square brackets**.
+A citation without square brackets is formatted by Pandoc with the author in the text: `@doe2020 says` becomes "Doe (2020) says", and `@doe2020 [p. 33] says` becomes "Doe (2020, p. 33) says". The preview and the "Bibliography" tab format such citations the same way, but only if your library has a source with that key, so mentions like `@name` are not taken for citations and are not underlined as not found.
 
 You can also insert a key without opening Zotero's citation window: type `@` and the start of a key, a title, an author's surname or a year. Inside square brackets only the key is inserted, so you can type a citation of several sources in one go. Sources from your Zotero library appear from the third character on.
 
@@ -174,7 +174,7 @@ Make sure Zotero is running, Better BibTeX is installed in it and the local serv
 
 ### The citation preview does not work?
 
-Check that a preview style is chosen in the settings, the citation is in square brackets, and Zotero is running. If Zotero has no such key — say, it has a typo — the citation is not formatted and the key is underlined with a wavy line.
+Check that a preview style is chosen in the settings and Zotero is running. If Zotero has no such key — say, it has a typo — the citation is not formatted, and a key in square brackets is underlined with a wavy line. A key without brackets is not underlined, since it cannot be told apart from a mention like `@name`.
 
 ### A key is underlined with a wavy line, but the source is in Zotero?
 

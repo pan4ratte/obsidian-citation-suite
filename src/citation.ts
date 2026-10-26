@@ -8,7 +8,8 @@ import { LOCATOR_LABELS } from "src/pandoc";
  * What is recognised is the syntax pandoc's manual documents, in the shapes it
  * documents them: a bracketed group of citations separated by `;`, each with an
  * optional prefix, an optional `-` that suppresses the author, the key, a
- * locator and a suffix.
+ * locator and a suffix — and a citation standing outside brackets, `@doe2020
+ * says`, which pandoc writes with the author in the text: "Doe (2020) says".
  *
  * Every match carries the offsets it was found at, because the live editor
  * decorates ranges of the document rather than text.
@@ -25,11 +26,27 @@ export interface ParsedCitation {
 	suppressAuthor: boolean;
 }
 
-/** A whole `[…]` group, and where in the text it sits. */
+/** A whole `[…]` group, or a citation standing alone, and where in the text it sits. */
 export interface CitationGroup {
 	from: number;
 	to: number;
 	citations: ParsedCitation[];
+	/**
+	 * Whether it stands outside brackets: `@doe2020`, `@doe2020 [p. 33]`,
+	 * `-@doe2020`. In a note that is as often a name or a handle as a
+	 * citation, so it is written as one only when its sources are known, and
+	 * a key nothing is known about is not marked as missing.
+	 */
+	bare?: boolean;
+}
+
+/**
+ * Whether the group names its first source's author in the text, as pandoc
+ * writes a citation standing outside brackets: "Doe (2020) says". A `-` before
+ * the key makes it an ordinary citation with the author left out, "(2020)".
+ */
+export function authorInText(group: CitationGroup): boolean {
+	return !!group.bare && !group.citations[0]?.suppressAuthor;
 }
 
 /**
@@ -40,6 +57,26 @@ export const KEY = "[a-zA-Z0-9_](?:[a-zA-Z0-9_]*[:.#$%&+?<>~/-]?[a-zA-Z0-9_]+)*"
 
 /** `@key` or `@{key}`, with the `-` that suppresses the author before it. */
 const CITATION = new RegExp("(-?)@(?:[{]([^}]*)[}]|(" + KEY + "))");
+
+/**
+ * A citation standing alone, as pandoc 3.12 reads one: `@key` or `-@key`,
+ * after anything but a letter or a digit, which is an address, or a full stop.
+ * One place is left alone that pandoc would read: after `/`, which is a link.
+ * One inside a bracket — a group, Obsidian's `[[link]]` — is not one either,
+ * which `parseGroups` sees to. What stands before is matched rather than
+ * looked behind for, which iOS before 16.4 cannot do, and is not part of the
+ * citation. The key ends where pandoc's would.
+ */
+const BARE = new RegExp(
+	"(^|[^\\p{L}\\p{N}./@\\\\])(-?)@(?:[{]([^}]*)[}]|(" + KEY + "))(?![a-zA-Z0-9_])",
+	"gu"
+);
+
+/**
+ * A bracket after a citation standing alone, which pandoc reads as part of
+ * it: after spaces, or on the next line.
+ */
+const BRACKET_AFTER = /[ \t]*(?:\r?\n[ \t]*)?\[/y;
 
 /**
  * The words a locator can be labelled with, in the singular and the plural, as
@@ -259,12 +296,49 @@ export function parseCitation(
 	};
 }
 
+/** A pair of brackets with no brackets inside, and what it holds. */
+interface Bracket {
+	from: number;
+	to: number;
+	inner: string;
+}
+
 /**
- * Every citation group in the text, in the order they appear.
+ * What a bracket after a citation standing alone adds to it, as pandoc 3.12
+ * reads one: its first part, when it names no key, is the citation's locator
+ * and suffix (`@doe2020 [p. 33]`, `[33]`, `[and more]`); every part naming a
+ * key is a citation of its own in the same group (`[p. 33; also @roe2021]`,
+ * `[@roe2021]`). A bracket with a later part naming no key is no part of the
+ * citation at all, and `null`.
+ */
+function bracketAfter(
+	inner: string,
+	labels: LocatorLabels
+): { locator: string; suffix: string; citations: ParsedCitation[] } | null {
+	const parts = inner.split(";");
+	const cited = parts.map((part) => parseCitation(part, labels));
+	if (cited.slice(1).some((citation) => citation === null)) {
+		return null;
+	}
+	const first = cited[0] ? "" : parts[0].trim().replace(/^,\s*/, "");
+	// Read as the text after a comma is, so a suffix with no locator keeps
+	// the comma pandoc writes: `[and more]` reads "(2020, and more)".
+	const { locator, suffix } = first ? splitTail(`, ${first}`, labels) : { locator: "", suffix: "" };
+	return {
+		locator,
+		suffix,
+		citations: cited.filter((citation): citation is ParsedCitation => citation !== null),
+	};
+}
+
+/**
+ * Every citation group in the text, in the order they appear: the bracketed
+ * ones, and the citations standing alone.
  *
- * Only bracketed groups are read. A bare `@key` is a citation to pandoc too,
- * but in a note it is far more often an address or a name, and a rendering that
- * guesses wrong rewrites text that was never a citation.
+ * A citation standing alone takes the bracket straight after it, as pandoc
+ * does — `@doe2020 [p. 33]` is one citation of page 33 — unless that bracket
+ * is Obsidian's `[[link]]`. One inside a bracket is not one: that bracket is a
+ * group of its own, or Obsidian's.
  *
  * Locators are read with `labels`: English, unless the note's language says
  * otherwise.
@@ -273,30 +347,70 @@ export function parseGroups(
 	text: string,
 	labels: LocatorLabels = ENGLISH_LABELS
 ): CitationGroup[] {
-	const groups: CitationGroup[] = [];
-	const brackets = /\[([^[\]]*)\]/g;
-	let match: RegExpExecArray | null;
+	const brackets: Bracket[] = [];
+	for (const match of text.matchAll(/\[([^[\]]*)\]/g)) {
+		// `^[…]` is an inline note, whose text may cite: `^[As @doe2020
+		// says.]` is "As Doe (2020) says." in a note, not a citation group.
+		if (text[match.index - 1] !== "^") {
+			brackets.push({ from: match.index, to: match.index + match[0].length, inner: match[1] });
+		}
+	}
+	const bracketAt = new Map(brackets.map((bracket) => [bracket.from, bracket]));
 
-	while ((match = brackets.exec(text)) !== null) {
-		const inner = match[1];
+	const groups: CitationGroup[] = [];
+	const taken = new Set<Bracket>();
+	if (text.includes("@")) {
+		let next = 0;
+		for (const match of text.matchAll(BARE)) {
+			const id = match[3] ?? match[4];
+			const from = match.index + match[1].length;
+			while (next < brackets.length && brackets[next].to <= from) {
+				next++;
+			}
+			if (!id || (next < brackets.length && brackets[next].from < from)) {
+				continue;
+			}
+			let to = match.index + match[0].length;
+			const citation: ParsedCitation = {
+				id,
+				locator: "",
+				label: "",
+				prefix: "",
+				suffix: "",
+				suppressAuthor: match[2] === "-",
+			};
+			const citations = [citation];
+			BRACKET_AFTER.lastIndex = to;
+			const opening = BRACKET_AFTER.exec(text);
+			const bracket = opening ? bracketAt.get(BRACKET_AFTER.lastIndex - 1) : undefined;
+			const added = bracket ? bracketAfter(bracket.inner, labels) : null;
+			if (bracket && added) {
+				const { label, locator } = splitLocator(added.locator, labels);
+				citation.label = label;
+				citation.locator = locator;
+				citation.suffix = added.suffix;
+				citations.push(...added.citations);
+				taken.add(bracket);
+				to = bracket.to;
+			}
+			groups.push({ from, to, citations, bare: true });
+		}
+	}
+
+	for (const bracket of brackets) {
 		// `[[note]]` and `[text](link)` are Obsidian's, not pandoc's.
-		if (!inner.includes("@")) {
+		if (taken.has(bracket) || !bracket.inner.includes("@")) {
 			continue;
 		}
-		const citations = inner
+		const citations = bracket.inner
 			.split(";")
 			.map((part) => parseCitation(part, labels))
 			.filter((citation): citation is ParsedCitation => citation !== null);
-		if (citations.length === 0) {
-			continue;
+		if (citations.length > 0) {
+			groups.push({ from: bracket.from, to: bracket.to, citations });
 		}
-		groups.push({
-			from: match.index,
-			to: match.index + match[0].length,
-			citations,
-		});
 	}
-	return groups;
+	return groups.sort((a, b) => a.from - b.from);
 }
 
 const FENCE = /^ {0,3}(`{3,}|~{3,})/;
@@ -364,13 +478,20 @@ export function proseOf(text: string): string {
 /**
  * Every key the note cites, once each, in the order the note first cites it —
  * which is the order a numbered style numbers its reference list in.
+ *
+ * With `bracketed`, only the keys the note cites in brackets somewhere: a key
+ * only ever standing alone may be a name or a handle, and is a citation only
+ * once its source is known.
  */
-export function citedKeys(text: string): string[] {
+export function citedKeys(text: string, options: { bracketed?: boolean } = {}): string[] {
 	const keys = new Set<string>();
 	for (const group of parseGroups(proseOf(text))) {
-		for (const citation of group.citations) {
-			keys.add(citation.id);
-		}
+		group.citations.forEach((citation, index) => {
+			// A bare group's first key is the one standing alone.
+			if (!options.bracketed || !group.bare || index > 0) {
+				keys.add(citation.id);
+			}
+		});
 	}
 	return [...keys];
 }
@@ -389,17 +510,37 @@ export interface KeyMention extends Mention {
 /**
  * Every key the group cites, with where it stands in the text the group was
  * read from — cut between the brackets as `parseGroups` cuts it, so each is the
- * key of the citation at the same place in `group.citations`.
+ * key of the citation at the same place in `group.citations`. A citation
+ * standing alone has its own key first, then those of the bracket after it.
  */
 export function keyMentions(text: string, group: CitationGroup): KeyMention[] {
+	if (!group.bare) {
+		return bracketMentions(text, group.from + 1, group.to - 1);
+	}
+	const match = CITATION.exec(text.slice(group.from, group.to));
+	const id = match ? (match[2] ?? match[3]) : undefined;
+	if (!match || !id) {
+		return [];
+	}
+	const from = group.from + match.index;
+	const to = from + match[0].length;
+	const open = text.indexOf("[", to);
+	return [
+		{ id, from, to },
+		...(open !== -1 && open < group.to ? bracketMentions(text, open + 1, group.to - 1) : []),
+	];
+}
+
+/** The keys cited between two offsets, the text between a group's brackets. */
+function bracketMentions(text: string, from: number, to: number): KeyMention[] {
 	const mentions: KeyMention[] = [];
-	let start = group.from + 1;
-	for (const part of text.slice(start, group.to - 1).split(";")) {
+	let start = from;
+	for (const part of text.slice(from, to).split(";")) {
 		const match = CITATION.exec(part);
 		const id = match ? (match[2] ?? match[3]) : undefined;
 		if (match && id) {
-			const from = start + match.index;
-			mentions.push({ id, from, to: from + match[0].length });
+			const at = start + match.index;
+			mentions.push({ id, from: at, to: at + match[0].length });
 		}
 		start += part.length + 1;
 	}

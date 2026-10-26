@@ -6,11 +6,13 @@
 ### New options
 
 * **Replacing changed citation keys.** If Better BibTeX gave a source a new key and the note still cites the old one, the "Bibliography" tab shows both keys and replaces the old ones with one button, and a new command does the same in every note. The tooltip on the underlined key names the new key.
+* **Citations with the author in the text.** Citations without square brackets are formatted the way Pandoc formats them: `@doe2020 says` reads "Doe (2020) says", and `@doe2020 [p. 33] says` reads "Doe (2020, p. 33) says". Such citations count only if your library has a source with that key, so mentions like `@name` stay as they are.
 
 ### Enhancements and bug fixes
 
 * The panel in the settings is refreshed: Zotero's status, the changelog and the user guide are now separate cards with an icon and a title, Zotero's status is shown in colour, and the changelog's card shows the plugin's version. The Better BibTeX notices are cards with an icon and a title, and appear and disappear with an animation.
 * If Better BibTeX makes a key anew every time a source is edited in Zotero, the plugin's settings warn about it and say which option to turn off: otherwise notes with the old key lose the source. The warning can be closed for good.
+* Fixed a bug where an inline footnote `^[…]` with a citation inside was formatted as a single citation as a whole.
 
 
 ## 2.2.0

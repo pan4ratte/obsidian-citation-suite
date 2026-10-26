@@ -143,6 +143,16 @@ function missingKeyEl(
 }
 
 /**
+ * Whether the group's key at the index is one standing alone, `@doe2020 says`:
+ * a name or a handle as often as a citation, so it is not marked as missing —
+ * unless it is a key Zotero's item had and has since been given anew, which
+ * only a citation ever was.
+ */
+export function standsAlone(group: CitationGroup, index: number): boolean {
+	return !!group.bare && index === 0;
+}
+
+/**
  * What a missing key's mark says: that the note's library has no source for
  * it — or, for a key Zotero's item has been given anew since, what it is now.
  */
@@ -214,21 +224,21 @@ function decorateNode(
 		if (!context.markMissing()) {
 			continue;
 		}
-		for (const mention of keyMentions(text, group)) {
-			if (context.renderer.missing(mention.id, library)) {
-				upTo(mention.from);
-				fragment.appendChild(
-					missingKeyEl(
-						text.slice(mention.from, mention.to),
-						tooltip,
-						library,
-						context.renderer.renamed(mention.id, library)
-					)
-				);
-				at = mention.to;
-				replaced = true;
+		keyMentions(text, group).forEach((mention, index) => {
+			if (!context.renderer.missing(mention.id, library)) {
+				return;
 			}
-		}
+			const renamed = context.renderer.renamed(mention.id, library);
+			if (renamed === undefined && standsAlone(group, index)) {
+				return;
+			}
+			upTo(mention.from);
+			fragment.appendChild(
+				missingKeyEl(text.slice(mention.from, mention.to), tooltip, library, renamed)
+			);
+			at = mention.to;
+			replaced = true;
+		});
 	}
 
 	if (!replaced) {

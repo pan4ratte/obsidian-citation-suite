@@ -175,6 +175,61 @@ body-level `pointerover` handler reads for any element (read out of 1.13.7's
 the pane's refresh button (`forgetUnknown`) — the README's troubleshooting
 says so.
 
+### Citations with the author in the text
+
+`@doe2020 says` is pandoc's author-in-text citation (issue #1), and it is
+previewed as pandoc 3.12.1 writes it. Every rule below was read off pandoc
+running APA, IEEE and Chicago notes on the same notes, not its manual:
+
+- **Where one stands** (`BARE` in `src/citation.ts`): after anything but a
+  letter, a digit or a full stop — `(@key)`, `"@key"`, `*@key*`, `;@key` are
+  citations, `me@x.org` and `a.@key` are not. Two departures, on purpose:
+  not after `/` (pandoc cites `x.com/@user`), and not inside any bracket, so
+  Obsidian's `[[@key]]` stays a link. `-@key` alone is an ordinary citation
+  with the author left out, "(2020)".
+- **The bracket after it** — after spaces or on the next line — is part of
+  it (`bracketAfter`): a first part naming no key is the locator and suffix,
+  read as the text after a comma is (`[and more]` keeps pandoc's comma,
+  "(2020, and more)"); a part naming a key is another source of the same
+  citation (`[p. 33; also @roe2021]`, `[@roe2021]`). A bracket with a later
+  part naming no key is not taken at all; `[[link]]` is never taken. A
+  comma after the key is not a locator: `@doe2020, p. 4` is "Doe (2020), p. 4".
+- **`^[…]` is an inline note, not a group.** Its text is read like any other,
+  so `^[As @doe2020 says.]` holds an author-in-text citation. Before this the
+  whole note was read as one bracketed citation.
+- **Written as two pieces** (`clusterOf`, `authorOf`, `withAuthor` in
+  `src/citationSession.ts`): the engine holds the citation with the first
+  source's `suppress-author` and `unsorted: true` — pandoc keeps the in-text
+  source first where APA would sort it last — and the author is
+  `previewCitationCluster` of the first source `author-only`, at the
+  citation's place among the note's, which leaves the engine as it was. That
+  gives "John Smith" the first time in Chicago notes and "Smith" after, as
+  pandoc does. `[NO_PRINTED_FORM]` from a style with no author in its
+  citations (IEEE) leaves the citation alone, "[1]". Where the style writes
+  "Ibid." it names no one, and pandoc names the author anyway, "Kuhn (Ibid.,
+  p. 33)": `authorAt` asks again without the citations of that source just
+  before, which gives a later citation's form — or the first one's, where
+  those were its only citations, which pandoc would still write short. The authors are job
+  steps after the citations, all written again whenever anything was handed
+  over (a given name added for a second Smith changes no citation's text);
+  200 of them cost 100 ms in APA, 170 ms in Chicago. citeproc's own
+  `composite` mode was tried and is wrong three ways: it sorts first, prints
+  `[NO_PRINTED_FORM]`, and doubles the author in a note style.
+- **In a note style** the author stays in the line, followed by the note's
+  text, as a note style's body citation always is in the preview. In a
+  footnote, pandoc writes it as an ordinary citation (`inTextHere`).
+- **Only a known key is a citation.** A bare group is left out of what the
+  engine is given unless every source is in hand (`known`, as for any group),
+  its own key is never marked missing (`standsAlone`) unless the key index
+  traces it to a new key, and the pane lists it only once found
+  (`citedKeys(text, { bracketed: true })` is what may be listed as not
+  found). Pandoc writes an unknown one as "(someone?)"; the preview leaves
+  `@someone` as it is.
+
+Checked against pandoc for the three styles with the notes in the tests and
+the issue: every citation came out the same, but for Chicago's body citation
+being author plus the note's text where pandoc puts the text in a footnote.
+
 ## A note's own style: pandoc's `csl` and `lang`
 
 A note that names `csl` (or `citation-style`) or `lang` in its front matter is

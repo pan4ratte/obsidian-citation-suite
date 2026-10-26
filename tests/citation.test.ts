@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	authorInText,
 	citedKeys,
 	keyMentions,
 	mentionsOf,
@@ -161,6 +162,131 @@ describe("parseGroups", () => {
 	});
 });
 
+describe("a citation standing alone", () => {
+	// Every case is what pandoc 3.12.1 read in the same text.
+
+	/** The one group the text holds, as the text between its offsets and its citations. */
+	function only(text: string): { source: string; bare: boolean; citations: object[] } {
+		const groups = parseGroups(text);
+		expect(groups).toHaveLength(1);
+		const [group] = groups;
+		return {
+			source: text.slice(group.from, group.to),
+			bare: !!group.bare,
+			citations: group.citations,
+		};
+	}
+
+	it("is a citation with the author in the text", () => {
+		const group = parseGroups("@doe2020 says blah.")[0];
+		expect(group).toMatchObject({ from: 0, to: 8, bare: true });
+		expect(group.citations).toEqual([
+			{ id: "doe2020", locator: "", label: "", prefix: "", suffix: "", suppressAuthor: false },
+		]);
+		expect(authorInText(group)).toBe(true);
+	});
+
+	it("takes the bracket after it as its locator and suffix", () => {
+		expect(only("@doe2020 [p. 33] says.")).toMatchObject({
+			source: "@doe2020 [p. 33]",
+			citations: [{ id: "doe2020", label: "page", locator: "33", suffix: "" }],
+		});
+		expect(only("@doe2020 [33]").citations).toMatchObject([{ label: "", locator: "33" }]);
+		expect(only("@doe2020 [p. 33 and more]").citations).toMatchObject([
+			{ label: "page", locator: "33", suffix: "and more" },
+		]);
+		expect(only("@doe2020 [{pp. 3, 5}]").citations).toMatchObject([
+			{ label: "page", locator: "3, 5" },
+		]);
+	});
+
+	it("keeps the comma of a suffix with no locator, as pandoc writes it", () => {
+		for (const text of ["@doe2020 [and more]", "@doe2020 [, and more]"]) {
+			expect(only(text).citations).toMatchObject([{ locator: "", suffix: ", and more" }]);
+		}
+	});
+
+	it("takes the bracket on the next line, and the empty one", () => {
+		expect(only("@doe2020\n[p. 3] says").source).toBe("@doe2020\n[p. 3]");
+		expect(only("@doe2020 [] says").source).toBe("@doe2020 []");
+	});
+
+	it("takes the sources the bracket cites into the same citation", () => {
+		expect(only("@doe2020 [p. 33; also @roe2021] says.")).toMatchObject({
+			source: "@doe2020 [p. 33; also @roe2021]",
+			citations: [
+				{ id: "doe2020", locator: "33" },
+				{ id: "roe2021", prefix: "also" },
+			],
+		});
+		expect(only("@doe2020 [-@roe2021]").citations).toMatchObject([
+			{ id: "doe2020" },
+			{ id: "roe2021", suppressAuthor: true },
+		]);
+	});
+
+	it("leaves a bracket with a part naming no key after the first to itself", () => {
+		const groups = parseGroups("@doe2020 [see @roe2021; p. 4] says");
+		expect(groups.map((group) => [group.bare ?? false, group.citations[0].id])).toEqual([
+			[true, "doe2020"],
+			[false, "roe2021"],
+		]);
+		expect(groups[0].to).toBe(8);
+	});
+
+	it("leaves Obsidian's link after it alone", () => {
+		expect(only("@doe2020 [[a note]] says").source).toBe("@doe2020");
+	});
+
+	it("leaves the author out after a minus, and takes a bracket then too", () => {
+		const group = parseGroups("Doe -@doe2020 [p. 33] says")[0];
+		expect(group.citations[0]).toMatchObject({ suppressAuthor: true, locator: "33" });
+		expect(authorInText(group)).toBe(false);
+	});
+
+	it("stands after punctuation, quotes and emphasis", () => {
+		for (const text of ["(@doe2020)", "“@doe2020”", "*@doe2020*", "==@doe2020==", ";@doe2020"]) {
+			expect(only(text)).toMatchObject({ source: "@doe2020", bare: true });
+		}
+	});
+
+	it("is not an address, a link, a key cut short or one inside brackets", () => {
+		for (const text of [
+			"write to me@doe2020.org",
+			"a.@doe2020",
+			"https://x.com/@doe2020",
+			"2@doe2020",
+			"\\@doe2020",
+		]) {
+			expect(parseGroups(text)).toEqual([]);
+		}
+		expect(parseGroups("[[@doe2020]] and [see @doe2020 and @roe2021]").every((g) => !g.bare)).toBe(
+			true
+		);
+	});
+
+	it("is not a citation with the author in the text when it is bracketed", () => {
+		expect(authorInText(parseGroups("[@doe2020]")[0])).toBe(false);
+	});
+
+	it("finds its key and the bracket's where they stand", () => {
+		const text = "So @doe2020 [p. 3; see -@roe2021] said.";
+		const [group] = parseGroups(text);
+		expect(
+			keyMentions(text, group).map(({ id, from, to }) => [id, text.slice(from, to)])
+		).toEqual([
+			["doe2020", "@doe2020"],
+			["roe2021", "-@roe2021"],
+		]);
+	});
+
+	it("is read in order among the bracketed groups", () => {
+		expect(
+			parseGroups("[@a] then @b [p. 2] then [@c] and @d.").map((group) => group.citations[0].id)
+		).toEqual(["a", "b", "c", "d"]);
+	});
+});
+
 describe("what the plugin writes, read back", () => {
 	// The two halves have to agree: whatever `src/pandoc.ts` puts in the note
 	// is what the renderer is handed back when it reads the note again.
@@ -273,6 +399,12 @@ describe("citedKeys", () => {
 				"%%[@obsidian2020]%% <!-- [@html2020] --> [@doe2020]"
 			)
 		).toEqual(["doe2020"]);
+	});
+
+	it("names the keys standing alone too, and leaves them out when asked for the bracketed", () => {
+		const text = "@doe2020 says [@roe2021]; ask @someone, or @moe2022 [see @poe2023].";
+		expect(citedKeys(text)).toEqual(["doe2020", "roe2021", "someone", "moe2022", "poe2023"]);
+		expect(citedKeys(text, { bracketed: true })).toEqual(["roe2021", "poe2023"]);
 	});
 
 	it("is empty for a note that cites nothing", () => {

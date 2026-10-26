@@ -57,8 +57,10 @@ object by `loadSettings` and read by nothing.
   the key counts, found or not. Checked live: `@bart` stayed out of the missing
   list for 3 s with the list open and appeared once it closed.
 - **Keys come from `citedKeys`** in `src/citation.ts` for the missing list and
-  the searches: bracketed groups only,
-  as everywhere else, once each, in order of first citation, with the front
+  the searches: bracketed groups and citations standing alone, as everywhere
+  else — a key only ever standing alone is kept once the library has it, a
+  rename traces it or Zotero did not answer, so `@someone` is never listed as
+  not found ([rendering.md](rendering.md)) — once each, in order of first citation, with the front
   matter, fenced and inline code, and `%%`/`<!-- -->` comments emptied out
   first. `proseOf` overwrites them with spaces, newlines kept, rather than
   removing them: no bracket meets another across a gap, and an offset into the

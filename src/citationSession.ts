@@ -1,4 +1,4 @@
-import { CslCitationItem, Engine } from "citeproc";
+import { CslCitation, CslCitationItem, CslCitationPosition, Engine } from "citeproc";
 
 /**
  * Keeping citeproc in step with a note, one citation at a time.
@@ -36,6 +36,17 @@ import { CslCitationItem, Engine } from "citeproc";
  * everything again from the start as well, which is `rebuildProcessorState`
  * taken apart into steps, so that the caller can spread the work over several
  * frames rather than stop the editor for it.
+ *
+ * A citation with the author in the text, `@doe2020 says`, is written as
+ * pandoc writes one: the engine is given the citation with the first source's
+ * author left out and its sources in the order written — "(2020, p. 33; also
+ * Roe, 2021)" — and the author is the first source's alone, written where the
+ * citation stands without changing what the engine holds — "Doe", or "Jane
+ * Doe" where a note style names an author in full the first time. citeproc's
+ * own `composite` mode does both at once, and gets three things wrong that
+ * pandoc does not: it sorts the sources and takes the first author of the
+ * sorted ones, prints `[NO_PRINTED_FORM]` for a style that cites by number,
+ * and writes the author twice in a note style.
  */
 
 /** citeproc's flag saying every item of the citations is registered already. */
@@ -55,6 +66,8 @@ export interface SessionCitation {
 	items: CslCitationItem[];
 	/** The note it stands in, or 0 for a citation in the text of an in-text style. */
 	noteIndex: number;
+	/** Whether the first source's author is named in the text: `@doe2020 says`. */
+	inText?: boolean;
 }
 
 /** A citation the engine holds: the id it knows it by, and what it holds. */
@@ -64,6 +77,96 @@ interface Entry {
 	noteIndex: number;
 	/** The sources it cites. */
 	items: string[];
+}
+
+/**
+ * The citation as the engine is given it: with the author in the text, the
+ * first source's author left out and the sources kept in the order written.
+ * Fresh objects every time, since citeproc writes onto what it is given.
+ */
+export function clusterOf(citation: SessionCitation, citationID?: string): CslCitation {
+	const items = citation.items.map((item) => ({ ...item }));
+	if (citation.inText && items[0]) {
+		items[0]["suppress-author"] = true;
+	}
+	const cluster: CslCitation = {
+		citationItems: items,
+		properties: citation.inText
+			? { noteIndex: citation.noteIndex, unsorted: true }
+			: { noteIndex: citation.noteIndex },
+	};
+	if (citationID !== undefined) {
+		cluster.citationID = citationID;
+	}
+	return cluster;
+}
+
+/** The author the text names for a citation with the author in the text. */
+export function authorOf(citation: SessionCitation): CslCitation {
+	return {
+		citationItems: [{ id: citation.items[0]?.id ?? "", "author-only": true }],
+		properties: { noteIndex: citation.noteIndex },
+	};
+}
+
+/** What citeproc writes for a source with no author where a style has none to give. */
+const NO_PRINTED_FORM = /\[(?:NO_PRINTED_FORM|CSL STYLE ERROR[^\]]*)\]/;
+
+/** Whether citeproc wrote a name for the author, rather than nothing. */
+function named(author: string): boolean {
+	const name = author.trim();
+	return !!name && !NO_PRINTED_FORM.test(name);
+}
+
+/**
+ * The author and the citation as one, as pandoc writes them: "Doe (2020)". A
+ * style with no author to name, one that cites by number, gives the citation
+ * alone: "[1]".
+ */
+export function withAuthor(author: string, cluster: string): string {
+	const rest = cluster.trim();
+	if (!named(author)) {
+		return rest;
+	}
+	return rest ? `${author.trim()} ${rest}` : author.trim();
+}
+
+/** A citation the engine holds, as a preview is told of it: where it stands, and what it cites. */
+export interface HeldCitation {
+	position: CslCitationPosition;
+	ids: string[];
+}
+
+/**
+ * The author the text names for a citation with the author in the text,
+ * written where the citation stands among the ones the engine holds, without
+ * changing them: "Jane Doe" the first time in a note style, "Doe" after.
+ *
+ * Right after a citation of the same source the style may write "Ibid.",
+ * which names no one; pandoc names the author there all the same, as a later
+ * citation names it. So the preview is asked again without the citations of
+ * that source just before — "Kuhn (Ibid., p. 33)", as pandoc 3.12 writes it.
+ */
+export function authorAt(
+	engine: Engine,
+	citation: SessionCitation,
+	pre: HeldCitation[],
+	post: CslCitationPosition[]
+): string {
+	const preview = (before: HeldCitation[]): string =>
+		engine.previewCitationCluster(
+			authorOf(citation),
+			before.map((held) => held.position),
+			post,
+			"html"
+		);
+	const author = preview(pre);
+	const id = citation.items[0]?.id;
+	let start = pre.length;
+	while (start > 0 && id !== undefined && pre[start - 1].ids.includes(id)) {
+		start--;
+	}
+	return named(author) || start === pre.length ? author : preview(pre.slice(0, start));
 }
 
 /** Work towards a note, done a step at a time. */
@@ -79,7 +182,7 @@ export interface SessionJob {
 }
 
 function signatureOf(citation: SessionCitation): string {
-	return JSON.stringify(citation.items);
+	return JSON.stringify([citation.inText ? 1 : 0, citation.items]);
 }
 
 /** Every source the citations cite, once each, in the order they are first cited. */
@@ -103,6 +206,8 @@ export class CitationSession {
 	private entries: Entry[] = [];
 	/** What each citation the engine holds was last written as, by id. */
 	private written = new Map<string, string>();
+	/** The author the text names, for each citation with the author in the text, by id. */
+	private authors = new Map<string, string>();
 	private counter = 0;
 	/** The job last started. An older one is abandoned and does nothing more. */
 	private current: object | null = null;
@@ -175,12 +280,7 @@ export class CitationSession {
 		const hand = (index: number, pre: Entry[], post: Entry[], flag?: number): void => {
 			const entry = target[index];
 			const [, changedTexts] = this.engine.processCitationCluster(
-				{
-					citationID: entry.id,
-					// citeproc writes onto the objects it is given.
-					citationItems: citations[index].items.map((item) => ({ ...item })),
-					properties: { noteIndex: entry.noteIndex },
-				},
+				clusterOf(citations[index], entry.id),
 				pre.map((other) => [other.id, other.noteIndex]),
 				post.map((other) => [other.id, other.noteIndex]),
 				flag
@@ -243,6 +343,30 @@ export class CitationSession {
 				);
 			}
 		}
+		// The authors the text names, once the engine holds the whole note. How
+		// one is written goes by everything around it — named in full the
+		// first time, a given name added where two authors share a surname —
+		// so when anything was handed over, every one is written again.
+		const handedOver = steps.length > 0;
+		citations.forEach((citation, index) => {
+			if (citation.inText && (handedOver || !this.authors.has(target[index].id))) {
+				steps.push(() => {
+					const held = (other: Entry): HeldCitation => ({
+						position: [other.id, other.noteIndex],
+						ids: other.items,
+					});
+					this.authors.set(
+						target[index].id,
+						authorAt(
+							this.engine,
+							citation,
+							target.slice(0, index).map(held),
+							target.slice(index + 1).map((other) => held(other).position)
+						)
+					);
+				});
+			}
+		});
 		if (target.length === 0) {
 			// There is no citation to hand over, and with none the engine cannot
 			// be told the others went. The next one it is given will tell it.
@@ -263,9 +387,7 @@ export class CitationSession {
 					} catch (error) {
 						// Whatever the engine holds now is not known: start
 						// from nothing next time.
-						this.entries = [];
-						this.written.clear();
-						this.current = null;
+						this.reset();
 						throw error;
 					}
 				}
@@ -273,15 +395,22 @@ export class CitationSession {
 					return false;
 				}
 				const kept = new Set(target.map((entry) => entry.id));
-				for (const id of this.written.keys()) {
-					if (!kept.has(id)) {
-						this.written.delete(id);
+				for (const written of [this.written, this.authors]) {
+					for (const id of written.keys()) {
+						if (!kept.has(id)) {
+							written.delete(id);
+						}
 					}
 				}
 				return true;
 			},
 			outputs: (): string[] =>
-				target.map((entry) => this.written.get(entry.id) ?? ""),
+				target.map((entry, index) => {
+					const cluster = this.written.get(entry.id) ?? "";
+					return citations[index].inText && cluster
+						? withAuthor(this.authors.get(entry.id) ?? "", cluster)
+						: cluster;
+				}),
 		};
 	}
 
@@ -289,6 +418,7 @@ export class CitationSession {
 	reset(): void {
 		this.entries = [];
 		this.written.clear();
+		this.authors.clear();
 		this.current = null;
 	}
 }

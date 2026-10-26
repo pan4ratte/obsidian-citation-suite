@@ -1,13 +1,20 @@
-import { BibliographyParams, CslCitationItem, CslSys, Engine } from "citeproc";
+import { BibliographyParams, CslCitation, CslCitationItem, CslSys, Engine } from "citeproc";
 import { requestUrl } from "obsidian";
 import { REQUEST_HEADERS } from "src/cayw";
 import {
+	authorInText,
 	CitationGroup,
 	ENGLISH_LABELS,
 	LocatorLabels,
 	ParsedCitation,
 } from "src/citation";
-import { CitationSession } from "src/citationSession";
+import {
+	authorOf,
+	CitationSession,
+	clusterOf,
+	SessionCitation,
+	withAuthor,
+} from "src/citationSession";
 import { itemKeyOf } from "src/keyIndex";
 import { labelWriter, localeLabels } from "src/localeTerms";
 import { LabelWriter } from "src/pandoc";
@@ -450,6 +457,18 @@ function bibliography(engine: Engine, ids: string[]): string {
 	} catch {
 		return "";
 	}
+}
+
+/**
+ * Whether the group is written with its author in the text where it stands. A
+ * citation standing alone names its author, except in a footnote of a style
+ * that cites in notes, where pandoc writes it as any other citation there.
+ */
+export function inTextHere(
+	group: CitationGroup & { inNote?: boolean },
+	engines: StyleEngines
+): boolean {
+	return authorInText(group) && !(engines.notes && group.inNote);
 }
 
 /** A citation the note holds, in CSL's spelling, with nothing left empty. */
@@ -1491,15 +1510,17 @@ export class CitationRenderer {
 			return null;
 		}
 		try {
-			const html = engines.citation.previewCitationCluster(
-				{
-					citationItems: group.citations.map(citationItem),
-					properties: { noteIndex: 0 },
-				},
-				[],
-				[],
-				"html"
-			);
+			const citation: SessionCitation = {
+				items: group.citations.map(citationItem),
+				noteIndex: 0,
+				inText: inTextHere(group, engines),
+			};
+			const preview = (cluster: CslCitation): string =>
+				engines.citation.previewCitationCluster(cluster, [], [], "html");
+			const cluster = preview(clusterOf(citation));
+			const html = citation.inText
+				? withAuthor(preview(authorOf(citation)), cluster)
+				: cluster;
 			return this.renderedCitation(
 				engines,
 				group.citations.map((citation) => citation.id),

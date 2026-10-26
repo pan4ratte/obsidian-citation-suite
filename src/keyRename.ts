@@ -1,4 +1,4 @@
-import { KEY, keyMentions, parseGroups, proseOf } from "src/citation";
+import { keyMentions, parseGroups, proseOf } from "src/citation";
 import { citationKeyToken } from "src/pandoc";
 
 /**
@@ -23,42 +23,17 @@ export interface TextEdit {
 }
 
 /**
- * A citation standing alone: `@key` or `-@key` at the start of the text or
- * after a space or an opening parenthesis — not after a letter, which is an
- * address, nor after `/`, which is a link. The key ends where pandoc's would.
- * What stands before it is matched rather than looked behind for, which iOS
- * before 16.4 cannot do, and is not part of the place.
+ * Where every key the text cites stands, bracketed or alone, in order and once
+ * each place — read as every view reads the note (`parseGroups`).
  */
-const BARE = new RegExp(
-	"(^|[\\s(])(-?)@(?:[{]([^}]*)[}]|(" + KEY + "))(?![a-zA-Z0-9_])",
-	"g"
-);
-
-/** Where every key the text cites stands, bracketed or alone, in order and once each place. */
 function keyPlaces(text: string): { from: number; to: number; id: string; suppress: boolean }[] {
 	const prose = proseOf(text);
-	const places = new Map<number, { from: number; to: number; id: string; suppress: boolean }>();
-	for (const group of parseGroups(prose)) {
-		for (const mention of keyMentions(prose, group)) {
-			places.set(mention.from, {
-				...mention,
-				suppress: prose[mention.from] === "-",
-			});
-		}
-	}
-	for (const match of prose.matchAll(BARE)) {
-		const id = match[3] ?? match[4];
-		const from = match.index + match[1].length;
-		if (id && !places.has(from)) {
-			places.set(from, {
-				from,
-				to: match.index + match[0].length,
-				id,
-				suppress: match[2] === "-",
-			});
-		}
-	}
-	return [...places.values()].sort((a, b) => a.from - b.from);
+	return parseGroups(prose).flatMap((group) =>
+		keyMentions(prose, group).map((mention) => ({
+			...mention,
+			suppress: prose[mention.from] === "-",
+		}))
+	);
 }
 
 /** Every key the text cites, bracketed or alone, once each. */

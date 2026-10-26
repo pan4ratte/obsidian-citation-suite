@@ -504,27 +504,42 @@ export class BibliographyView extends ItemView {
 		const expanded = await expandEmbeds(text, file.path, (embed, from) =>
 			this.embedShows(embed, from)
 		);
-		const keys = citedKeys(expanded.text);
+		const cited = citedKeys(expanded.text);
+		// A key only ever standing alone, `@doe2020 says`, may be a name or a
+		// handle: it is a citation once the library knows it, and is never
+		// listed as not found.
+		const bracketed = new Set(citedKeys(expanded.text, { bracketed: true }));
 		if (pass !== this.pass) {
 			return;
 		}
 		this.readText = read;
 		this.embedded = expanded.paths;
 		this.embedsUnresolved = expanded.unresolved;
-		if (keys.length === 0) {
+		if (cited.length === 0) {
 			this.showMessage(file, t.BIBLIOGRAPHY_NO_CITATIONS);
 			return;
 		}
 
 		const library = style.library;
 		this.library = library;
-		const unanswered = keys.filter((key) => renderer.unreachable(key, library));
-		await renderer.load(keys, true, library);
+		const unanswered = cited.filter((key) => renderer.unreachable(key, library));
+		await renderer.load(cited, true, library);
 		const engines = await renderer.engineFor(style);
 		if (unanswered.some((key) => renderer.has(key, library))) {
 			this.context.redrawCitations();
 		}
 		if (pass !== this.pass) {
+			return;
+		}
+		const keys = cited.filter(
+			(key) =>
+				bracketed.has(key) ||
+				renderer.has(key, library) ||
+				renderer.unreachable(key, library) ||
+				renderer.renamed(key, library) !== undefined
+		);
+		if (keys.length === 0) {
+			this.showMessage(file, t.BIBLIOGRAPHY_NO_CITATIONS);
 			return;
 		}
 		if (!engines) {
