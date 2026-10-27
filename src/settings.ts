@@ -578,17 +578,22 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 			changelogRead:
 				this.plugin.settings.dismissedChangelogVersion === this.plugin.manifest.version,
 			openChangelog: () => this.plugin.openChangelog(),
-			port: () => this.plugin.settings.port,
-			regeneratesKeys: () => this.plugin.regeneratesCitationKeys(),
-			keysWarningDismissed: () => this.plugin.settings.dismissedKeysWarning,
-			dismissKeysWarning: () => {
-				this.plugin.settings.dismissedKeysWarning = true;
-				void this.plugin.saveSettings();
-			},
-			lastCheck: this.lastCheck,
-			onChecked: (check) => {
-				this.lastCheck = check;
-			},
+			// A phone has no Zotero to check: the card is the two documents.
+			zotero: onDesktop()
+				? {
+						port: () => this.plugin.settings.port,
+						regeneratesKeys: () => this.plugin.regeneratesCitationKeys(),
+						keysWarningDismissed: () => this.plugin.settings.dismissedKeysWarning,
+						dismissKeysWarning: () => {
+							this.plugin.settings.dismissedKeysWarning = true;
+							void this.plugin.saveSettings();
+						},
+						lastCheck: this.lastCheck,
+						onChecked: (check) => {
+							this.lastCheck = check;
+						},
+					}
+				: null,
 		});
 	}
 
@@ -622,15 +627,12 @@ export class CitationSuiteSettingTab extends PluginSettingTab {
 			// The status card stands in a group of its own whose card styles.css
 			// blanks: it is a card of its own, and putting it inside the first
 			// section's card would make it read as a setting of that section.
-			...(zotero
-				? [
-						{
-							type: "group" as const,
-							cls: "citation-suite-settings-group",
-							items: [this.statusSetting()],
-						},
-					]
-				: []),
+			// It is drawn on a phone too, as the changelog and the user guide.
+			{
+				type: "group" as const,
+				cls: "citation-suite-settings-group",
+				items: [this.statusSetting()],
+			},
 			// Where the sources come from stands above how they are written:
 			// the style is chosen for sources the reader has, and on a phone
 			// the file is what there is to choose at all.

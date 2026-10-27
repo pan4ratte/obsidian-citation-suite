@@ -195,6 +195,11 @@ description of its own: it opens straight onto the status card.
   the user guide — and last a
   notice in a card across the whole width only when Better BibTeX is missing
   or still starting.
+  On a phone (`onDesktop()` false) the card is still drawn, as the changelog
+  and the user guide alone: the settings pass `zotero: null`, and
+  `renderStatusCard` draws no status, asks nothing and draws no notice or
+  warning — the warning's preference is read off Zotero's disk, which a
+  phone does not have.
   Under the card, a card of its own to each warning — so far the one that
   Better BibTeX regenerates keys on every edit (see [changed-keys.md](changed-keys.md)) — in `citation-suite-status-warnings`.
   Notices and warnings are both drawn by `drawCallout()`, one layout in two

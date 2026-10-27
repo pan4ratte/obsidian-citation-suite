@@ -16,6 +16,9 @@ import { spinner } from "src/spinner";
  * the user guide. Better BibTeX has no card of its own: it is only ever worth
  * a line when it is missing, and then that line is a notice across the whole
  * width, under the three.
+ *
+ * On a phone there is no Zotero to check, and the card is the changelog and
+ * the user guide alone, side by side.
  */
 
 /** Where Better BibTeX's installation is explained, for the notice to link to. */
@@ -39,6 +42,15 @@ export interface StatusCardOptions {
 	changelogRead: boolean;
 	/** Opens the changelog, and marks it read. */
 	openChangelog(): void;
+	/**
+	 * What the card needs to say anything about Zotero, given only on a
+	 * desktop. Without it the card is the two documents alone: a phone has no
+	 * Zotero to check, and no disk to read Better BibTeX's preferences off.
+	 */
+	zotero: ZoteroStatusOptions | null;
+}
+
+export interface ZoteroStatusOptions {
 	/** The port the settings point at, read again on every check. */
 	port(): number;
 	/** Reads Better BibTeX's key preference off Zotero's disk, on every check. */
@@ -56,7 +68,7 @@ export interface StatusCardOptions {
 }
 
 export interface StatusCard {
-	/** Asks Zotero again, and redraws the status and the notice. */
+	/** Asks Zotero again, and redraws the status and the notice; nothing without Zotero. */
 	refresh(): void;
 }
 
@@ -195,14 +207,12 @@ export function renderStatusCard(
 	const panels = card.createDiv({
 		cls: "citation-suite-status-row citation-suite-status-panels",
 	});
+	const zotero = options.zotero;
 	// The status is a card like the documents beside it, and pressing it asks
 	// Zotero again. The line under its title is what Zotero said.
-	const status = actionButton(panels, "refresh-cw", t.STATUS_TITLE, "", () =>
-		refresh()
-	);
-	const line = status.description!;
-	setTooltip(status.button, t.STATUS_RECHECK);
-	const spin = spinner(status.icon);
+	const status = zotero
+		? actionButton(panels, "refresh-cw", t.STATUS_TITLE, "", () => refresh())
+		: null;
 	// A release whose changelog is unread is announced by the panel itself:
 	// in the accent, with looping sparkles. Once read, the scroll every other
 	// document panel would have.
@@ -229,6 +239,12 @@ export function renderStatusCard(
 		},
 		true
 	);
+	if (!zotero || !status) {
+		return { refresh: () => undefined };
+	}
+	const line = status.description!;
+	setTooltip(status.button, t.STATUS_RECHECK);
+	const spin = spinner(status.icon);
 	// Under the status, filled only when there is something to say at length.
 	const notices = card.createDiv({ cls: "citation-suite-status-notices" });
 	// Under the card, a card to each warning: something that will go wrong
@@ -349,14 +365,14 @@ export function renderStatusCard(
 		if (
 			check.regeneratesKeys &&
 			check.betterBibTeX !== "missing" &&
-			!options.keysWarningDismissed()
+			!zotero.keysWarningDismissed()
 		) {
 			warningCallouts.push({
 				key: "keys-regenerated",
 				kind: "warning",
 				title: t.STATUS_KEYS_REGENERATED_TITLE,
 				text: t.STATUS_KEYS_REGENERATED,
-				dismiss: () => options.dismissKeysWarning(),
+				dismiss: () => zotero.dismissKeysWarning(),
 			});
 		}
 		sync(notices, noticeCallouts, animate);
@@ -369,21 +385,21 @@ export function renderStatusCard(
 		drawLine("checking", t.STATUS_CHECKING);
 		spin.start();
 		void Promise.all([
-			checkZotero(options.port()),
-			options.regeneratesKeys(),
-		]).then(([zotero, regeneratesKeys]) => {
+			checkZotero(zotero.port()),
+			zotero.regeneratesKeys(),
+		]).then(([answer, regeneratesKeys]) => {
 			if (current !== generation || !card.isConnected) {
 				return;
 			}
-			const check = { ...zotero, regeneratesKeys };
-			options.onChecked(check);
+			const check = { ...answer, regeneratesKeys };
+			zotero.onChecked(check);
 			draw(check, true);
 			spin.stop();
 		});
 	};
 
-	if (options.lastCheck) {
-		draw(options.lastCheck, false);
+	if (zotero.lastCheck) {
+		draw(zotero.lastCheck, false);
 	} else {
 		refresh();
 	}

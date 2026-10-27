@@ -6,6 +6,7 @@
 ### Enhancements and bug fixes
 
 * The settings dashboard cards are no longer squashed on phones and tablets, and their titles no longer break onto a second line. A card left alone in its row stretches to the full width.
+* The settings dashboard with the changelog and the user guide now shows on phones too.
 
 
 ## 2.3.0
