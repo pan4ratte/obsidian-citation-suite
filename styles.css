@@ -182,15 +182,18 @@
 	align-items: stretch;
 }
 
-/* The status and the two documents, side by side, each a card of its own, in
-   columns of equal width. A pane too narrow for three of them at their least
-   width takes fewer to a line, down to one, rather than squeezing them; a
-   grid rather than a wrapping row, so that every card on the next line keeps
-   the width of those above it. */
+/* The status and the two documents, side by side, each a card of its own. A
+   pane too narrow for three of them at their least width takes fewer to a
+   line, down to one, rather than squeezing them; a wrapping row rather than a
+   grid, so that a card left on a line of its own takes the whole of it. */
 .citation-suite-status-row.citation-suite-status-panels {
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+	flex-wrap: wrap;
 	gap: var(--size-4-3);
+}
+
+/* Wide enough for "Список изменений" on one line beside its badge. */
+.citation-suite-status-panels > .citation-suite-action {
+	flex: 1 1 13rem;
 }
 
 /* Zotero's state, under the status card's title: words coloured by what they
@@ -352,9 +355,11 @@
 /* The cards of the status row — the status, which checks again when pressed,
    and the documents to read — each a button laid out as a card: an icon in a
    tinted badge at the start, and beside it a title over a line where there is
-   one, centred against the badge. Cards on one line of the grid stand as tall
-   as the tallest, a title that wraps included. */
-.citation-suite-action.citation-suite-action {
+   one, centred against the badge. Cards on one line stand as tall as the
+   tallest. Every rule on the button is prefixed with the status card and
+   doubled: `.is-tablet button:not(.clickable-icon)` sets the padding of every
+   button on a phone or a tablet at 0,2,1. */
+.citation-suite-status-card .citation-suite-action.citation-suite-action {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
@@ -378,14 +383,16 @@
 		border-color 100ms ease-in-out;
 }
 
-.citation-suite-action.citation-suite-action:hover,
-.citation-suite-action.citation-suite-action:focus-visible {
+.citation-suite-status-card .citation-suite-action.citation-suite-action:hover,
+.citation-suite-status-card
+	.citation-suite-action.citation-suite-action:focus-visible {
 	border-color: var(--background-modifier-border-hover);
 	background-color: var(--background-modifier-hover);
 }
 
 /* Reached by tab, so it has to show where it is. */
-.citation-suite-action.citation-suite-action:focus-visible {
+.citation-suite-status-card
+	.citation-suite-action.citation-suite-action:focus-visible {
 	outline: none;
 	box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
 }
@@ -424,10 +431,20 @@
 	min-width: 0;
 }
 
+/* On one line: a card is never narrower than its title needs, and one that
+   somehow is cuts it short rather than breaking it. The user guide's title is
+   the one let onto a second line. */
 .citation-suite-action-title {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 	font-size: var(--font-ui-small);
 	font-weight: var(--font-semibold);
 	color: var(--text-normal);
+}
+
+.citation-suite-action-title.is-wrapping {
+	white-space: normal;
 }
 
 .citation-suite-action-description {

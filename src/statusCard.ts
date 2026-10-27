@@ -72,7 +72,9 @@ function actionButton(
 	icon: string | ((el: HTMLElement) => void),
 	title: string,
 	description: string | null,
-	onClick: () => void
+	onClick: () => void,
+	/** Lets a title too long for one line break onto a second. */
+	wrap = false
 ): { button: HTMLButtonElement; icon: HTMLElement; description: HTMLElement | null } {
 	const button = parent.createEl("button", { cls: "citation-suite-action" });
 	// The icon has a span of its own inside the badge, so that the status
@@ -85,7 +87,9 @@ function actionButton(
 		icon(iconEl);
 	}
 	const text = button.createSpan({ cls: "citation-suite-action-text" });
-	text.createSpan({ cls: "citation-suite-action-title", text: title });
+	text
+		.createSpan({ cls: "citation-suite-action-title", text: title })
+		.toggleClass("is-wrapping", wrap);
 	const descriptionEl =
 		description === null
 			? null
@@ -215,9 +219,16 @@ export function renderStatusCard(
 		}
 	);
 	changelog.button.toggleClass("is-unread", !options.changelogRead);
-	actionButton(panels, "book-open", t.STATUS_USER_GUIDE, null, () => {
-		new MarkdownModal(options.app, getUserGuideContent()).open();
-	});
+	actionButton(
+		panels,
+		"book-open",
+		t.STATUS_USER_GUIDE,
+		null,
+		() => {
+			new MarkdownModal(options.app, getUserGuideContent()).open();
+		},
+		true
+	);
 	// Under the status, filled only when there is something to say at length.
 	const notices = card.createDiv({ cls: "citation-suite-status-notices" });
 	// Under the card, a card to each warning: something that will go wrong

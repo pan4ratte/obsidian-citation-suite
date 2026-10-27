@@ -172,14 +172,22 @@ description of its own: it opens straight onto the status card.
   `ChangelogNotice` there), with its classes and values carried over under this
   plugin's prefix: a card to each thing it is read for, a `--size-4-3` gap
   apart, in `citation-suite-status-card`, a wrapper with no look of its own.
-  Top to bottom: one row of three cards — `actionButton`s in a grid of
-  `repeat(auto-fit, minmax(12rem, 1fr))`, so three across on a desktop pane
-  and one on a phone — each one row, to the start edge: the icon in a
+  Top to bottom: one row of three cards — `actionButton`s in a wrapping flex
+  row, each `flex: 1 1 13rem`, so three across on a desktop pane, one on a
+  phone, and a card left alone on a line takes the whole of it — each one
+  row, to the start edge: the icon in a
   rounded-square badge tinted in the accent (`--interactive-accent-hsl` at
   0.1, 0.18 on hover, no outline; the icon in `--text-accent`), and beside it,
   centred against it, a semibold `--font-ui-small` title over a muted
   `--font-ui-smaller` line where there is one: Zotero's state, and the
-  release's version under the changelog; the user guide has none. The icon has a span of
+  release's version under the changelog; the user guide has none. Titles
+  stay on one line (an ellipsis if a card is ever too narrow) — 13rem is what
+  "Список изменений" needs beside its badge — except the user guide's, which
+  `actionButton`'s `wrap` lets onto a second (`is-wrapping`). Every rule on
+  the button is `.citation-suite-status-card` before the doubled class:
+  Obsidian 1.14.5's `.is-tablet button:not(.clickable-icon)` (0,2,1) sets
+  the padding of every button on a phone or a tablet, and beat the doubled
+  class alone, so the cards stood squashed there. The icon has a span of
   its own inside the badge, so the status spins the icon and not the badge:
   the Zotero status, which checks again when pressed (`refresh-cw`; its title
   is "Zotero status" and under it the state as words with no icon and no
