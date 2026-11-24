@@ -127,7 +127,10 @@ once:
   an array, every entry is passed to `Zotero.Search.addCondition` as it is,
   and `["quicksearch-titleCreatorYear", "contains", q]` is Zotero's own quick
   search: every word of `q` in the title, a creator or the year, and in Zotero
-  7 the citation key too. `["ignore_feeds"]` is BBT's one shorthand. Its answer
+  7 the citation key too. `["ignore_feeds"]` is BBT's one shorthand. Never
+  send a fourth entry: it is Zotero's `required` flag, which mattered only
+  under `joinMode: any`, and Zotero 10 throws on it ("The 'required'
+  parameter is no longer supported"), failing the whole search silently. Its answer
   is `itemToCSLJSON` per item plus `library` (the name) and `citekey`, **in
   every library** when none is named, and it costs about 5 ms per item found
   on a 1,000-item library: one letter found 967 items in 4.6 s, three letters

@@ -488,14 +488,18 @@ export function citationItem(citation: ParsedCitation): CslCitationItem {
  * quick search in its "Title, Creator, Year" mode — each word somewhere in the
  * title, the creators or the year, which in Zotero 7 takes the citation key in
  * too — over sources only, and not over feeds.
+ *
+ * No condition carries Zotero's `required` flag: the search joins them all
+ * anyway, the flag only ever mattered under `joinMode: any`, and Zotero 10
+ * throws on it, which failed the whole search.
  */
-function searchConditions(query: string): unknown[] {
+export function searchConditions(query: string): unknown[] {
 	return [
 		["quicksearch-titleCreatorYear", "contains", query],
 		["ignore_feeds"],
-		["itemType", "isNot", "attachment", true],
-		["itemType", "isNot", "note", true],
-		["itemType", "isNot", "annotation", true],
+		["itemType", "isNot", "attachment"],
+		["itemType", "isNot", "note"],
+		["itemType", "isNot", "annotation"],
 	];
 }
 

@@ -5,8 +5,19 @@ import {
 	CslItem,
 	FileLibraries,
 	libraryRefOf,
+	searchConditions,
 	ZOTERO_LIBRARY,
 } from "src/render";
+
+describe("what Zotero is searched for", () => {
+	// Zotero 10 throws on a condition's `required` flag, its fourth entry,
+	// and Better BibTeX passes every entry on as it is.
+	it("sends no condition Zotero 10 refuses", () => {
+		for (const condition of searchConditions("kuhn")) {
+			expect((condition as unknown[]).length).toBeLessThanOrEqual(3);
+		}
+	});
+});
 
 /**
  * What the renderer keeps of each library's sources.

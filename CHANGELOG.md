@@ -1,6 +1,13 @@
 # Changelog
 
 
+## 2.3.2
+
+### Enhancements and bug fixes
+
+* Key suggestions after `@` find sources in a Zotero 10 library again. Zotero 10 used to refuse the request, so the suggestions held only sources already cited.
+
+
 ## 2.3.1
 
 ### Enhancements and bug fixes
