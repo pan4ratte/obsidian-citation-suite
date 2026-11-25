@@ -1,6 +1,13 @@
 # Changelog
 
 
+## 2.3.3
+
+### Enhancements and bug fixes
+
+* Citations in a canvas's text cards are formatted from their own sources. Cards citing different keys could show the same source before.
+
+
 ## 2.3.2
 
 ### Enhancements and bug fixes

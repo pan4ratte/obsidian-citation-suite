@@ -151,6 +151,16 @@ modules, each with one job:
   the note's citations in footnotes. `CitationRenderer.load` shares one lookup
   per key between everything asking (`lookups`), so the editor asking on every
   redraw sends nothing twice.
+- **A canvas's text cards are documents of their own.** Obsidian draws every
+  card with the canvas's path, and `NoteRenderer` keeps and queues by what it
+  is given as the path, so the views hand it `documentKey(path, text)`: a
+  note's path as it is, anything else's path with the text after it. Under
+  the bare path, two cards opened together were one task in the queue, and
+  each was handed what the other cited (issue #3). A card being edited asks
+  `current()` under the same key, so editing and reading write it alike.
+  `render()` lays what was written over the caller's citations by signature
+  (`stale`) whenever the key it was written under is not the caller's, so a
+  note changed while it waited is never matched by place.
 
 Checked in a separate Obsidian 1.13.7 instance (its own `--user-data-dir` with
 the 1.13.7 asar copied in, `--remote-debugging-port` and

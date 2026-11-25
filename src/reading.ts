@@ -16,7 +16,7 @@ import {
 	NoteCitation,
 	noteCitations,
 } from "src/noteCitations";
-import { NoteRenderer } from "src/noteRendering";
+import { documentKey, NoteRenderer } from "src/noteRendering";
 import {
 	CitationRenderer,
 	LibraryRef,
@@ -341,7 +341,11 @@ async function renderInNote(
 	const text = section?.text ?? (await context.noteText(ctx.sourcePath));
 	const note =
 		text !== null
-			? await context.notes.render(style, ctx.sourcePath, citationsOf(text, style.labels))
+			? await context.notes.render(
+					style,
+					documentKey(ctx.sourcePath, text),
+					citationsOf(text, style.labels)
+				)
 			: null;
 	if (text === null || !note) {
 		const engines = await context.renderer.engineFor(style);

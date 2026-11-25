@@ -53,6 +53,19 @@ const IN_FRAME = 12;
 /** How many notes are kept written. Enough for every note open at once. */
 const KEPT_NOTES = 24;
 
+/**
+ * What a text is kept and queued under while it is written. A note is kept
+ * under its path, whichever part of it asks. A file that is not a note has no
+ * one text to be read as — Obsidian draws each of a canvas's text cards with
+ * the canvas's path — so each of its pieces is a document of its own, kept
+ * under the path and its text. Two cards under the one path were written as
+ * each other: the second took the first's place in the queue, and both were
+ * handed what it cited.
+ */
+export function documentKey(path: string, text: string): string {
+	return path.endsWith(".md") ? path : `${path}\n${text}`;
+}
+
 /** A note's citations as the style writes them there. */
 export interface NoteRendering {
 	/** The note's citations, in the order pandoc reads them. */
@@ -187,7 +200,16 @@ export class NoteRenderer {
 		citations: NoteCitation[]
 	): Promise<NoteRendering | null> {
 		const state = await this.written(style, path, citations, false);
-		return state ? compose(citations, state.input, state.outputs) : null;
+		if (!state) {
+			return null;
+		}
+		// The note may have changed while this waited, and been written as it
+		// now is: what it cites now is laid over these citations by what each
+		// cites, never by its place among them.
+		const input = this.inputOf(state.engines, citations, style.library);
+		return state.key === input.key
+			? compose(citations, input, state.outputs)
+			: stale(citations, input, state);
 	}
 
 	/**

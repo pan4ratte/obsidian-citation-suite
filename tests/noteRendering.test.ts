@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ENGLISH_LABELS } from "src/citation";
 import { libraryContents } from "src/libraryFile";
 import { noteCitations } from "src/noteCitations";
-import { NoteRenderer } from "src/noteRendering";
+import { documentKey, NoteRenderer } from "src/noteRendering";
 import {
 	CitationRenderer,
 	CslItem,
@@ -159,5 +159,74 @@ describe("a citation with the author in the text", () => {
 		expect(
 			await written(NOTES, "test-notes", "@doe2020 says.[^1]\n\n[^1]: As @doe2020 did.")
 		).toEqual(["Doe <i>A book in the vault</i>.", "Doe, <i>A book in the vault</i>."]);
+	});
+});
+
+describe("the text cards of a canvas", () => {
+	// Obsidian draws every card of a canvas with the canvas's path, and draws
+	// them all at once when the canvas opens (issue #3).
+	const TITLES = `<?xml version="1.0" encoding="utf-8"?>
+<style xmlns="http://purl.org/net/xbiblio/csl" class="in-text" version="1.0" default-locale="en-US">
+	<info><title>Title test style</title><id>test-titles</id><updated>2026-01-01T00:00:00+00:00</updated></info>
+	<citation><layout prefix="(" suffix=")"><text variable="title"/></layout></citation>
+</style>`;
+
+	const TWO = `@book{doe2020,
+	author = {Doe, Jane},
+	title = {The first book},
+	year = {2020},
+}
+@book{roe2021,
+	author = {Roe, Richard},
+	title = {The second book},
+	year = {2021},
+}`;
+
+	/** Both cards written at once, each with what the renderer is told is its key. */
+	async function cards(keyOf: (text: string) => string): Promise<(string | null)[][]> {
+		(global as unknown as { window: unknown }).window = global;
+		const items = libraryContents(TWO, "bibtex").items;
+		const renderer = new CitationRenderer(
+			23119,
+			[],
+			() => Promise.resolve(TITLES),
+			{ locale: "", citePaperArticleURLs: false },
+			{
+				load: () => Promise.resolve(),
+				itemsOf: () => ({ items, complete: true }),
+			}
+		);
+		const style: StyleRef = {
+			key: "test-titles",
+			style: { id: "test-titles", title: "test-titles", path: "t.csl", source: "vault" },
+			locale: "",
+			labels: ENGLISH_LABELS,
+			library: libraryRefOf(["refs.bib"]),
+		};
+		const notes = new NoteRenderer(renderer);
+		const texts = ["See [@doe2020].", "See [@roe2021]."];
+		const written = await Promise.all(
+			texts.map((text) => notes.render(style, keyOf(text), noteCitations(text)))
+		);
+		return written.map(
+			(note) => note?.rendered.map((citation) => citation?.html ?? null) ?? []
+		);
+	}
+
+	it("writes each card as a document of its own", async () => {
+		expect(await cards((text) => documentKey("board.canvas", text))).toEqual([
+			["(The first book)"],
+			["(The second book)"],
+		]);
+	});
+
+	it("never hands one card what the other cites, kept under the one path", async () => {
+		const [first, second] = await cards(() => "board.canvas");
+		expect(first).not.toEqual(["(The second book)"]);
+		expect(second).toEqual(["(The second book)"]);
+	});
+
+	it("keeps a note under its path, whatever part of it asks", () => {
+		expect(documentKey("folder/note.md", "a block")).toBe("folder/note.md");
 	});
 });

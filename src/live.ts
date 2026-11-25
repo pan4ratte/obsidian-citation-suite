@@ -11,7 +11,7 @@ import {
 import { editorInfoField, editorLivePreviewField, MarkdownView } from "obsidian";
 import { ENGLISH_LABELS, keyMentions, LocatorLabels } from "src/citation";
 import { matchCitations, NoteCitation, noteCitations } from "src/noteCitations";
-import { NoteRenderer } from "src/noteRendering";
+import { documentKey, NoteRenderer } from "src/noteRendering";
 import {
 	CitationTooltip,
 	citationEl,
@@ -171,8 +171,16 @@ export function citationExtension(context: LiveContext) {
 						this.view.dispatch({ effects: REDRAW.of(null) });
 					}
 				};
+				// A note is written under its path, a canvas's card under
+				// its own key; either way the editor's piece of a note is
+				// drawn again when the note is.
+				const written = (key: string): void => {
+					if (key === this.path() || key === this.wholeKey()) {
+						this.view.dispatch({ effects: REDRAW.of(null) });
+					}
+				};
 				this.stopListening = [
-					context.notes.onRendered(redraw),
+					context.notes.onRendered(written),
 					context.onStyleChange(redraw),
 				];
 			}
@@ -183,6 +191,25 @@ export function citationExtension(context: LiveContext) {
 
 			private path(): string | null {
 				return this.view.state.field(editorInfoField, false)?.file?.path ?? null;
+			}
+
+			/**
+			 * What the editor's text is written under when it is the whole of
+			 * a document — a note in its own tab, or a canvas's text card, a
+			 * document of its own (`documentKey`) — or `null` when it is a
+			 * piece of a note shown on its own.
+			 */
+			private wholeKey(): string | null {
+				const info = this.view.state.field(editorInfoField, false);
+				const path = info?.file?.path;
+				if (!path) {
+					return null;
+				}
+				if (info instanceof MarkdownView) {
+					return path;
+				}
+				const key = documentKey(path, this.view.state.doc.toString());
+				return key === path ? null : key;
 			}
 
 			update(update: ViewUpdate): void {
@@ -343,8 +370,9 @@ export function citationExtension(context: LiveContext) {
 				const result = new Map<NoteCitation, RenderedCitation | null>();
 				const info = view.state.field(editorInfoField, false);
 				const path = info?.file?.path;
-				if (path && info instanceof MarkdownView) {
-					const note = context.notes.current(style, path, citations, ready);
+				const whole = this.wholeKey();
+				if (whole !== null) {
+					const note = context.notes.current(style, whole, citations, ready);
 					note?.citations.forEach((citation, index) => {
 						result.set(citation, note.rendered[index]);
 					});
