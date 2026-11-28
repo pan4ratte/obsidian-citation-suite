@@ -123,4 +123,27 @@ export default defineConfig([
 			"obsidianmd/no-nodejs-modules": "off",
 		},
 	},
+
+	// The screenshot routine (docs/screenshots.md) is development tooling, not
+	// plugin code: it runs in Node and drives a separate Obsidian over the
+	// DevTools protocol, and the functions it hands the page run in that
+	// Obsidian's renderer, where `app`, `require` and its own `__shot`
+	// helpers are globals. The plugin-sandbox rules have nothing to guard there.
+	{
+		files: ["scripts/**/*.mjs"],
+		languageOptions: {
+			globals: { ...globals.node, ...globals.browser, app: "readonly", __shot: "readonly" },
+		},
+		rules: {
+			"obsidianmd/no-nodejs-modules": "off",
+			"obsidianmd/hardcoded-config-path": "off",
+			"obsidianmd/no-forbidden-elements": "off",
+			"obsidianmd/no-static-styles-assignment": "off",
+			"obsidianmd/rule-custom-message": "off",
+			"obsidianmd/prefer-window-timers": "off",
+			"obsidianmd/prefer-get-language": "off",
+			"no-restricted-globals": "off",
+			"@typescript-eslint/no-require-imports": "off",
+		},
+	},
 ]);

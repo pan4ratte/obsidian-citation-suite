@@ -8,6 +8,7 @@
 | `npm test` | Vitest — 401 tests, all passing |
 | `npm run lint` / `npm run lint:fix` | ESLint (`lint:ts`) and Stylelint (`lint:css`) with the official Obsidian rulesets |
 | `npm run build` | `tsc -noEmit -skipLibCheck && node esbuild.config.mjs production` |
+| `npm run screenshots` | Retakes the README screenshots in a separate Obsidian ([docs/screenshots.md](docs/screenshots.md)) |
 
 ## What this plugin is
 
@@ -85,6 +86,11 @@ them that are easiest to break:
   except the `render` rows named there (the two lists, the port, the status
   card, the footnote reset). New row CSS goes below the file-order rule. The
   changelog and guide window never carries `markdown-rendered`.
+- **README screenshots** ([docs/screenshots.md](docs/screenshots.md)). Never
+  taken by hand: `npm run screenshots` prepares the demo vault, drives a
+  separate Obsidian over the DevTools protocol, frames the images and writes
+  `assets/`. Look at every image before committing. A shot measures its crop
+  from the page, and a new one goes in `SHOTS` and the table there.
 - **Tooling** ([docs/tooling.md](docs/tooling.md)). Lint is 0 errors and 0
   warnings, and CI runs it with `--max-warnings 0`. The sentence-case rule
   cannot be disabled, so write UI text that passes: a bare `@key`, or a
@@ -171,6 +177,7 @@ docs/
   bibliography-pane.md — the sidebar pane: placement, passes, search, menus, animation
   settings-tab.md   — the declarative tab, the family's CSS, the status card, the document window
   tooling.md        — ESLint, Stylelint, npm audit and the lockfile, release
+  screenshots.md    — the README screenshots: the demo vault, the instance, each shot
 tests/
   pandoc.test.ts    — the formatter, every form and every field
   cayw.test.ts      — parsing what the endpoint answers, incl. a real answer
@@ -197,6 +204,7 @@ tests/
   fixtures/         — IEEE's English locale block, for the style-terms test
   mocks/obsidian.ts — stands in for the module at import time
 assets/             — the README's screenshots, linked by raw.githubusercontent.com URLs
+scripts/screenshots/ — the routine that takes them: vault.mjs, obsidian.mjs, shots.mjs, run.mjs
 styles.css          — the status card, the settings rows, the document window
 CHANGELOG_RU.md     — release notes; the original
 CHANGELOG.md        — translated from CHANGELOG_RU.md; the workflow's source

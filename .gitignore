@@ -5,3 +5,4 @@ data.json
 citation-keys.json
 .DS_Store
 tests/.tmp/
+scripts/screenshots/config.local.json

@@ -11,7 +11,8 @@
 		"lint:css": "stylelint \"**/*.css\" --ignore-disables",
 		"lint:fix": "eslint . --fix && stylelint \"**/*.css\" --fix",
 		"test": "vitest run",
-		"test:watch": "vitest"
+		"test:watch": "vitest",
+		"screenshots": "node scripts/screenshots/run.mjs"
 	},
 	"keywords": [],
 	"author": "pan4ratte",
