@@ -196,6 +196,7 @@ tests/
   typography.test.ts, userGuide.test.ts, zoteroCite.test.ts, zoteroNote.test.ts
   fixtures/         — IEEE's English locale block, for the style-terms test
   mocks/obsidian.ts — stands in for the module at import time
+assets/             — the README's screenshots, linked by raw.githubusercontent.com URLs
 styles.css          — the status card, the settings rows, the document window
 CHANGELOG_RU.md     — release notes; the original
 CHANGELOG.md        — translated from CHANGELOG_RU.md; the workflow's source
