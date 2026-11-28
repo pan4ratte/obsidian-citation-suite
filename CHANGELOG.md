@@ -5,7 +5,7 @@
 
 ### New options
 
-* **Selecting sources in the open Zotero collection.** If the collection open in Zotero holds any of the note's sources, the select button's menu offers it under the libraries. The sources are selected right in the collection, without going to the library's root.
+* **Selecting sources in the open Zotero collection.** If the collection open in Zotero holds any of the sources the note cites, the source selection menu (in the bibliography pane) offers to select the sources in that collection.
 
 
 ## 2.3.3
