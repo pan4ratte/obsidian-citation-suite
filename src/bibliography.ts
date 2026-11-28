@@ -1240,6 +1240,12 @@ embeds` : file.path,
 	 * `zotero://select` link. Zotero shows one library at a time, so a note
 	 * whose sources are in several is asked which, in a menu under the button
 	 * naming each library and how many of the note's sources it holds.
+	 *
+	 * When the collection open in Zotero holds any of the sources, the menu
+	 * also offers it, under the libraries: chosen, it selects the sources it
+	 * holds without leaving it for the library's root. A source only in a
+	 * subcollection is not among them, as the link selects the collection's
+	 * own items only.
 	 */
 	private async selectInZotero(): Promise<void> {
 		if (this.selecting) {
@@ -1247,9 +1253,10 @@ embeds` : file.path,
 		}
 		const keys = new Set(this.entries.flatMap((entry) => entry.keys));
 		this.selecting = true;
-		const found = await this.context.renderer
-			.selectionLibraries([...keys])
-			.finally(() => (this.selecting = false));
+		const [found, inCollection] = await Promise.all([
+			this.context.renderer.selectionLibraries([...keys]),
+			this.context.renderer.collectionSelection([...keys]),
+		]).finally(() => (this.selecting = false));
 		if ("error" in found) {
 			new Notice(
 				found.error === "unreachable"
@@ -1259,7 +1266,8 @@ embeds` : file.path,
 			return;
 		}
 		const { libraries } = found;
-		if (libraries.length === 1) {
+		const collection = "collection" in inCollection ? inCollection.collection : null;
+		if (libraries.length === 1 && !collection) {
 			const [library] = libraries;
 			window.open(library.link);
 			// Some sources were in no library: gone from Zotero since the list
@@ -1279,6 +1287,17 @@ embeds` : file.path,
 					.setIcon("library")
 					.onClick(() => {
 						window.open(library.link);
+					})
+			);
+		}
+		if (collection) {
+			menu.addSeparator();
+			menu.addItem((item) =>
+				item
+					.setTitle(`${collection.name} (${collection.keys.length})`)
+					.setIcon("folder-check")
+					.onClick(() => {
+						window.open(collection.link);
 					})
 			);
 		}

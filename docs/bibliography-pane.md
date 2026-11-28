@@ -206,6 +206,46 @@ object by `loadSettings` and read by nothing.
   with nothing more to ask. For reference, a single-library search of 250
   keys came back in 1.4 s as a 2.3 KB link. A press while one is being
   answered is ignored.
+- **The open collection is offered under the libraries.** When the
+  collection open in Zotero's window holds any of the list's sources, the
+  select button's menu ends with a separator and the collection
+  (`folder-check`, its name and count), which selects them without leaving
+  it. The library items select at the library's root as before, and the
+  menu opens even for one library when there is a collection to offer;
+  with none, one library is still selected in at once.
+  `zotero://select/library/collections/COLKEY/items?itemKey=A,B`
+  (and `groups/ID/collections/…`) opens the collection and selects the
+  listed items among its own: `SelectExtension`'s
+  `…/:scopeObject/:scopeObjectKey/items/:objectKey` route matches it with no
+  `objectKey`, `getResultsFromParams` takes `col.getChildItems()` and filters
+  them by `itemKey` after its `switch`, and the collection is selected
+  instead of the library root. Read out of Zotero 10.0.8's `omni.ja` and
+  `main` (the same since 2019) and checked live. Items in a subcollection
+  only are not among `getChildItems()`, and an itemKey list the collection
+  holds none of selects nothing, not even the collection. So
+  `collectionSelection` in `src/render.ts` asks:
+  - `POST /connector/getSelectedCollection` with `{}` — read-only without
+    `switchToReadableLibrary` — for the open collection's library and
+    numeric `id` (`null` at a library root, a saved search, the trash);
+  - `user.groups(true)` for each library's collections by key. Neither list
+    has both id and key, but both are `Zotero.Collections.getByLibrary(id, true)`
+    in order — the connector's `targets` as `L<libraryID>` followed by
+    `C<id>` rows, every editable library — so `openCollection` (pure, in
+    `src/zoteroCite.ts`) takes the key at the id's place and checks the
+    name. A library without `targets` rows (not editable) is matched by a
+    name no other of its collections has. BBT's `item.collections` is no
+    help: its collections carry no id either, and it is keyed by citation
+    key across libraries;
+  - `item.search` for which keys the collection holds, directly.
+    `collectionSearchTerms` writes it as Zotero 10 takes it — the keys in a
+    `groupStart`/`groupEnd` group with `joinMode any`, since 10 throws on
+    the `required` flag — and, when that is refused, as Zotero 7–9 take it,
+    with the library and the collection `required`; those know no groups.
+
+  It is asked alongside `selectionLibraries`, with the same keys. Any
+  error — Zotero not answering, no collection open, none of the sources
+  in it — only leaves the item out: the libraries decide what is
+  reported.
 - **Copy entry** is `copyBibliography` with an index: one entry, as HTML and
   text, numbered as it is in the list: it copies what the reader right-clicked.
 - **Find in note** cannot be a submenu of mentions: Obsidian 1.13 has no public

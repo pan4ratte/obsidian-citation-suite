@@ -23,9 +23,12 @@ import { tooltipEntry } from "src/typography";
 import { CitationStyle } from "src/types";
 import {
 	asZoteroCites,
+	collectionSearchTerms,
+	collectionSelection,
 	eventToEventTitle,
 	LibrarySelection,
 	librarySelections,
+	openCollection,
 	PdfAttachment,
 	pdfAttachments,
 	selectLink,
@@ -224,6 +227,15 @@ export type SelectionLibraries =
 	| { libraries: LibrarySelection[] }
 	| { error: "unreachable" | "not-found" };
 
+/**
+ * The note's sources in the collection open in Zotero's window, with the link
+ * that selects them in it — or why there are none: Zotero not answering, no
+ * collection open, or none of the sources in it.
+ */
+export type CollectionSelection =
+	| { collection: LibrarySelection }
+	| { error: "unreachable" | "no-collection" | "not-found" };
+
 /** What asking Zotero for a key's PDFs comes to: the PDFs, or why there are none to hand. */
 export type ItemPdfs =
 	| { pdfs: PdfAttachment[] }
@@ -251,6 +263,29 @@ async function rpc<T>(
 	try {
 		const body = response.json as { result?: T } | null;
 		return body?.result ?? null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * One POST to an endpoint of Zotero's own connector server: its answer, or
+ * `null` when there is none — Zotero closed, the request refused, an answer
+ * that is not JSON.
+ */
+async function connector(port: number, path: string, body: unknown): Promise<unknown> {
+	const response = await requestUrl({
+		url: `http://127.0.0.1:${port}${path}`,
+		method: "POST",
+		headers: { ...REQUEST_HEADERS, "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+		throw: false,
+	}).catch(() => null);
+	if (response?.status !== 200) {
+		return null;
+	}
+	try {
+		return response.json as unknown;
 	} catch {
 		return null;
 	}
@@ -1074,6 +1109,49 @@ export class CitationRenderer {
 			libraries.map((library) => library.name)
 		);
 		return selections.length > 0 ? { libraries: selections } : { error: "not-found" };
+	}
+
+	/**
+	 * The keys' share of the collection open in Zotero's window, and the link
+	 * that selects them in it without leaving it.
+	 *
+	 * Zotero's connector names the open collection by its numeric id, and
+	 * Better BibTeX's `user.groups(true)` lists the collections by key, which
+	 * `openCollection` matches the id to. `item.search` then finds which of the
+	 * keys the collection holds, asked as Zotero 10 takes it and, refused,
+	 * as Zotero 7 to 9 do (`collectionSearchTerms`).
+	 */
+	async collectionSelection(citekeys: string[]): Promise<CollectionSelection> {
+		const keys = [...new Set(citekeys)];
+		if (keys.length === 0) {
+			return { error: "not-found" };
+		}
+		const selected = await connector(this.port, "/connector/getSelectedCollection", {});
+		if (selected === null) {
+			return { error: "unreachable" };
+		}
+		// No collection open: the library root, a saved search, the trash.
+		if (typeof (selected as { id?: unknown }).id !== "number") {
+			return { error: "no-collection" };
+		}
+		const libraries = await rpc<unknown[]>(this.port, "user.groups", [true]);
+		if (!libraries) {
+			return { error: "unreachable" };
+		}
+		const collection = openCollection(selected, libraries);
+		if (!collection) {
+			return { error: "no-collection" };
+		}
+		const search = (grouped: boolean) =>
+			rpc<Record<string, unknown>[]>(this.port, "item.search", [
+				collectionSearchTerms(keys, collection, grouped),
+			]);
+		const found = (await search(true)) ?? (await search(false));
+		if (!Array.isArray(found)) {
+			return { error: "unreachable" };
+		}
+		const selection = collectionSelection(found, keys, collection);
+		return selection ? { collection: selection } : { error: "not-found" };
 	}
 
 	/**

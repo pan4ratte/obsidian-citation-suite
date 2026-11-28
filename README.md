@@ -124,7 +124,7 @@ The "Bibliography" tab in the right sidebar shows every source cited in the open
 
 The "Copy bibliography" button copies the list with its formatting, as Zotero does: a word processor pastes it with italics, indents and numbering, if the style has them.
 
-The "Select all sources in Zotero" button selects the note's sources in Zotero's window. Zotero shows one library at a time, so where the sources are spread over several libraries, the button opens a menu naming them, each with the number of sources it holds, and the sources in the library you choose are selected.
+The "Select all sources in Zotero" button selects the note's sources in Zotero's window. Zotero shows one library at a time, so where the sources are spread over several libraries, the button opens a menu naming them, each with the number of sources it holds, and the sources in the library you choose are selected. If the collection open in Zotero right now holds any of the note's sources, the menu offers it too, under the libraries, with the number of sources it holds. It selects those sources without leaving the collection for the library's root; sources only in its subcollections are not selected.
 
 Right-clicking an entry opens a context menu. Two of its items need explaining:
 

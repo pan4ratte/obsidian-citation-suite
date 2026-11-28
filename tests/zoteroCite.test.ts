@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { BibliographyParams } from "citeproc";
 import {
 	asZoteroCites,
+	collectionSearchTerms,
+	collectionSelection,
 	eventToEventTitle,
 	formattedBibliography,
 	librarySelections,
+	openCollection,
 	pdfAttachments,
 	selectItemsLink,
 	selectLink,
@@ -311,5 +314,117 @@ describe("librarySelections", () => {
 			["Thesis"]
 		);
 		expect(selections.map((selection) => selection.keys)).toEqual([["a"], ["b"]]);
+	});
+});
+
+describe("openCollection", () => {
+	/** What `/connector/getSelectedCollection` answers, with only the fields read. */
+	const selected = (libraryID: number, id: number | null, name: string) => ({
+		libraryID,
+		id,
+		name,
+		targets: [
+			{ id: "L1", name: "Моя библиотека", level: 0 },
+			{ id: "C5", name: "Notes", level: 1 },
+			{ id: "C17", name: "Магистратура", level: 1 },
+			{ id: "C9", name: "Notes", level: 2 },
+			{ id: "L2", name: "SPCU Thesis", level: 0 },
+			{ id: "C30", name: "Notes", level: 1 },
+		],
+	});
+	/** What `user.groups(true)` answers: collections by key, in the same order, with no id. */
+	const libraries = [
+		{
+			id: 1,
+			name: "Моя библиотека",
+			collections: [
+				{ key: "AAAAAAAA", name: "Notes" },
+				{ key: "3R62DXMC", name: "Магистратура" },
+				{ key: "BBBBBBBB", name: "Notes" },
+			],
+		},
+		{ id: 2, name: "SPCU Thesis", collections: [{ key: "CCCCCCCC", name: "Notes" }] },
+		{ id: 3, name: "Read-only group", collections: [{ key: "DDDDDDDD", name: "Notes" }] },
+	];
+
+	it("finds the collection's key at its place among the library's collections", () => {
+		expect(openCollection(selected(1, 17, "Магистратура"), libraries)).toEqual({
+			libraryID: 1,
+			key: "3R62DXMC",
+			name: "Магистратура",
+		});
+		// Two collections of one name are told apart by their place.
+		expect(openCollection(selected(1, 9, "Notes"), libraries)?.key).toBe("BBBBBBBB");
+		expect(openCollection(selected(2, 30, "Notes"), libraries)?.key).toBe("CCCCCCCC");
+	});
+
+	it("finds a library with no rows of its own by a name no other collection has", () => {
+		expect(openCollection(selected(3, 40, "Notes"), libraries)?.key).toBe("DDDDDDDD");
+	});
+
+	it("finds nothing when no collection is open, or the lists disagree", () => {
+		expect(openCollection(selected(1, null, "Моя библиотека"), libraries)).toBeNull();
+		expect(openCollection(selected(1, 17, "Renamed since"), libraries)).toBeNull();
+		expect(openCollection(selected(4, 50, "Notes"), libraries)).toBeNull();
+		expect(openCollection(null, libraries)).toBeNull();
+		expect(openCollection(selected(1, 17, "Магистратура"), null)).toBeNull();
+	});
+});
+
+describe("collectionSearchTerms", () => {
+	const collection = { libraryID: 1, key: "3R62DXMC", name: "Магистратура" };
+
+	it("groups the keys for Zotero 10, and marks the scope required for Zotero 7 to 9", () => {
+		expect(collectionSearchTerms(["a", "b"], collection, true)).toEqual([
+			["libraryID", "is", 1],
+			["collection", "is", "3R62DXMC"],
+			["groupStart", "true", ""],
+			["joinMode", "any"],
+			["citationKey", "is", "a"],
+			["citationKey", "is", "b"],
+			["groupEnd", "true", ""],
+		]);
+		expect(collectionSearchTerms(["a"], collection, false)).toEqual([
+			["joinMode", "any"],
+			["libraryID", "is", 1, true],
+			["collection", "is", "3R62DXMC", true],
+			["citationKey", "is", "a"],
+		]);
+	});
+});
+
+describe("collectionSelection", () => {
+	it("selects the keys inside the collection, in the order given", () => {
+		expect(
+			collectionSelection(
+				[
+					{ citekey: "berkhof1986", id: "http://zotero.org/users/9070599/items/K654G86K" },
+					{ citekey: "Raner2006", id: "http://zotero.org/users/9070599/items/ZZZZZZZZ" },
+					{ citekey: "raner2006", id: "http://zotero.org/users/9070599/items/6AUBMP7Y" },
+				],
+				["raner2006", "berkhof1986"],
+				{ libraryID: 1, key: "3R62DXMC", name: "Магистратура" }
+			)
+		).toEqual({
+			name: "Магистратура",
+			keys: ["raner2006", "berkhof1986"],
+			link: "zotero://select/library/collections/3R62DXMC/items?itemKey=K654G86K,6AUBMP7Y",
+		});
+	});
+
+	it("names a group's collection under the group", () => {
+		expect(
+			collectionSelection(
+				[{ citekey: "a", id: "http://zotero.org/groups/6069354/items/MM42KG3K" }],
+				["a"],
+				{ libraryID: 3, key: "EEEEEEEE", name: "Chapter 1" }
+			)?.link
+		).toBe("zotero://select/groups/6069354/collections/EEEEEEEE/items?itemKey=MM42KG3K");
+	});
+
+	it("is nothing when the collection holds none of the keys", () => {
+		expect(
+			collectionSelection([], ["a"], { libraryID: 1, key: "3R62DXMC", name: "x" })
+		).toBeNull();
 	});
 });

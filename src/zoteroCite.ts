@@ -270,6 +270,134 @@ export function librarySelections(
 	);
 }
 
+/** The collection open in Zotero's window: its library, the key links name it by, and its name. */
+export interface OpenCollection {
+	libraryID: number;
+	key: string;
+	name: string;
+}
+
+/**
+ * The collection open in Zotero's window, out of what Zotero's
+ * `/connector/getSelectedCollection` answers and Better BibTeX's
+ * `user.groups(true)` lists, or `null` when none is open or it cannot be told.
+ *
+ * The connector names the collection by its numeric id, which a link cannot
+ * use, and `user.groups` lists every library's collections by key and name
+ * with no id. Both lists come out of `Zotero.Collections.getByLibrary(id, true)`,
+ * though: the connector's `targets` are every editable library's row (`L1`)
+ * followed by its collections (`C17`), in the order that call gives them, and
+ * so is each library's `collections`. The collection is found at the same place
+ * in both, and its name is checked. A library the reader cannot edit has no
+ * `targets` rows, and its collection is then found by name, if no other
+ * collection of its library shares the name.
+ */
+export function openCollection(selected: unknown, libraries: unknown): OpenCollection | null {
+	if (!isRecord(selected) || !Array.isArray(libraries)) {
+		return null;
+	}
+	const { libraryID, id, name, targets } = selected;
+	if (typeof libraryID !== "number" || typeof id !== "number" || typeof name !== "string") {
+		return null;
+	}
+	const library: unknown = libraries.find(
+		(candidate) => isRecord(candidate) && candidate.id === libraryID
+	);
+	const collections =
+		isRecord(library) && Array.isArray(library.collections)
+			? library.collections.filter(isRecord)
+			: [];
+	const keyOf = (collection: Record<string, unknown> | undefined): string | null =>
+		collection?.name === name && typeof collection.key === "string"
+			? collection.key
+			: null;
+
+	const rows = Array.isArray(targets) ? targets.filter(isRecord) : [];
+	const start = rows.findIndex((row) => row.id === `L${libraryID}`);
+	if (start >= 0) {
+		const end = rows.findIndex((row, index) => index > start && row.level === 0);
+		const own = rows.slice(start + 1, end < 0 ? undefined : end);
+		const index = own.findIndex((row) => row.id === `C${id}`);
+		const key = index < 0 ? null : keyOf(collections[index]);
+		if (key) {
+			return { libraryID, key, name };
+		}
+	}
+	const named = collections.flatMap((collection) => keyOf(collection) ?? []);
+	return named.length === 1 ? { libraryID, key: named[0], name } : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * What Better BibTeX's `item.search` is asked to find the keys' items in the
+ * collection with: the collection and its library, and any one of the keys.
+ * Zotero 10 joins the keys in a condition group and refuses the `required`
+ * flag; Zotero 7 to 9 know no groups, and mark the collection and the library
+ * `required` instead, which joins them to the rest with AND.
+ */
+export function collectionSearchTerms(
+	citekeys: string[],
+	collection: OpenCollection,
+	grouped: boolean
+): unknown[] {
+	const keys = citekeys.map((key) => ["citationKey", "is", key]);
+	if (grouped) {
+		return [
+			["libraryID", "is", collection.libraryID],
+			["collection", "is", collection.key],
+			["groupStart", "true", ""],
+			["joinMode", "any"],
+			...keys,
+			["groupEnd", "true", ""],
+		];
+	}
+	return [
+		["joinMode", "any"],
+		["libraryID", "is", collection.libraryID, true],
+		["collection", "is", collection.key, true],
+		...keys,
+	];
+}
+
+/**
+ * The sources to select inside the open collection, out of what
+ * `item.search` found of their keys in it, or `null` when it holds none.
+ * Zotero's `zotero://select/…/collections/KEY/items?itemKey=…` opens the
+ * collection and selects the listed items among its own, and so leaves the
+ * reader where they were. A collection holds its items directly: one in a
+ * subcollection only is neither found nor selected, as the link selects only
+ * the collection's own.
+ */
+export function collectionSelection(
+	found: Record<string, unknown>[],
+	citekeys: string[],
+	collection: OpenCollection
+): LibrarySelection | null {
+	const order = new Map(citekeys.map((key, index) => [key, index]));
+	const keys = new Set<string>();
+	const uris: string[] = [];
+	for (const item of found) {
+		const key = item.citekey ?? item["citation-key"];
+		if (typeof key !== "string" || !order.has(key) || typeof item.id !== "string") {
+			continue;
+		}
+		keys.add(key);
+		uris.push(item.id);
+	}
+	const link = selectItemsLink(uris);
+	if (!link) {
+		return null;
+	}
+	return {
+		name: collection.name,
+		keys: [...keys].sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0)),
+		link: link.replace(/\/items\?/, `/collections/${collection.key}/items?`),
+	};
+}
+
 /** A PDF attached to a source: the file's name, and the link that opens it in Zotero. */
 export interface PdfAttachment {
 	name: string;
